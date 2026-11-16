@@ -33,6 +33,10 @@ from type imports): 38 venue points + 3 stages = 41 image-based map points, GPS 
 
 ## Continue editing
 
+For attendee UI, copy, design reviews and builder prompts, apply [anti-slop-brutal](docs/skills/anti-slop-brutal/SKILL.md) alongside [Strict Interface Engineer](docs/skills/strict-interface-engineer/SKILL.md). The supplied manual is retained in the skill’s references. Design reviews use verdict, one fix, issues, missing states, cuts and the five-item ship check. Builder prompts identify the surface, states, exact copy and observable completion conditions.
+
+Current navigation is Events, Map, Crew and You. Artist data includes the 24 supplied Post portraits plus Shimza. Cloud credentials remain deferred. Review local sharing and recap behaviour against actual source and rendered screens.
+
 Ask Lovable in chat, or edit the files above. Change event data only in
 `sound-of-summer.ts`. Run `bunx vitest run` after changing rules.
 
