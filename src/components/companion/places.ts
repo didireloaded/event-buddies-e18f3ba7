@@ -55,7 +55,7 @@ export const TYPE_LABELS: Record<string, string> = {
 };
 
 export const MAP_FILTERS: { id: MapFilter; label: string; icon: LucideIcon }[] = [
-  { id: "all", label: "Key places", icon: LayoutGrid },
+  { id: "all", label: "All", icon: LayoutGrid },
   { id: "stage", label: "Stages", icon: Music2 },
   { id: "bar", label: "Bars", icon: Beer },
   { id: "toilet", label: "Toilets", icon: Toilet },

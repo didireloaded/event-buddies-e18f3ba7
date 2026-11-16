@@ -142,7 +142,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
 
   return (
     <>
-      <h1 className="px-4 text-[34px] font-bold tracking-tight">Lineup</h1>
+      <h1 className="display-title px-4 pt-2 text-[44px]">Lineup</h1>
       <div className="sticky top-[calc(env(safe-area-inset-top)+2.75rem)] z-10 space-y-2 bg-background px-4 pb-2 pt-2">
         <SearchField
           id="lineup-search"

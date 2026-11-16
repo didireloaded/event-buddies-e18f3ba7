@@ -53,10 +53,8 @@ export function HomeView({ onShare }: { onShare: () => void }) {
   return (
     <>
       <div className="px-4">
-        <p className="text-[15px] font-semibold uppercase tracking-wide text-primary">
-          {phase.label}
-        </p>
-        <h1 className="mt-0.5 text-[34px] font-bold leading-tight tracking-tight">
+        <p className="eyebrow pt-2">{phase.label}</p>
+        <h1 className="display-title mt-1 text-[44px]">
           {data.event.name} 2026
         </h1>
         <p className="mt-1 text-[17px] text-muted-foreground">
@@ -72,7 +70,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
           width={1200}
           height={800}
           fetchPriority="high"
-          className="aspect-[3/2] w-full rounded-2xl bg-muted object-cover"
+          className="aspect-[16/7] w-full rounded-xl bg-muted object-cover"
         />
         <figcaption className="ios-footnote px-1">Past edition · Namib Rage gallery</figcaption>
       </figure>
@@ -87,10 +85,10 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               <button
                 type="button"
                 onClick={() => showOnMap(filter)}
-                className="flex min-h-[4.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl bg-card px-1 text-[13px] font-medium active:bg-fill"
+                className="flex min-h-[4.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl bg-popover px-1 text-[13px] font-semibold ring-1 ring-border active:bg-fill"
                 aria-label={`${label}: ${n} on the venue plan`}
               >
-                <Icon size={22} className="text-primary" aria-hidden />
+                <Icon size={22} aria-hidden />
                 <span>{label}</span>
               </button>
             </li>

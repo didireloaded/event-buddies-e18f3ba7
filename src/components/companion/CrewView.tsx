@@ -38,7 +38,7 @@ export function CrewView() {
 
   return (
     <>
-      <h1 className="px-4 text-[34px] font-bold tracking-tight">Crew</h1>
+      <h1 className="display-title px-4 pt-2 text-[44px]">Crew</h1>
       <p className="px-4 text-[15px] text-muted-foreground">{data.crew.name} · demo crew</p>
 
       <Section title="Meeting plan" id="crew-meeting" className="px-4">

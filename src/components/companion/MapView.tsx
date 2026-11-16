@@ -1,4 +1,4 @@
-import { Maximize2, Minus, Plus, Users, X, MapPinOff } from "lucide-react";
+import { Maximize2, Minus, Plus, Shield, Users, X, MapPinOff } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
@@ -59,8 +59,8 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-card",
-        expanded ? "h-full w-full" : "aspect-square w-full rounded-2xl",
+        "relative overflow-hidden bg-muted",
+        expanded ? "h-full w-full" : "aspect-square w-full lg:rounded-2xl",
       )}
     >
       <div
@@ -119,12 +119,12 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           type="button"
           onClick={() => map.setExpanded(!expanded)}
           aria-label={expanded ? "Close full-screen map" : "Open full-screen map"}
-          className="ios-bar grid size-11 place-items-center rounded-full text-foreground shadow-float"
+          className="grid size-11 place-items-center rounded-full bg-popover text-foreground shadow-float"
         >
           {expanded ? <X size={20} /> : <Maximize2 size={18} />}
         </button>
       </div>
-      <div className="ios-bar absolute bottom-2 right-2 flex flex-col overflow-hidden rounded-xl shadow-float">
+      <div className="absolute bottom-2 right-2 flex bg-popover flex-col overflow-hidden rounded-xl shadow-float">
         <button
           type="button"
           aria-label="Zoom in"
@@ -145,7 +145,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           <Minus size={20} />
         </button>
       </div>
-      <p className="ios-bar absolute bottom-2 left-2 rounded-md px-2 py-1 text-[12px] font-medium text-muted-foreground">
+      <p className="absolute bottom-2 left-2 rounded-md bg-popover/90 px-2 py-1 text-[12px] font-medium text-muted-foreground">
         Plan image · not GPS · {Math.round(zoom * 100)}%
       </p>
     </div>
@@ -198,11 +198,25 @@ export function MapView() {
 
   return (
     <>
-      <h1 className="px-4 text-[34px] font-bold tracking-tight">Map</h1>
-      <p className="px-4 text-[15px] text-muted-foreground">
-        {data.event.venueName} · {places.length} marked points
-      </p>
-      <div className="mt-3 px-4">
+      <div className="flex items-end justify-between gap-3 px-4 pt-2">
+        <div className="min-w-0">
+          <p className="eyebrow">{data.event.venueName}</p>
+          <h1 className="display-title mt-1 text-[44px]">The Grounds</h1>
+        </div>
+        <button
+          type="button"
+          aria-label="Show medics, security and exits"
+          onClick={() => {
+            map.setQuery("");
+            map.setSelected(null);
+            map.setFilter("safety");
+          }}
+          className="mb-1 grid size-12 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+        >
+          <Shield size={20} />
+        </button>
+      </div>
+      <div className="mt-4 px-4">
         <SearchField
           id="venue-search"
           label="Search venue places or artists"
@@ -236,9 +250,9 @@ export function MapView() {
       </div>
 
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
-        <div className="px-4 lg:sticky lg:top-16 lg:px-0">
+        <div className="lg:sticky lg:top-20">
           <MapCanvas expanded={false} />
-          <p className="ios-footnote px-1">{data.festival.mapNotice}</p>
+          <p className="ios-footnote text-center">{data.festival.mapNotice}</p>
         </div>
 
         <div>
@@ -249,7 +263,7 @@ export function MapView() {
               aria-labelledby="place-title"
               className="mt-5 scroll-mt-24 px-4 lg:mt-0"
             >
-              <div className="ios-card p-4">
+              <div className="border-y border-separator py-4">
                 <div className="flex items-start gap-3">
                   <IconTile icon={placeIcon(place.type)} tone={placeTone(place.type)} />
                   <div className="min-w-0 flex-1">
@@ -292,12 +306,13 @@ export function MapView() {
           ) : null}
 
           <Section
-            title={
-              term
-                ? `${listed.length} ${listed.length === 1 ? "result" : "results"}`
-                : map.filter === "all"
-                  ? `All places (${listed.length})`
-                  : `${MAP_FILTERS.find((f) => f.id === map.filter)?.label} (${listed.length})`
+            title="Find a place"
+            action={
+              <span className="pb-2.5 text-[13px] text-muted-foreground">
+                {term
+                  ? `${listed.length} ${listed.length === 1 ? "result" : "results"}`
+                  : `${map.filter === "all" ? "All places" : MAP_FILTERS.find((f) => f.id === map.filter)?.label} · ${listed.length}`}
+              </span>
             }
             id="map-directory"
             className="px-4 lg:mt-5"
