@@ -1,4 +1,14 @@
-import { CalendarDays, Ellipsis, House, Map as MapIcon, Users, WifiOff, Check, Info, type LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  Ellipsis,
+  House,
+  Map as MapIcon,
+  Users,
+  WifiOff,
+  Check,
+  Info,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
@@ -6,7 +16,13 @@ import { useAttendee } from "@/lib/attendee/use-attendee";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
-import { Companion, initials, type CompanionContext, type Sheet as SheetState, type View } from "./context";
+import {
+  Companion,
+  initials,
+  type CompanionContext,
+  type Sheet as SheetState,
+  type View,
+} from "./context";
 import { CrewView } from "./CrewView";
 import { HomeView } from "./HomeView";
 import { LineupView } from "./LineupView";
@@ -27,7 +43,8 @@ const subscribeToHash = (callback: () => void) => {
   window.addEventListener("hashchange", callback);
   return () => window.removeEventListener("hashchange", callback);
 };
-const readHash = (): View => NAV.find((item) => `#${item.id}` === window.location.hash)?.id ?? "home";
+const readHash = (): View =>
+  NAV.find((item) => `#${item.id}` === window.location.hash)?.id ?? "home";
 
 function useConnectivity() {
   const [online, setOnline] = useState(true);
@@ -132,7 +149,9 @@ export function EventCompanion({ data }: { data: DemoData }) {
       navigate("map");
     },
     spin: () => {
-      const pool = data.festival.artists.filter((a) => !attendee.preferences.savedArtists.includes(a.id));
+      const pool = data.festival.artists.filter(
+        (a) => !attendee.preferences.savedArtists.includes(a.id),
+      );
       const pick = pool[crypto.getRandomValues(new Uint32Array(1))[0]! % Math.max(1, pool.length)];
       setSheet(pick ? { kind: "artist", artist: pick } : { kind: "roulette", performance: null });
     },
@@ -161,7 +180,9 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
         {/* Larger screens: sidebar navigation instead of bottom tabs */}
         <aside className="sticky top-0 hidden h-dvh flex-col border-r bg-sidebar px-3 pt-[max(1.25rem,env(safe-area-inset-top))] md:flex">
-          <p className="px-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Event Buddies</p>
+          <p className="px-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Event Buddies
+          </p>
           <p className="px-3 text-[20px] font-bold">{data.event.name}</p>
           <nav aria-label="Main" className="mt-6 flex flex-col gap-1">
             {NAV.map(({ id, label, icon: Icon }) => (
@@ -172,7 +193,9 @@ export function EventCompanion({ data }: { data: DemoData }) {
                 className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-[17px] font-medium aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground"
               >
                 <Icon size={20} aria-hidden /> {label}
-                {id === "lineup" && savedCount > 0 && <span className="ml-auto text-[13px]">{savedCount}</span>}
+                {id === "lineup" && savedCount > 0 && (
+                  <span className="ml-auto text-[13px]">{savedCount}</span>
+                )}
               </a>
             ))}
           </nav>
@@ -204,7 +227,10 @@ export function EventCompanion({ data }: { data: DemoData }) {
               </div>
             </div>
             {!online && (
-              <p role="status" className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium">
+              <p
+                role="status"
+                className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium"
+              >
                 <WifiOff size={14} aria-hidden /> Offline · showing the saved event
               </p>
             )}
@@ -226,7 +252,10 @@ export function EventCompanion({ data }: { data: DemoData }) {
           </main>
         </div>
 
-        <nav aria-label="Main" className="ios-bar fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-safe md:hidden">
+        <nav
+          aria-label="Main"
+          className="ios-bar fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-safe md:hidden"
+        >
           <ul className="mx-auto flex h-[var(--tabbar-h)] max-w-lg">
             {NAV.map(({ id, label, icon: Icon }) => (
               <li key={id} className="flex-1">
@@ -261,7 +290,15 @@ export function EventCompanion({ data }: { data: DemoData }) {
         )}
 
         {sheet && (
-          <Sheet title={sheetTitle(sheet, ctx)} onClose={() => setSheet(null)} key={sheet.kind + ("id" in sheet ? sheet.id : "") + ("artist" in sheet ? sheet.artist.id : "")}>
+          <Sheet
+            title={sheetTitle(sheet, ctx)}
+            onClose={() => setSheet(null)}
+            key={
+              sheet.kind +
+              ("id" in sheet ? sheet.id : "") +
+              ("artist" in sheet ? sheet.artist.id : "")
+            }
+          >
             <SheetContent sheet={sheet} onShare={shareEvent} />
           </Sheet>
         )}

@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { localDateTime, toMeeting, validateMeeting, type LocalMeeting } from "@/lib/attendee/meeting";
+import {
+  localDateTime,
+  toMeeting,
+  validateMeeting,
+  type LocalMeeting,
+} from "@/lib/attendee/meeting";
 import { eventTime } from "@/lib/attendee/schedule";
 import type { Place } from "@/lib/attendee/map";
 import { PrimaryButton } from "./ui";
@@ -25,7 +30,9 @@ export function MeetingForm({
 }) {
   const [pointId, setPointId] = useState(initial?.pointId ?? selectedId ?? places[0]?.id ?? "");
   const [at, setAt] = useState(
-    initial ? localDateTime(initial.at, timezone) : localDateTime(new Date(+eventStart + 6 * 3600000), timezone),
+    initial
+      ? localDateTime(initial.at, timezone)
+      : localDateTime(new Date(+eventStart + 6 * 3600000), timezone),
   );
   const [error, setError] = useState<string | null>(null);
   const field = error?.includes("place") ? "place" : error ? "time" : null;
@@ -106,7 +113,8 @@ export function MeetingForm({
 
 export function validateProfile(name: string, handle: string) {
   if (!name.trim()) return { field: "name", message: "Enter a display name." } as const;
-  if (name.trim().length > 50) return { field: "name", message: "Use 50 characters or fewer." } as const;
+  if (name.trim().length > 50)
+    return { field: "name", message: "Use 50 characters or fewer." } as const;
   if (!/^[A-Za-z0-9_]{3,30}$/.test(handle.trim()))
     return { field: "handle", message: "Use 3–30 letters, numbers or underscores." } as const;
   return null;
@@ -138,8 +146,8 @@ export function ProfileForm({
       }}
     >
       <p className="text-[15px] text-muted-foreground">
-        {savedCount} saved {savedCount === 1 ? "favourite" : "favourites"}. Your profile is stored in
-        this browser only. Accounts aren’t connected yet.
+        {savedCount} saved {savedCount === 1 ? "favourite" : "favourites"}. Your profile is stored
+        in this browser only. Accounts aren’t connected yet.
       </p>
       <div>
         <label htmlFor="profile-name" className="mb-1.5 block text-[15px] font-semibold">

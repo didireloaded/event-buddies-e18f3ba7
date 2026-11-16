@@ -27,11 +27,7 @@ export function scheduleClashes(performances: Performance[]) {
 
 export function downloadCalendar(data: DemoData, performances: Performance[]) {
   const escape = (value: string) =>
-    value
-      .replace(/\\/g, "\\\\")
-      .replace(/\r?\n/g, "\\n")
-      .replace(/,/g, "\\,")
-      .replace(/;/g, "\\;");
+    value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
   const utc = (date: Date | string) =>
     new Date(date)
       .toISOString()

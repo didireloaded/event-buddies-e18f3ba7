@@ -38,7 +38,12 @@ export function HomeView({ onShare }: { onShare: () => void }) {
   const shortcuts: { filter: MapFilter; label: string; count: number; icon: typeof Toilet }[] = [
     { filter: "toilet", label: "Toilets", count: count(["toilet"]), icon: Toilet },
     { filter: "bar", label: "Bars", count: count(["bar"]), icon: Beer },
-    { filter: "safety", label: "Medics", count: count(["first-aid", "security", "exit"]), icon: Cross },
+    {
+      filter: "safety",
+      label: "Medics",
+      count: count(["first-aid", "security", "exit"]),
+      icon: Cross,
+    },
     { filter: "food", label: "Food", count: count(["food"]), icon: Utensils },
     { filter: "entrance", label: "Entrances", count: count(["entrance"]), icon: ArrowRightToLine },
   ];
@@ -102,7 +107,11 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT`}
             />
           </div>
-          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "transport" })}>
+          <button
+            type="button"
+            className="ios-row"
+            onClick={() => openSheet({ kind: "transport" })}
+          >
             <IconTile icon={MapPin} tone="bg-pin-entrance" />
             <RowText
               title={data.event.venueName}
@@ -227,8 +236,8 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       </Section>
 
       <p className="ios-footnote mt-6 px-8 pb-4 text-center">
-        Demo companion. Your saved choices stay in this browser on this device.
-        Information checked {data.festival.sourceCheckedAt}.
+        Demo companion. Your saved choices stay in this browser on this device. Information checked{" "}
+        {data.festival.sourceCheckedAt}.
       </p>
     </>
   );

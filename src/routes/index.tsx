@@ -15,7 +15,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "Sound of Summer 2026 · Event Buddies" },
       {
         property: "og:description",
-        content: "Find stages, bars, toilets and medics, save artists and plan where your crew meets.",
+        content:
+          "Find stages, bars, toilets and medics, save artists and plan where your crew meets.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

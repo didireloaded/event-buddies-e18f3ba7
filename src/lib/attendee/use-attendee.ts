@@ -32,9 +32,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   if (!raw || typeof raw !== "object") return fallback;
   const stored = raw as Record<string, unknown>;
   const strings = (value: unknown) =>
-    Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string")
-      : null;
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : null;
   const saved = strings(stored["saved"]);
   const savedArtists = strings(stored["savedArtists"]);
   const profile = stored["profile"] as Record<string, unknown> | undefined;
@@ -45,11 +43,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
       ? [...new Set(saved.filter((id) => data.performances.some((p) => p.id === id)))]
       : fallback.saved,
     savedArtists: savedArtists
-      ? [
-          ...new Set(
-            savedArtists.filter((id) => data.festival.artists.some((a) => a.id === id)),
-          ),
-        ]
+      ? [...new Set(savedArtists.filter((id) => data.festival.artists.some((a) => a.id === id)))]
       : [],
     profile:
       profile &&
@@ -58,10 +52,8 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
       profile["name"].trim()
         ? { name: profile["name"].slice(0, 50), handle: profile["handle"].slice(0, 30) }
         : fallback.profile,
-    following:
-      typeof stored["following"] === "boolean" ? stored["following"] : fallback.following,
-    status:
-      typeof stored["status"] === "string" ? stored["status"].slice(0, 50) : fallback.status,
+    following: typeof stored["following"] === "boolean" ? stored["following"] : fallback.following,
+    status: typeof stored["status"] === "string" ? stored["status"].slice(0, 50) : fallback.status,
     meeting:
       meeting &&
       typeof meeting["pointId"] === "string" &&

@@ -205,7 +205,15 @@ export function SecondaryButton({
   );
 }
 
-export function Avatar({ label, index = 0, size = "md" }: { label: string; index?: number; size?: "md" | "lg" }) {
+export function Avatar({
+  label,
+  index = 0,
+  size = "md",
+}: {
+  label: string;
+  index?: number;
+  size?: "md" | "lg";
+}) {
   const tones = ["bg-primary", "bg-pin-amenity", "bg-pin-entrance", "bg-pin-other"];
   return (
     <span

@@ -50,7 +50,8 @@ export function CrewView() {
               </p>
               <h2 className="text-[22px] font-bold leading-tight">{meetingPlace.name}</h2>
               <p className="mt-1 text-[28px] font-bold tabular-nums">
-                {eventTime(meeting.at)} <span className="text-[17px] font-semibold text-muted-foreground">CAT</span>
+                {eventTime(meeting.at)}{" "}
+                <span className="text-[17px] font-semibold text-muted-foreground">CAT</span>
               </p>
               <MeetingCountdown meeting={meeting} />
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -66,7 +67,10 @@ export function CrewView() {
             <>
               <div className="flex items-center gap-3">
                 <IconTile icon={CalendarClock} tone="bg-pin-amenity" />
-                <RowText title="Same place. Same time." subtitle="Pick a landmark on the plan and a time to regroup." />
+                <RowText
+                  title="Same place. Same time."
+                  subtitle="Pick a landmark on the plan and a time to regroup."
+                />
               </div>
               <PrimaryButton className="mt-4" onClick={() => openSheet({ kind: "meeting" })}>
                 Make a meeting plan
@@ -75,7 +79,8 @@ export function CrewView() {
           )}
         </div>
         <p className="ios-footnote">
-          Saved on this device only. Sharing plans with your crew needs accounts, which aren’t connected yet.
+          Saved on this device only. Sharing plans with your crew needs accounts, which aren’t
+          connected yet.
         </p>
       </Section>
 
@@ -96,7 +101,9 @@ export function CrewView() {
                   title={
                     <>
                       {name}
-                      {isMe && <span className="ml-1.5 text-[15px] text-muted-foreground">(you)</span>}
+                      {isMe && (
+                        <span className="ml-1.5 text-[15px] text-muted-foreground">(you)</span>
+                      )}
                     </>
                   }
                   subtitle={isMe ? preferences.status : "Demo profile · location off"}

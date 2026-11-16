@@ -31,8 +31,7 @@ export function eventPhase(data: DemoData, now: number | null) {
       live: false,
     };
   }
-  if (now >= +new Date(data.event.endAt))
-    return { label: "Event finished", live: false };
+  if (now >= +new Date(data.event.endAt)) return { label: "Event finished", live: false };
   return { label: "Event is on", live: true };
 }
 

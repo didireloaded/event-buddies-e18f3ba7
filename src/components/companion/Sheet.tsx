@@ -39,7 +39,10 @@ export function Sheet({
       }}
     >
       <div className="flex max-h-[inherit] flex-col">
-        <div className="mx-auto mt-2 h-1.5 w-9 flex-none rounded-full bg-border md:hidden" aria-hidden />
+        <div
+          className="mx-auto mt-2 h-1.5 w-9 flex-none rounded-full bg-border md:hidden"
+          aria-hidden
+        />
         <header className="flex flex-none items-center gap-2 px-4 pb-2 pt-2">
           <h2 id="sheet-title" className="min-w-0 flex-1 truncate text-[20px] font-bold">
             {title}

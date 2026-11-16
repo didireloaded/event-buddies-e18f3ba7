@@ -81,34 +81,10 @@ const amenities: [string, string, number, number, string][] = [
     74.8,
     "Entrance arrow beside the southeastern toilet block.",
   ],
-  [
-    "Toilets · west",
-    "toilet",
-    23.2,
-    47.2,
-    "Toilet block beside the western Platinum area.",
-  ],
-  [
-    "Toilets · southwest",
-    "toilet",
-    27.1,
-    53.9,
-    "Toilet block inside the western Experience area.",
-  ],
-  [
-    "Toilets · southeast 1",
-    "toilet",
-    69.7,
-    74.5,
-    "First toilet marker along the southeast edge.",
-  ],
-  [
-    "Toilets · southeast 2",
-    "toilet",
-    74.5,
-    76.8,
-    "Middle toilet marker along the southeast edge.",
-  ],
+  ["Toilets · west", "toilet", 23.2, 47.2, "Toilet block beside the western Platinum area."],
+  ["Toilets · southwest", "toilet", 27.1, 53.9, "Toilet block inside the western Experience area."],
+  ["Toilets · southeast 1", "toilet", 69.7, 74.5, "First toilet marker along the southeast edge."],
+  ["Toilets · southeast 2", "toilet", 74.5, 76.8, "Middle toilet marker along the southeast edge."],
   [
     "Toilets · southeast 3",
     "toilet",
@@ -172,27 +148,9 @@ const amenities: [string, string, number, number, string][] = [
     56.1,
     "Heineken-branded point on the supplied plan. Products, prices and opening hours are unconfirmed.",
   ],
-  [
-    "Olmeca activation",
-    "sponsor",
-    59.9,
-    53.6,
-    "Olmeca-branded point beside the central bars.",
-  ],
-  [
-    "Jameson activation",
-    "sponsor",
-    62.4,
-    56.4,
-    "Jameson-branded point on the supplied plan.",
-  ],
-  [
-    "Monster activation",
-    "sponsor",
-    69.3,
-    58.7,
-    "Monster-branded point on the supplied plan.",
-  ],
+  ["Olmeca activation", "sponsor", 59.9, 53.6, "Olmeca-branded point beside the central bars."],
+  ["Jameson activation", "sponsor", 62.4, 56.4, "Jameson-branded point on the supplied plan."],
+  ["Monster activation", "sponsor", 69.3, 58.7, "Monster-branded point on the supplied plan."],
   [
     "Experience area",
     "zone",
@@ -323,10 +281,7 @@ export function soundOfSummerDemo(base: BaseDemoData): DemoData {
     crew: { ...base.crew, eventId, inviteCode: "SOS-DEMO" },
     crewMembers: base.crewMembers.map((member, index) => ({
       ...member,
-      zoneName:
-        ["Food court", "Main Stage", "Jetty Funk Stage", "Location paused"][
-          index
-        ] ?? null,
+      zoneName: ["Food court", "Main Stage", "Jetty Funk Stage", "Location paused"][index] ?? null,
       active: false,
       updatedAt: null,
     })),

@@ -9,10 +9,14 @@ export const Route = createFileRoute("/organiser")({
       { title: "Organiser workspace (demo) · Event Buddies" },
       {
         name: "description",
-        content: "Demo organiser view of the Sound of Summer 2026 event data, venue points and pending integrations.",
+        content:
+          "Demo organiser view of the Sound of Summer 2026 event data, venue points and pending integrations.",
       },
       { property: "og:title", content: "Organiser workspace (demo) · Event Buddies" },
-      { property: "og:description", content: "Read-only demo of event data readiness for Sound of Summer 2026." },
+      {
+        property: "og:description",
+        content: "Read-only demo of event data readiness for Sound of Summer 2026.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },

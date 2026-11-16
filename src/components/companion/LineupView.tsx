@@ -1,4 +1,13 @@
-import { CalendarPlus, Check, Heart, Info, Music2, Plus, Shuffle, TriangleAlert } from "lucide-react";
+import {
+  CalendarPlus,
+  Check,
+  Heart,
+  Info,
+  Music2,
+  Plus,
+  Shuffle,
+  TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { PerformanceRecord } from "@/lib/event/types";
@@ -22,7 +31,11 @@ export function ArtistRow({
 }) {
   return (
     <div className="ios-row gap-0 p-0 pl-4">
-      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
+      >
         <span
           aria-hidden
           className="grid size-10 flex-none place-items-center rounded-full bg-secondary text-[15px] font-semibold text-secondary-foreground"
@@ -31,9 +44,7 @@ export function ArtistRow({
         </span>
         <RowText
           title={<span className="font-semibold">{artist.name}</span>}
-          subtitle={
-            artist.stageId ? "Headliner · Main Stage" : "Stage & set time to be announced"
-          }
+          subtitle={artist.stageId ? "Headliner · Main Stage" : "Stage & set time to be announced"}
         />
       </button>
       <button
@@ -70,7 +81,11 @@ function SetRow({
 }) {
   return (
     <div className="ios-row gap-0 p-0 pl-4">
-      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
+      >
         <time className="w-12 flex-none text-[15px] font-semibold tabular-nums">
           {eventTime(performance.scheduledStart)}
         </time>
@@ -85,7 +100,10 @@ function SetRow({
         aria-pressed={saved}
         aria-label={`${saved ? "Remove" : "Add"} ${performance.artistName} ${eventTime(performance.scheduledStart)}`}
         onClick={onSave}
-        className={cn("grid size-12 flex-none place-items-center", saved ? "text-primary" : "text-tertiary-foreground")}
+        className={cn(
+          "grid size-12 flex-none place-items-center",
+          saved ? "text-primary" : "text-tertiary-foreground",
+        )}
       >
         {saved ? <Check size={22} /> : <Plus size={22} />}
       </button>
@@ -190,7 +208,11 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
         </div>
       )}
 
-      <Section title={`${artists.length} announced ${artists.length === 1 ? "artist" : "artists"}`} id="lineup-artists" className="mt-5 px-4">
+      <Section
+        title={`${artists.length} announced ${artists.length === 1 ? "artist" : "artists"}`}
+        id="lineup-artists"
+        className="mt-5 px-4"
+      >
         {artists.length ? (
           <div className="ios-group ios-group-indent">
             {artists.map((artist) => (
@@ -231,7 +253,12 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
       </Section>
 
       {hasTimetable && (
-        <Section title="Sets" id="lineup-sets" className="px-4" footer={`All times ${data.event.timezone} (CAT)`}>
+        <Section
+          title="Sets"
+          id="lineup-sets"
+          className="px-4"
+          footer={`All times ${data.event.timezone} (CAT)`}
+        >
           <div className="ios-group">
             {sets.map((p) => (
               <SetRow
@@ -252,7 +279,10 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={spin}>
             <IconTile icon={Shuffle} tone="bg-favorite" />
-            <RowText title="Discover an artist" subtitle="Random pick from artists you haven’t saved" />
+            <RowText
+              title="Discover an artist"
+              subtitle="Random pick from artists you haven’t saved"
+            />
             <Chevron />
           </button>
           <button
@@ -263,7 +293,11 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           >
             <IconTile icon={CalendarPlus} tone={mine.length ? "bg-pin-entrance" : "bg-pin-other"} />
             <RowText
-              title={<span className={mine.length ? "" : "text-muted-foreground"}>Add sets to calendar</span>}
+              title={
+                <span className={mine.length ? "" : "text-muted-foreground"}>
+                  Add sets to calendar
+                </span>
+              }
               subtitle={
                 hasTimetable
                   ? mine.length

@@ -86,8 +86,7 @@ export function visiblePins(
     .filter((place) => matchesMapSearch(place, query, data))
     .filter((place) => {
       if (place.id === selectedId || query.trim()) return true;
-      if (filter === "all")
-        return ["stage", "first-aid", "entrance"].includes(place.type);
+      if (filter === "all") return ["stage", "first-aid", "entrance"].includes(place.type);
       return matchesFilter(place, filter);
     });
 }

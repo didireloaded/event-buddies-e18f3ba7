@@ -1,11 +1,6 @@
 import { Maximize2, Minus, Plus, Users, X, MapPinOff } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  clusterMapPlaces,
-  matchesFilter,
-  matchesMapSearch,
-  visiblePins,
-} from "@/lib/attendee/map";
+import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
@@ -219,7 +214,11 @@ export function MapView() {
           }}
         />
       </div>
-      <div className="scrollbar-none mt-2 flex gap-2 overflow-x-auto px-4 py-1" role="group" aria-label="Filter places">
+      <div
+        className="scrollbar-none mt-2 flex gap-2 overflow-x-auto px-4 py-1"
+        role="group"
+        aria-label="Filter places"
+      >
         {MAP_FILTERS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -273,12 +272,17 @@ export function MapView() {
                 <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
                 {place.type === "stage" && (
                   <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-[15px]">
-                    <strong className="font-semibold">{stageArtist?.name ?? "Artists to be confirmed"}</strong>
-                    <span className="block text-muted-foreground">Set times awaiting publication.</span>
+                    <strong className="font-semibold">
+                      {stageArtist?.name ?? "Artists to be confirmed"}
+                    </strong>
+                    <span className="block text-muted-foreground">
+                      Set times awaiting publication.
+                    </span>
                   </p>
                 )}
                 <p className="mt-3 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                  <MapPinOff size={14} aria-hidden /> Position from the plan image. No GPS or walking route yet.
+                  <MapPinOff size={14} aria-hidden /> Position from the plan image. No GPS or
+                  walking route yet.
                 </p>
                 <PrimaryButton className="mt-4" onClick={() => openSheet({ kind: "meeting" })}>
                   <Users size={19} /> Plan a meeting here

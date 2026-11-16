@@ -3,7 +3,10 @@
 const PREVIEW_LABEL = /^(?:id-preview|preview)(?:-[a-z0-9]+)?--.+$/;
 const LOVABLE_PREVIEW_ROOTS = [".lovable.app", ".gpt-eng.com", ".gptengineer.run"];
 
-export function isServiceWorkerBlocked(location: { hostname: string; search: string }, inIframe: boolean) {
+export function isServiceWorkerBlocked(
+  location: { hostname: string; search: string },
+  inIframe: boolean,
+) {
   const host = location.hostname.toLowerCase();
   const label = host.split(".")[0] ?? "";
   if (inIframe) return true;
@@ -28,7 +31,9 @@ async function unregisterAppWorkers() {
 }
 
 /** Call from useEffect only. Returns a status for honest UI messaging. */
-export async function registerServiceWorker(): Promise<"registered" | "blocked" | "unsupported" | "failed"> {
+export async function registerServiceWorker(): Promise<
+  "registered" | "blocked" | "unsupported" | "failed"
+> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
   let inIframe = true;
   try {

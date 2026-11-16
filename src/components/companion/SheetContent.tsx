@@ -62,9 +62,26 @@ const Paragraph = ({ children, className }: { children: React.ReactNode; classNa
   <p className={cn("text-[17px] leading-relaxed", className)}>{children}</p>
 );
 
-export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState>; onShare: () => void }) {
+export function SheetContent({
+  sheet,
+  onShare,
+}: {
+  sheet: NonNullable<SheetState>;
+  onShare: () => void;
+}) {
   const ctx = useCompanion();
-  const { data, places, attendee, openSheet, closeSheet, openPlace, navigate, showOnMap, spin, map } = ctx;
+  const {
+    data,
+    places,
+    attendee,
+    openSheet,
+    closeSheet,
+    openPlace,
+    navigate,
+    showOnMap,
+    spin,
+    map,
+  } = ctx;
   const { preferences, ready, toggleArtist, toggleSaved, notify, update } = attendee;
   const tz = data.event.timezone;
   const savedCount = preferences.savedArtists.length + preferences.saved.length;
@@ -90,13 +107,18 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-4 pt-2">
-            <span className="grid size-16 place-items-center rounded-full bg-secondary text-xl font-bold text-secondary-foreground" aria-hidden>
+            <span
+              className="grid size-16 place-items-center rounded-full bg-secondary text-xl font-bold text-secondary-foreground"
+              aria-hidden
+            >
               {initials(sheet.artist.name)}
             </span>
             <div>
               <p className="text-[15px] font-semibold text-primary">{sheet.artist.role}</p>
               <p className="text-[17px]">
-                {sheet.artist.stageId ? "Announced for the Savanna Main Stage" : "Stage assignment awaiting publication"}
+                {sheet.artist.stageId
+                  ? "Announced for the Savanna Main Stage"
+                  : "Stage assignment awaiting publication"}
               </p>
               <p className="text-[15px] text-muted-foreground">Set time awaiting publication</p>
             </div>
@@ -116,7 +138,8 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
             </SecondaryButton>
           )}
           <p className="text-[13px] text-muted-foreground">
-            Announced on {sheet.artist.id === "shimza" ? "the organiser’s website and Howler" : "Howler"}.
+            Announced on{" "}
+            {sheet.artist.id === "shimza" ? "the organiser’s website and Howler" : "Howler"}.
             Reminders need confirmed set times.
           </p>
         </div>
@@ -131,15 +154,28 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
           <div className="ios-group ios-group-indent">
             <div className="ios-row">
               <IconTile icon={CalendarDays} tone="bg-destructive" />
-              <RowText title={dateLabel(p.scheduledStart, tz)} subtitle={`${eventTime(p.scheduledStart)}–${eventTime(p.scheduledEnd)} CAT`} />
+              <RowText
+                title={dateLabel(p.scheduledStart, tz)}
+                subtitle={`${eventTime(p.scheduledStart)}–${eventTime(p.scheduledEnd)} CAT`}
+              />
             </div>
             <div className="ios-row">
               <IconTile icon={Music2} />
-              <RowText title={data.stages.find((s) => s.id === p.stageId)?.name ?? "Stage"} subtitle={p.genre ?? undefined} />
+              <RowText
+                title={data.stages.find((s) => s.id === p.stageId)?.name ?? "Stage"}
+                subtitle={p.genre ?? undefined}
+              />
             </div>
           </div>
-          {p.status === "cancelled" && <Notice icon={Bell} tone="warning">This performance is cancelled.</Notice>}
-          <PrimaryButton disabled={!ready || p.status === "cancelled"} onClick={() => toggleSaved(p.id)}>
+          {p.status === "cancelled" && (
+            <Notice icon={Bell} tone="warning">
+              This performance is cancelled.
+            </Notice>
+          )}
+          <PrimaryButton
+            disabled={!ready || p.status === "cancelled"}
+            onClick={() => toggleSaved(p.id)}
+          >
             {saved ? "Remove from my lineup" : "Add to my lineup"}
           </PrimaryButton>
           <SecondaryButton onClick={() => openPlace(p.stageId)}>
@@ -157,15 +193,21 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
               <div className="ios-group p-4">
                 <p className="text-[15px] text-muted-foreground">{sheet.performance.genre}</p>
                 <p className="text-[22px] font-bold">{sheet.performance.artistName}</p>
-                <p className="text-[15px] text-muted-foreground">{eventTime(sheet.performance.scheduledStart)} CAT</p>
+                <p className="text-[15px] text-muted-foreground">
+                  {eventTime(sheet.performance.scheduledStart)} CAT
+                </p>
               </div>
-              <PrimaryButton disabled={!ready} onClick={() => toggleSaved(sheet.performance!.id) && closeSheet()}>
+              <PrimaryButton
+                disabled={!ready}
+                onClick={() => toggleSaved(sheet.performance!.id) && closeSheet()}
+              >
                 Add to my lineup
               </PrimaryButton>
             </>
           ) : (
             <Notice icon={Heart}>
-              <strong className="font-semibold">All announced artists saved.</strong> New announcements will appear in the lineup.
+              <strong className="font-semibold">All announced artists saved.</strong> New
+              announcements will appear in the lineup.
             </Notice>
           )}
           <SecondaryButton onClick={spin}>
@@ -192,7 +234,9 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
     case "rules":
       return (
         <div className="space-y-4">
-          <p className="text-[15px] text-muted-foreground">Published by the organiser and ticketing provider.</p>
+          <p className="text-[15px] text-muted-foreground">
+            Published by the organiser and ticketing provider.
+          </p>
           <ul className="ios-group">
             {data.festival.rules.map((rule) => (
               <li key={rule} className="ios-row items-start py-3 text-[17px] leading-snug">
@@ -200,7 +244,12 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
               </li>
             ))}
           </ul>
-          <a className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary" href={data.festival.officialUrl} target="_blank" rel="noreferrer">
+          <a
+            className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
+            href={data.festival.officialUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
             Official event information <ArrowUpRight size={17} />
           </a>
         </div>
@@ -211,7 +260,9 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
         <div className="space-y-4">
           <div className="ios-group p-4">
             <p className="text-[17px] font-semibold">{data.event.venueName}</p>
-            <p className="text-[15px] text-muted-foreground">{data.event.city}, {data.event.country}</p>
+            <p className="text-[15px] text-muted-foreground">
+              {data.event.city}, {data.event.country}
+            </p>
           </div>
           <Paragraph>{data.festival.transport}</Paragraph>
           <a
@@ -233,11 +284,22 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
       return (
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
-            <RowText title={`${data.event.name} 2026`} subtitle={`${dateLabel(data.event.startAt, tz, { day: "numeric", month: "short", year: "numeric" })} · ${data.event.city}`} />
+            <RowText
+              title={`${data.event.name} 2026`}
+              subtitle={`${dateLabel(data.event.startAt, tz, { day: "numeric", month: "short", year: "numeric" })} · ${data.event.city}`}
+            />
             <Chevron />
           </button>
-          <a className="ios-row" href={data.festival.relatedEvent.url} target="_blank" rel="noreferrer">
-            <RowText title={data.festival.relatedEvent.name} subtitle={`${data.festival.relatedEvent.date} · ${data.festival.relatedEvent.venue}`} />
+          <a
+            className="ios-row"
+            href={data.festival.relatedEvent.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <RowText
+              title={data.festival.relatedEvent.name}
+              subtitle={`${data.festival.relatedEvent.date} · ${data.festival.relatedEvent.venue}`}
+            />
             <ArrowUpRight size={18} className="text-tertiary-foreground" />
           </a>
         </div>
@@ -248,7 +310,9 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
         <div className="space-y-3">
           {data.announcements.map((a) => (
             <article key={a.id} className="ios-group p-4">
-              <p className="text-[13px] text-muted-foreground">{eventTime(a.publishAt)} · {a.category}</p>
+              <p className="text-[13px] text-muted-foreground">
+                {eventTime(a.publishAt)} · {a.category}
+              </p>
               <h3 className="text-[17px] font-semibold">{a.title}</h3>
               <p className="text-[15px]">{a.body}</p>
             </article>
@@ -256,8 +320,9 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
         </div>
       ) : (
         <Notice icon={Bell}>
-          <strong className="font-semibold">No updates yet.</strong> Organiser announcements will appear here once
-          live delivery is connected. Check the official event page for the latest news.
+          <strong className="font-semibold">No updates yet.</strong> Organiser announcements will
+          appear here once live delivery is connected. Check the official event page for the latest
+          news.
         </Notice>
       );
 
@@ -265,34 +330,69 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
       return (
         <div className="space-y-6">
           <div className="ios-group ios-group-indent">
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "profile" })}>
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => openSheet({ kind: "profile" })}
+            >
               <IconTile icon={User} /> <RowText title="My profile" /> <Chevron />
             </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "updates" })}>
-              <IconTile icon={Bell} tone="bg-destructive" /> <RowText title="Event updates" /> <Chevron />
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => openSheet({ kind: "updates" })}
+            >
+              <IconTile icon={Bell} tone="bg-destructive" /> <RowText title="Event updates" />{" "}
+              <Chevron />
             </button>
             <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
-              <IconTile icon={CalendarDays} tone="bg-pin-amenity" /> <RowText title="Event details" /> <Chevron />
+              <IconTile icon={CalendarDays} tone="bg-pin-amenity" />{" "}
+              <RowText title="Event details" /> <Chevron />
             </button>
             <button type="button" className="ios-row" onClick={() => openSheet({ kind: "rules" })}>
-              <IconTile icon={IdCard} tone="bg-pin-amenity" /> <RowText title="Rules & entry" /> <Chevron />
+              <IconTile icon={IdCard} tone="bg-pin-amenity" /> <RowText title="Rules & entry" />{" "}
+              <Chevron />
             </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "transport" })}>
-              <IconTile icon={MapPin} tone="bg-pin-entrance" /> <RowText title="Transport & parking" /> <Chevron />
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => openSheet({ kind: "transport" })}
+            >
+              <IconTile icon={MapPin} tone="bg-pin-entrance" />{" "}
+              <RowText title="Transport & parking" /> <Chevron />
             </button>
           </div>
           <div className="ios-group ios-group-indent">
-            <button type="button" className="ios-row" onClick={() => { closeSheet(); ctx.focusLineupSearch(); }}>
-              <IconTile icon={Search} tone="bg-pin-other" /> <RowText title="Find an artist" /> <Chevron />
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => {
+                closeSheet();
+                ctx.focusLineupSearch();
+              }}
+            >
+              <IconTile icon={Search} tone="bg-pin-other" /> <RowText title="Find an artist" />{" "}
+              <Chevron />
             </button>
             <button type="button" className="ios-row" onClick={() => showOnMap("safety")}>
-              <IconTile icon={Cross} tone="bg-pin-safety" /> <RowText title="Medic points" /> <Chevron />
+              <IconTile icon={Cross} tone="bg-pin-safety" /> <RowText title="Medic points" />{" "}
+              <Chevron />
             </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "privacy" })}>
-              <IconTile icon={ShieldCheck} tone="bg-pin-entrance" /> <RowText title="Location & privacy" /> <Chevron />
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => openSheet({ kind: "privacy" })}
+            >
+              <IconTile icon={ShieldCheck} tone="bg-pin-entrance" />{" "}
+              <RowText title="Location & privacy" /> <Chevron />
             </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "install" })}>
-              <IconTile icon={Download} tone="bg-pin-other" /> <RowText title="Add to Home Screen" /> <Chevron />
+            <button
+              type="button"
+              className="ios-row"
+              onClick={() => openSheet({ kind: "install" })}
+            >
+              <IconTile icon={Download} tone="bg-pin-other" />{" "}
+              <RowText title="Add to Home Screen" /> <Chevron />
             </button>
           </div>
           <div className="ios-group">
@@ -312,18 +412,29 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
           <div className="ios-group ios-group-indent">
             <div className="ios-row">
               <IconTile icon={MapPin} tone="bg-pin-entrance" />
-              <RowText title={data.event.venueName} subtitle={`${data.event.city}, ${data.event.country}`} />
+              <RowText
+                title={data.event.venueName}
+                subtitle={`${data.event.city}, ${data.event.country}`}
+              />
             </div>
             <div className="ios-row">
               <IconTile icon={CalendarDays} tone="bg-destructive" />
               <RowText
-                title={dateLabel(data.event.startAt, tz, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                title={dateLabel(data.event.startAt, tz, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
                 subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT · 18+ with ID`}
               />
             </div>
             <div className="ios-row">
               <IconTile icon={Music2} />
-              <RowText title={`${data.stages.length} stages · ${data.festival.artists.length} announced artists`} subtitle={`Organised by ${data.festival.organiser}`} />
+              <RowText
+                title={`${data.stages.length} stages · ${data.festival.artists.length} announced artists`}
+                subtitle={`Organised by ${data.festival.organiser}`}
+              />
             </div>
           </div>
           <a
@@ -335,20 +446,34 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
             Tickets on Howler <ArrowUpRight size={18} />
           </a>
           <div className="grid grid-cols-2 gap-2">
-            <SecondaryButton onClick={() => { closeSheet(); navigate("lineup"); }}>
+            <SecondaryButton
+              onClick={() => {
+                closeSheet();
+                navigate("lineup");
+              }}
+            >
               <Music2 size={18} /> Lineup
             </SecondaryButton>
             <SecondaryButton onClick={onShare}>
               <Share2 size={18} /> Share
             </SecondaryButton>
           </div>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">{data.festival.timingNotice}</p>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">{data.festival.mapNotice}</p>
-          <p className="text-[13px] text-muted-foreground">
-            Ticket purchases happen on Howler, not in this app. Past-edition photo from Namib Rage’s official
-            gallery. Information checked {data.festival.sourceCheckedAt}.
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            {data.festival.timingNotice}
           </p>
-          <a className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary" href={data.festival.officialUrl} target="_blank" rel="noreferrer">
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            {data.festival.mapNotice}
+          </p>
+          <p className="text-[13px] text-muted-foreground">
+            Ticket purchases happen on Howler, not in this app. Past-edition photo from Namib Rage’s
+            official gallery. Information checked {data.festival.sourceCheckedAt}.
+          </p>
+          <a
+            className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
+            href={data.festival.officialUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
             Official event page <ArrowUpRight size={17} />
           </a>
         </div>
@@ -357,10 +482,13 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
     case "privacy":
       return (
         <div className="space-y-4 pt-1">
-          <Paragraph>This demo uses sample crew profiles. Your phone’s location is never requested or read.</Paragraph>
           <Paragraph>
-            Live crew sharing will need a connected account and your explicit, revocable consent. Favourites, your
-            status, profile and meeting plans are stored in this browser only and are not synced to other devices.
+            This demo uses sample crew profiles. Your phone’s location is never requested or read.
+          </Paragraph>
+          <Paragraph>
+            Live crew sharing will need a connected account and your explicit, revocable consent.
+            Favourites, your status, profile and meeting plans are stored in this browser only and
+            are not synced to other devices.
           </Paragraph>
           <SecondaryButton
             onClick={() => {
@@ -378,13 +506,23 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
       return (
         <div className="space-y-4 pt-1">
           <ol className="ios-group ios-group-indent list-none">
-            <li className="ios-row"><IconTile icon={Search} tone="bg-pin-other" /><RowText title="Open this app in Safari on iPhone" /></li>
-            <li className="ios-row"><IconTile icon={Share2} /><RowText title="Tap the Share button" /></li>
-            <li className="ios-row"><IconTile icon={Download} tone="bg-pin-entrance" /><RowText title="Choose Add to Home Screen, then Add" /></li>
+            <li className="ios-row">
+              <IconTile icon={Search} tone="bg-pin-other" />
+              <RowText title="Open this app in Safari on iPhone" />
+            </li>
+            <li className="ios-row">
+              <IconTile icon={Share2} />
+              <RowText title="Tap the Share button" />
+            </li>
+            <li className="ios-row">
+              <IconTile icon={Download} tone="bg-pin-entrance" />
+              <RowText title="Choose Add to Home Screen, then Add" />
+            </li>
           </ol>
           <p className="text-[15px] leading-relaxed text-muted-foreground">
-            On Android, use your browser’s Install app option. After one connected visit to the published app, the
-            event info, lineup and venue plan open without signal. Offline mode isn’t active in the editor preview.
+            On Android, use your browser’s Install app option. After one connected visit to the
+            published app, the event info, lineup and venue plan open without signal. Offline mode
+            isn’t active in the editor preview.
           </p>
         </div>
       );
@@ -417,14 +555,26 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
       return (
         <div className="space-y-4 pt-1">
           <div className="flex items-center gap-3">
-            <Avatar size="lg" index={index} label={initials(isMe ? preferences.profile.name : member.displayName)} />
+            <Avatar
+              size="lg"
+              index={index}
+              label={initials(isMe ? preferences.profile.name : member.displayName)}
+            />
             <p className="text-[15px] text-muted-foreground">
-              {isMe ? "Your status · saved on this device" : "Demo crew profile. Location sharing is off."}
+              {isMe
+                ? "Your status · saved on this device"
+                : "Demo crew profile. Location sharing is off."}
             </p>
           </div>
           {isMe ? (
             <div role="group" aria-label="Your status" className="ios-group">
-              {["Enjoying the music", "At the bar", "Getting food", "Taking a breather", "Ready to go"].map((status) => (
+              {[
+                "Enjoying the music",
+                "At the bar",
+                "Getting food",
+                "Taking a breather",
+                "Ready to go",
+              ].map((status) => (
                 <button
                   key={status}
                   type="button"
@@ -434,14 +584,16 @@ export function SheetContent({ sheet, onShare }: { sheet: NonNullable<SheetState
                   onClick={() => update({ status }) && notify("Status saved on this device")}
                 >
                   <RowText title={status} />
-                  {preferences.status === status && <Check size={20} className="text-primary" aria-hidden />}
+                  {preferences.status === status && (
+                    <Check size={20} className="text-primary" aria-hidden />
+                  )}
                 </button>
               ))}
             </div>
           ) : (
             <Notice icon={ShieldCheck}>
-              {member.displayName}’s live location isn’t available. Cross-device sharing needs accounts and consent,
-              which aren’t connected yet.
+              {member.displayName}’s live location isn’t available. Cross-device sharing needs
+              accounts and consent, which aren’t connected yet.
             </Notice>
           )}
           {isMe && (
