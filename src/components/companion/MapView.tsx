@@ -188,7 +188,10 @@ export function MapView() {
 
   useEffect(() => {
     if (place && window.matchMedia("(max-width: 1023px)").matches)
-      detailRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      detailRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      });
   }, [place]);
 
   const stageArtist = place && data.festival.artists.find((a) => a.stageId === place.id);
@@ -236,7 +239,12 @@ export function MapView() {
             type="button"
             className="ios-chip"
             aria-pressed={map.filter === id}
+            aria-expanded={id !== "all" ? map.filter === id && !term : undefined}
+            aria-controls={
+              id !== "all" && map.filter === id && !term ? "map-category-places" : undefined
+            }
             onClick={() => {
+              map.setQuery("");
               map.setFilter(id);
               map.setSelected(null);
             }}
@@ -252,13 +260,23 @@ export function MapView() {
       </div>
 
       {map.filter !== "all" && !term && (
-        <div className="mx-4 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-sm" role="listbox" aria-label={`${MAP_FILTERS.find((f) => f.id === map.filter)?.label ?? "Places"} on the venue plan`}>
+        <section
+          id="map-category-places"
+          className="mx-4 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+          aria-label={`${MAP_FILTERS.find((f) => f.id === map.filter)?.label ?? "Places"} on the venue plan`}
+        >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
-              <p className="text-[17px] font-semibold">{MAP_FILTERS.find((f) => f.id === map.filter)?.label}</p>
+              <p className="text-[17px] font-semibold">
+                {MAP_FILTERS.find((f) => f.id === map.filter)?.label}
+              </p>
               <p className="text-[14px] text-muted-foreground">{listed.length} on the venue plan</p>
             </div>
-            <button type="button" className="text-[15px] font-semibold text-primary" onClick={() => map.setFilter("all")}>
+            <button
+              type="button"
+              className="text-[15px] font-semibold text-primary"
+              onClick={() => map.setFilter("all")}
+            >
               Show all
             </button>
           </div>
@@ -267,8 +285,7 @@ export function MapView() {
               <button
                 key={p.id}
                 type="button"
-                role="option"
-                aria-selected={p.id === map.selected}
+                aria-pressed={p.id === map.selected}
                 className="ios-row w-full border-b border-border last:border-b-0"
                 onClick={() => map.setSelected(p.id)}
               >
@@ -278,7 +295,7 @@ export function MapView() {
               </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">

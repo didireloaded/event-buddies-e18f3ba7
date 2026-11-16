@@ -19,6 +19,7 @@ export type MapFilter =
   | "entrance"
   | "sponsor"
   | "zone"
+  | "first-aid"
   | "safety";
 
 export const SAFETY_TYPES = ["first-aid", "security", "exit"];

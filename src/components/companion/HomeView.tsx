@@ -1,30 +1,24 @@
 import {
   ArrowUpRight,
-  Beer,
   CalendarDays,
-  Cross,
   Heart,
   IdCard,
   Map as MapIcon,
   MapPin,
   Share2,
   Ticket,
-  Toilet,
   Users,
-  Utensils,
-  ArrowRightToLine,
   Building2,
 } from "lucide-react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
-import type { MapFilter } from "@/lib/attendee/map";
 import { initials, useCompanion } from "./context";
 import { ArtistRow } from "./LineupView";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
 import { cn } from "@/lib/utils";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
-  const { data, attendee, now, navigate, openSheet, showOnMap, places } = useCompanion();
+  const { data, attendee, now, navigate, openSheet, places } = useCompanion();
   const { preferences, toggleFollow, toggleArtist, ready } = attendee;
   const phase = eventPhase(data, now);
   const tz = data.event.timezone;
@@ -34,65 +28,116 @@ export function HomeView({ onShare }: { onShare: () => void }) {
     month: "long",
     year: "numeric",
   });
-  const count = (types: string[]) => places.filter((p) => types.includes(p.type)).length;
-  const shortcuts: { filter: MapFilter; label: string; count: number; icon: typeof Toilet }[] = [
-    { filter: "toilet", label: "Toilets", count: count(["toilet"]), icon: Toilet },
-    { filter: "bar", label: "Bars", count: count(["bar"]), icon: Beer },
-    {
-      filter: "safety",
-      label: "Medics",
-      count: count(["first-aid", "security", "exit"]),
-      icon: Cross,
-    },
-    { filter: "food", label: "Food", count: count(["food"]), icon: Utensils },
-    { filter: "entrance", label: "Gates", count: count(["entrance"]), icon: ArrowRightToLine },
-  ];
   const meeting = preferences.meeting;
   const meetingPlace = meeting ? places.find((p) => p.id === meeting.pointId) : undefined;
 
   return (
     <>
       <div className="px-4">
-        <p className="eyebrow pt-2">{phase.label}</p>
-        <h1 className="display-title mt-1 text-[44px]">{data.event.name} 2026</h1>
-        <p className="mt-1 text-[17px] text-muted-foreground">
-          {dateLabel(data.event.startAt, tz, { weekday: "short", day: "numeric", month: "short" })}{" "}
-          · {data.event.venueName}, {data.event.city}
-        </p>
+        <div className="flex items-center justify-between gap-3 pt-3 text-[11px] font-bold uppercase tracking-wide">
+          <span className="flex items-center gap-1">
+            <MapPin size={13} aria-hidden />
+            {data.event.city}, {data.event.country}
+          </span>
+          <time>
+            {dateLabel(data.event.startAt, tz, {
+              day: "2-digit",
+              month: "2-digit",
+              year: "2-digit",
+            })}
+          </time>
+        </div>
+        <h1 className="display-title mt-6 text-[clamp(3.5rem,20vw,6rem)] leading-[1.03] uppercase">
+          Sound of
+          <br />
+          <span className="text-favorite">Summer</span>
+        </h1>
       </div>
 
-      <figure className="mt-4 px-4">
+      <figure className="relative mx-4 mt-4 overflow-hidden">
         <img
           src={data.event.heroImageUrl}
           alt="Crowd at a past Sound of Summer edition, from Namib Rage’s official gallery"
           width={1200}
           height={800}
           fetchPriority="high"
-          className="aspect-[16/7] w-full rounded-xl bg-muted object-cover"
+          className="aspect-[1.4] w-full bg-muted object-cover grayscale"
         />
-        <figcaption className="ios-footnote px-1">Past edition · Namib Rage gallery</figcaption>
+        <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-foreground/80 to-transparent p-4 text-primary-foreground">
+          <span className="text-[20px] font-extrabold uppercase leading-none">
+            One coast.
+            <br />
+            Three stages.
+          </span>
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "event" })}
+            aria-label="About Sound of Summer"
+            className="grid size-11 place-items-center rounded-full bg-background text-foreground"
+          >
+            <ArrowUpRight size={24} />
+          </button>
+        </figcaption>
+        <span className="absolute right-4 top-4 grid size-16 rotate-12 place-content-center rounded-full bg-success text-center text-primary-foreground">
+          <strong className="text-[30px] leading-none">28</strong>
+          <span className="text-[11px] font-bold tracking-widest">DEC</span>
+        </span>
       </figure>
 
-      <Section title="Find your way" id="home-venue" className="px-4">
+      <div className="px-4 pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[15px] font-bold">{data.event.venueName}</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Monday 28 December · From {eventTime(data.event.startAt)}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!ready}
+            aria-label="Save event"
+            aria-pressed={preferences.following}
+            onClick={toggleFollow}
+            className="grid size-11 place-items-center rounded-full bg-muted"
+          >
+            <Heart size={21} fill={preferences.following ? "currentColor" : "none"} />
+          </button>
+        </div>
+        <p className="my-4 border-t border-border pt-3 text-[12px] font-semibold text-favorite">
+          {phase.label}
+        </p>
         <PrimaryButton onClick={() => navigate("map")}>
-          <MapIcon size={20} /> Open venue map
+          <MapIcon size={20} /> Open event <ArrowUpRight size={20} className="ml-auto" />
         </PrimaryButton>
-        <ul className="mt-3 grid grid-cols-5 gap-2" aria-label="Jump to amenities">
-          {shortcuts.map(({ filter, label, count: n, icon: Icon }) => (
-            <li key={filter}>
-              <button
-                type="button"
-                onClick={() => showOnMap(filter)}
-                className="flex min-h-[4.5rem] w-full flex-col items-center justify-center gap-1 rounded-xl bg-popover px-1 text-[13px] font-semibold ring-1 ring-border active:bg-fill"
-                aria-label={`${label}: ${n} on the venue plan`}
-              >
-                <Icon size={22} aria-hidden />
-                <span>{label}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Section>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <a
+            href="#lineup"
+            className="flex min-h-44 flex-col justify-between rounded-2xl bg-favorite p-4 text-primary-foreground"
+          >
+            <CalendarDays size={24} />
+            <span className="display-title text-[27px] uppercase leading-tight">
+              Your night.
+              <br />
+              Your lineup.
+            </span>
+            <span className="text-[13px]">
+              {preferences.savedArtists.length} saved · Explore lineup ↗
+            </span>
+          </a>
+          <a
+            href="#crew"
+            className="flex min-h-44 flex-col justify-between rounded-2xl bg-primary p-4 text-primary-foreground"
+          >
+            <Users size={24} />
+            <span className="display-title text-[27px] uppercase leading-tight">
+              Better
+              <br />
+              together.
+            </span>
+            <span className="text-[13px]">{data.crew.name} ↗</span>
+          </a>
+        </div>
+      </div>
 
       <Section title="Event" id="home-event" className="px-4">
         <div className="ios-group ios-group-indent">

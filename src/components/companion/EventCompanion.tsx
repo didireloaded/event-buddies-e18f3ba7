@@ -200,7 +200,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
                 type="button"
                 aria-label="My profile"
                 onClick={() => setSheet({ kind: "profile" })}
-                className="grid size-11 place-items-center rounded-full bg-popover text-[14px] font-semibold ring-1 ring-border"
+                className="grid size-11 place-items-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground"
               >
                 {initials(attendee.preferences.profile.name)}
               </button>

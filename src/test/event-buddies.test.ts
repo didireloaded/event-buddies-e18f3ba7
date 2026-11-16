@@ -55,8 +55,8 @@ describe("map search and clustering", () => {
       "sos-main",
     ]);
   });
-  it("shows stages, medics and entrances as key places", () => {
-    expect(visiblePins(places, "all", "", null, data)).toHaveLength(3 + 2 + 3);
+  it("shows every verified place in the default map view", () => {
+    expect(visiblePins(places, "all", "", null, data)).toHaveLength(41);
   });
   it("clusters 17 bars at 100% and separates them when zoomed in", () => {
     const bars = places.filter((p) => p.type === "bar");
