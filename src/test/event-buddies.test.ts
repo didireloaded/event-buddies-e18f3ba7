@@ -9,6 +9,20 @@ import { validateProfile } from "@/components/companion/forms";
 const data = getDemoData();
 const places = buildPlaces(data);
 
+describe("utility preference migration", () => {
+  it("defaults old storage to low-power mode without inventing a check-in", () => {
+    const parsed = parseStoredPreferences({ savedArtists: ["shimza"] }, data);
+    expect(parsed.batterySaver).toBe(true);
+    expect(parsed.here).toBeNull();
+    expect(parsed.savedArtists).toEqual(["shimza"]);
+  });
+  it("retains known landmark check-ins and rejects unknown landmarks", () => {
+    const here = { pointId: data.stages[0]!.id, expiresAt: 1790000000000 };
+    expect(parseStoredPreferences({ here }, data).here).toEqual(here);
+    expect(parseStoredPreferences({ here: { ...here, pointId: "unknown" } }, data).here).toBeNull();
+  });
+});
+
 describe("Sound of Summer verified data", () => {
   it("keeps 41 image-based map points: 38 venue points plus 3 stages", () => {
     expect(data.points).toHaveLength(38);

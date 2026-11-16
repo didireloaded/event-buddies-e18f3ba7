@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import jsQR from "jsqr";
 import { readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
@@ -79,6 +79,7 @@ export function FestivalBump() {
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
   const [contact, setContact] = useState({ name: "", phone: "" });
+  const [shareLink, setShareLink] = useState("");
   const payload = JSON.stringify({
     version: 1,
     event: data.event.id,
@@ -87,19 +88,58 @@ export function FestivalBump() {
     meeting: attendee.preferences.meeting,
     ...(contact.name && contact.phone ? { contact } : {}),
   });
-  const receive = (code: string) => {
-    setScanning(false);
+  const receive = useCallback(
+    (code: string) => {
+      setScanning(false);
+      try {
+        let content = code.trim();
+        if (/^https?:\/\//.test(content)) {
+          const url = new URL(content);
+          content = new URLSearchParams(url.hash.split("?")[1] ?? "").get("plan") ?? "";
+        }
+        setIncoming(readBump(content, data));
+        setError("");
+      } catch (err) {
+        setError(
+          err instanceof SyntaxError
+            ? "This QR is not a Festival Bump code."
+            : err instanceof Error
+              ? err.message
+              : "Couldn’t read this code.",
+        );
+      }
+    },
+    [data],
+  );
+  useEffect(() => {
+    const reviewLink = () => {
+      const raw = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("plan");
+      if (!raw) return;
+      setMode("scan");
+      receive(raw);
+      window.history.replaceState(null, "", "#crew");
+    };
+    reviewLink();
+    window.addEventListener("hashchange", reviewLink);
+    return () => window.removeEventListener("hashchange", reviewLink);
+  }, [receive]);
+  const sharePlan = async () => {
+    const url = `${window.location.origin}${window.location.pathname}#crew?plan=${encodeURIComponent(payload)}`;
+    setShareLink(url);
     try {
-      setIncoming(readBump(code, data));
-      setError("");
+      if (navigator.share)
+        await navigator.share({
+          title: "Our Sound of Summer meetup",
+          text: "Open this plan to review our meeting point and artists.",
+          url,
+        });
+      else {
+        await navigator.clipboard.writeText(url);
+        attendee.notify("Meetup link copied. Send it in WhatsApp or Messages.");
+      }
     } catch (err) {
-      setError(
-        err instanceof SyntaxError
-          ? "This QR is not a Festival Bump code."
-          : err instanceof Error
-            ? err.message
-            : "Couldn’t read this code.",
-      );
+      if (!(err instanceof DOMException && err.name === "AbortError"))
+        attendee.notify("Copy the meetup link below to share it.", true);
     }
   };
   const meetingPlace = incoming?.meeting && places.find((p) => p.id === incoming.meeting?.pointId);
@@ -123,6 +163,20 @@ export function FestivalBump() {
           Scan friend
         </SecondaryButton>
       </div>
+      <SecondaryButton className="mt-2" disabled={!attendee.ready} onClick={sharePlan}>
+        Share meetup link
+      </SecondaryButton>
+      {shareLink && (
+        <label className="mt-2 block text-[14px] text-muted-foreground">
+          Anyone with this link can read the shared plan.
+          <input
+            className="ios-field mt-1"
+            readOnly
+            value={shareLink}
+            onFocus={(event) => event.target.select()}
+          />
+        </label>
+      )}
       {mode && (
         <Sheet
           title={mode === "show" ? "Share your plan" : "Receive a plan"}

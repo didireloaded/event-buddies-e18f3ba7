@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
 import { RideBookmark } from "./RideBookmark";
 import { NearbyPlaces } from "./NearbyPlaces";
+import { LandmarkCheckin } from "./LandmarkCheckin";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
@@ -12,7 +13,11 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
 function MapCanvas({ expanded }: { expanded: boolean }) {
-  const { data, places, map, openSheet } = useCompanion();
+  const { data, places, map, openSheet, attendee, now } = useCompanion();
+  const hereId =
+    now !== null && attendee.preferences.here && attendee.preferences.here.expiresAt > now
+      ? attendee.preferences.here.pointId
+      : null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
   const viewport = useRef<HTMLDivElement>(null);
   const anchor = useRef<{ x: number; y: number } | null>(null);
@@ -88,6 +93,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             const Icon = placeIcon(place.type);
             const many = ids.length > 1;
             const selected = map.selected !== null && ids.includes(map.selected);
+            const isHere = place.id === hereId;
             return (
               <button
                 key={place.id}
@@ -108,11 +114,13 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                   }
                 }}
               >
-                <span className={cn("map-pin-dot", placeTone(place.type))}>
+                <span className={cn("map-pin-dot", isHere ? "bg-favorite" : placeTone(place.type))}>
                   {many ? ids.length : <Icon size={15} strokeWidth={2.4} aria-hidden />}
                 </span>
-                {(place.type === "stage" || selected || zoom >= 2.5) && !many && (
-                  <span className="map-pin-label">{place.name}</span>
+                {(place.type === "stage" || selected || isHere || zoom >= 2.5) && !many && (
+                  <span className="map-pin-label">
+                    {isHere ? `You · ${place.name}` : place.name}
+                  </span>
                 )}
               </button>
             );
@@ -222,6 +230,7 @@ export function MapView() {
           <Shield size={20} />
         </button>
       </div>
+      <LandmarkCheckin />
       <div className="mt-4 px-4">
         <SearchField
           id="venue-search"

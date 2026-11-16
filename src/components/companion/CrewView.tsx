@@ -1,10 +1,10 @@
 import { CalendarClock, Info, Map as MapIcon, Pencil, ShieldCheck } from "lucide-react";
-import { useEffect, useState } from "react";
 import { eventTime } from "@/lib/attendee/schedule";
 import type { LocalMeeting } from "@/lib/attendee/meeting";
 import { initials, useCompanion } from "./context";
 import { FestivalBump } from "./FestivalBump";
 import { FestivalPassport } from "./FestivalPassport";
+import { PlanBackup } from "./PlanBackup";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
 export function countdownLabel(meetingAt: string, now: number | null) {
@@ -19,12 +19,7 @@ export function countdownLabel(meetingAt: string, now: number | null) {
 }
 
 function MeetingCountdown({ meeting }: { meeting: LocalMeeting }) {
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(timer);
-  }, []);
+  const { now } = useCompanion();
   return (
     <span className="text-[15px] text-muted-foreground" aria-live="polite">
       {countdownLabel(meeting.at, now)}
@@ -123,9 +118,21 @@ export function CrewView() {
         </label>
       </Section>
 
-      <FestivalPassport />
-
       <Section title="Privacy" id="crew-privacy" className="px-4">
+        <label className="mb-4 flex min-h-12 items-center gap-3">
+          <input
+            type="checkbox"
+            className="size-6 accent-favorite"
+            checked={preferences.batterySaver}
+            onChange={(e) => attendee.update({ batterySaver: e.target.checked })}
+          />
+          <span>
+            <strong className="block">Low-power mode</strong>
+            <span className="text-[14px] text-muted-foreground">
+              Refresh countdowns once a minute. Pause background timers.
+            </span>
+          </span>
+        </label>
         <div className="ios-group">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "privacy" })}>
             <IconTile icon={ShieldCheck} tone="bg-pin-entrance" />
@@ -136,7 +143,9 @@ export function CrewView() {
             <Info size={18} className="text-primary" aria-hidden />
           </button>
         </div>
+        <PlanBackup />
       </Section>
+      <FestivalPassport />
     </>
   );
 }

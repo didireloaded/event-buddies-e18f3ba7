@@ -45,7 +45,7 @@ const subscribeToHash = (callback: () => void) => {
   return () => window.removeEventListener("hashchange", callback);
 };
 const readHash = (): View =>
-  NAV.find((item) => `#${item.id}` === window.location.hash)?.id ?? "home";
+  NAV.find((item) => `#${item.id}` === window.location.hash.split("?")[0])?.id ?? "home";
 
 function useConnectivity() {
   const [online, setOnline] = useState(true);
@@ -81,7 +81,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
   const attendee = useAttendee(data);
-  const now = useEventClock();
+  const now = useEventClock(attendee.preferences.batterySaver ? 60000 : 10000);
   const places = useMemo(() => buildPlaces(data), [data]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [filter, setFilter] = useState<MapFilter>("all");

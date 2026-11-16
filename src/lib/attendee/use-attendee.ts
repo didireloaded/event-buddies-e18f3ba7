@@ -13,6 +13,8 @@ export type Preferences = {
   ride: { pointId: string; note: string; kind: "car" | "shuttle" } | null;
   stamps: string[];
   festivalMode: "music" | "friends" | "both" | null;
+  here: { pointId: string; expiresAt: number } | null;
+  batterySaver: boolean;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -29,6 +31,8 @@ export function defaultPreferences(data: DemoData): Preferences {
     ride: null,
     stamps: [],
     festivalMode: null,
+    here: null,
+    batterySaver: true,
   };
 }
 
@@ -44,8 +48,18 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const profile = stored["profile"] as Record<string, unknown> | undefined;
   const meeting = stored["meeting"] as Record<string, unknown> | undefined;
   const ride = stored["ride"] as Record<string, unknown> | undefined;
+  const here = stored["here"] as Record<string, unknown> | undefined;
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
   return {
+    here:
+      here &&
+      typeof here["pointId"] === "string" &&
+      placeIds.includes(here["pointId"]) &&
+      typeof here["expiresAt"] === "number" &&
+      Number.isFinite(here["expiresAt"])
+        ? { pointId: here["pointId"], expiresAt: here["expiresAt"] }
+        : null,
+    batterySaver: typeof stored["batterySaver"] === "boolean" ? stored["batterySaver"] : true,
     festivalMode:
       stored["festivalMode"] === "music" ||
       stored["festivalMode"] === "friends" ||
