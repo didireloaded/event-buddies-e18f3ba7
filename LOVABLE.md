@@ -33,6 +33,8 @@ from type imports): 38 venue points + 3 stages = 41 image-based map points, GPS 
 
 ## Continue editing
 
+The [Cloud integration brief](docs/engineering/cloud-integration-brief.md) defines the next shared-crew vertical slice and links the four supplied backend/toolkit references. Its corrected acceptance criteria cover guest continuity, validated invites, RLS, author-owned writes, private realtime and one durable replay path. Cloud settings remain deferred by the owner.
+
 For attendee UI, copy, design reviews and builder prompts, apply [anti-slop-brutal](docs/skills/anti-slop-brutal/SKILL.md) alongside [Strict Interface Engineer](docs/skills/strict-interface-engineer/SKILL.md). The supplied manual is retained in the skill’s references. Design reviews use verdict, one fix, issues, missing states, cuts and the five-item ship check. Builder prompts identify the surface, states, exact copy and observable completion conditions.
 
 Current navigation is Events, Map, Crew and You. Artist data includes the 24 supplied Post portraits plus Shimza. Cloud credentials remain deferred. Review local sharing and recap behaviour against actual source and rendered screens.

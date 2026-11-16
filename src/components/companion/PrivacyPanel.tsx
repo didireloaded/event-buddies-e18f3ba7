@@ -23,8 +23,8 @@ export function PrivacyPanel() {
       </p>
       <p>
         Your profile, favourites, meetings, imported plans and ride notes use this browser’s
-        storage. Landmark photos use local photo storage. Clearing browser data removes those
-        records. You can download a plan backup from Crew. Photos stay on this device.
+        storage. Landmark photos and ticket copies use local photo storage. Clearing browser data
+        removes those records. You can download a plan backup from Crew. Photos stay on this device.
       </p>
       <p>
         Accounts, live crew location, attendee discovery and in-app message delivery are awaiting a
@@ -36,9 +36,14 @@ export function PrivacyPanel() {
           setClearing(true);
           setError("");
           try {
-            if ("indexedDB" in window) await photoStore(data.event.id, "remove");
+            if ("indexedDB" in window) {
+              await photoStore(data.event.id, "remove");
+              await photoStore(`ticket:${data.event.id}`, "remove");
+            }
             localStorage.removeItem(storageKey(data.event.id));
-            attendee.notify("Saved plans, profile and landmark photo cleared on this device");
+            attendee.notify(
+              "Saved plans, profile, ticket and landmark photo cleared on this device",
+            );
             window.location.reload();
           } catch {
             setError(
@@ -48,7 +53,7 @@ export function PrivacyPanel() {
           }
         }}
       >
-        {clearing ? "Clearing saved data…" : "Clear my plans, profile and photo"}
+        {clearing ? "Clearing saved data…" : "Clear my plans, profile, ticket and photo"}
       </SecondaryButton>
       {error && (
         <p role="alert" className="text-destructive">

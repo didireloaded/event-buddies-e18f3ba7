@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import jsQR from "jsqr";
 import { bumpLink, readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
@@ -19,16 +18,17 @@ function CameraScanner({
     let stopped = false;
     let stream: MediaStream | undefined;
     let frame = 0;
+    let decode: typeof import("jsqr").default | undefined;
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     const scan = () => {
       const el = video.current;
-      if (el && ctx && el.readyState >= 2) {
+      if (el && ctx && decode && el.readyState >= 2) {
         canvas.width = 640;
         canvas.height = Math.round((640 * el.videoHeight) / el.videoWidth);
         ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
         const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(pixels.data, pixels.width, pixels.height);
+        const code = decode(pixels.data, pixels.width, pixels.height);
         if (code) {
           onCode(code.data);
           return;
@@ -36,9 +36,18 @@ function CameraScanner({
       }
       frame = requestAnimationFrame(scan);
     };
-    void navigator.mediaDevices
-      ?.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+    void import("jsqr")
+      .then(async (module) => {
+        decode = module.default;
+        if (stopped) return null;
+        if (!navigator.mediaDevices) throw new Error("Camera unavailable");
+        return navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
+      })
       .then(async (media) => {
+        if (!media) return;
         if (stopped) {
           media.getTracks().forEach((track) => track.stop());
           return;
@@ -50,9 +59,9 @@ function CameraScanner({
         }
         frame = requestAnimationFrame(scan);
       })
-      .catch(() => onError("Camera unavailable. Paste your friend’s sharing code below."));
-    if (!navigator.mediaDevices)
-      onError("Camera unavailable. Paste your friend’s sharing code below.");
+      .catch(() => {
+        if (!stopped) onError("Camera unavailable. Paste your friend’s sharing code below.");
+      });
     return () => {
       stopped = true;
       cancelAnimationFrame(frame);

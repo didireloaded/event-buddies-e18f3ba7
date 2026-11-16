@@ -31,8 +31,12 @@ use the editor.
 
 ## Project rules
 
+- Use a feature branch and pull request for new changes. Run `npm run check` before requesting review. GitHub Actions repeats the checks using the committed Bun lockfile.
+- `VITE_` settings are public browser configuration. Keep privileged credentials server-side. `npm run build` includes the client-secret format check. Follow the launch gates in `docs/engineering/launch-readiness.md`.
+
 - For attendee UI, copy, design reviews and builder prompts, read `docs/skills/anti-slop-brutal/SKILL.md` and its supplied manual. Apply alongside `docs/skills/strict-interface-engineer/SKILL.md`. The manual’s six-part format applies to design reviews.
 - Preserve truthful local-only state while the backend connection is deferred. Social context, timestamps, ETAs and retention claims must match implemented behaviour.
+- For future connected crew work, read `docs/engineering/cloud-integration-brief.md`. It reconciles the supplied backend/toolkit prompts with current code, invite authorisation, ownership, expiring shares and offline replay. Recheck provider documentation before implementation.
 
 - Event data lives only in `src/lib/event/sound-of-summer.ts`; UI derives everything from `getDemoData()` so no fabricated times, GPS or counts appear.
 - Attendee navigation uses Events, Map, Crew and You with hash routes (`#home`, `#lineup`, `#map`, `#crew`, `#you`, `#info`) so Back and deep links retain their meaning.

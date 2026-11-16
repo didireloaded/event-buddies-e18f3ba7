@@ -504,6 +504,11 @@ export function SheetContent({
             published app, the event info, lineup and venue plan open without signal. Offline mode
             isn’t active in the editor preview.
           </p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
+            On iPhone, web notifications require iOS 16.4 or later and an installed Home Screen app.
+            Crew alerts and push delivery still need the Cloud connection. Check your plans directly
+            in the app.
+          </p>
         </div>
       );
 

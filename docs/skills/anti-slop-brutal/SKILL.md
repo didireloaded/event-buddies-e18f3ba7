@@ -3,11 +3,6 @@ name: anti-slop-brutal
 description: Apply the supplied Event Buddies design, copy and review manual when changing attendee UI, reviewing festival flows or drafting builder prompts for this project.
 ---
 
----
-name: anti-slop-brutal
-description: Review and implement Event Buddies attendee UI and copy using festival-specific states, honest local sharing, iOS interaction conventions and the supplied six-part review format.
----
-
 # Event Buddies review guide
 
 Read [the supplied manual](references/event-buddies-manual.md) before reviewing or changing Event Buddies UI, copy or builder prompts. Use its six-part response format for design reviews and its state and acceptance contract for builder prompts.

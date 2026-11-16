@@ -29,19 +29,22 @@ export const suggestDayPlan = createServerFn({ method: "POST" })
     if (!facts.savedArtists.length && !facts.meeting)
       return { ok: false, error: "Save an artist or a meeting plan first." };
     try {
-      const response = await generateResponse({
-        model: "openai/gpt-6-astra",
-        instructions: INSTRUCTIONS,
-        input: [{ role: "user", content: `Facts (JSON):\n${JSON.stringify(facts)}` }],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "day_plan",
-            strict: true,
-            schema: dayPlanJsonSchema,
+      const response = await generateResponse(
+        {
+          model: "openai/gpt-6-astra",
+          instructions: INSTRUCTIONS,
+          input: [{ role: "user", content: `Facts (JSON):\n${JSON.stringify(facts)}` }],
+          text: {
+            format: {
+              type: "json_schema",
+              name: "day_plan",
+              strict: true,
+              schema: dayPlanJsonSchema,
+            },
           },
         },
-      });
+        { signal: AbortSignal.timeout(8000) },
+      );
       const text = response.output
         .flatMap((item) => (item.type === "message" ? item.content : []))
         .map((part) => (part.type === "output_text" ? part.text : ""))
@@ -56,7 +59,6 @@ export const suggestDayPlan = createServerFn({ method: "POST" })
       if (!parsed.success) return { ok: false, error: "The plan didn’t pass checks. Try again." };
       return { ok: true, plan: enforceKnownTimes(parsed.data, facts) };
     } catch (error) {
-      console.error("day plan gateway error", error);
       if (error instanceof GatewayError) {
         if (error.httpStatus === 402) return { ok: false, error: "AI credits have run out." };
         if (error.httpStatus === 429)

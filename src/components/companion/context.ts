@@ -3,6 +3,7 @@ import type { DemoData, PerformanceRecord } from "@/lib/event/types";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { MapFilter, Place } from "@/lib/attendee/map";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
+import type { OfflineStatus } from "@/lib/pwa";
 
 export type View = "home" | "lineup" | "map" | "crew" | "you" | "info";
 
@@ -32,6 +33,7 @@ export type CompanionContext = {
   places: Place[];
   attendee: ReturnType<typeof useAttendee>;
   now: number | null;
+  offlineStatus: OfflineStatus;
   view: View;
   navigate: (view: View) => void;
   openSheet: (sheet: Sheet) => void;
