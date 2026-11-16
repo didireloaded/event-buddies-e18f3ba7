@@ -59,7 +59,7 @@ export const dayPlanJsonSchema = {
 /** Verified facts the model may use, built from the event data on the server. */
 export function buildPlanFacts(data: DemoData, input: DayPlanInput) {
   const placeName = (id: string | null | undefined) =>
-    [...data.stages, ...data.venuePoints].find((p) => p.id === id)?.name ?? null;
+    [...data.stages, ...data.points].find((p) => p.id === id)?.name ?? null;
   const artists = data.festival.artists
     .filter((a) => input.savedArtistIds.includes(a.id))
     .map((a) => ({ name: a.name, stage: placeName(a.stageId), time: TBA }));
