@@ -97,7 +97,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       <Section title="Event" id="home-event" className="px-4">
         <div className="ios-group ios-group-indent">
           <div className="ios-row">
-            <IconTile icon={CalendarDays} tone="bg-destructive" />
+            <IconTile icon={CalendarDays} />
             <RowText
               title={longDate}
               subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT`}
