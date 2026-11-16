@@ -23,7 +23,7 @@ export function Onboarding() {
         profile: { ...attendee.preferences.profile, name: name.trim() },
       })
     )
-      navigate("home");
+      navigate("events");
   };
   return (
     <section
@@ -51,7 +51,7 @@ export function Onboarding() {
             <MapPin size={72} />
             <Users size={48} />
           </div>
-          <h1 className="display-title text-[clamp(2.75rem,12vw,4.5rem)]">
+          <h1 className="ios-large-title">
             Find your people.
             <br />
             <span className="text-favorite">Don’t lose them.</span>

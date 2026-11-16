@@ -1,55 +1,93 @@
-import { useCompanion } from "./context";
-import { ProfileForm } from "./forms";
-import { PrivacyPanel } from "./PrivacyPanel";
-import { PlanBackup } from "./PlanBackup";
-import { Section } from "./ui";
+import { Ticket, ShieldCheck, Smartphone, UserRound, CalendarDays } from "lucide-react";
+import { initials, useCompanion } from "./context";
 import { AfterEventData } from "./AfterEventData";
-import { OfflineReadiness } from "./OfflineReadiness";
-import { TicketVault } from "./TicketVault";
+import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
 
 export function YouView() {
-  const { attendee } = useCompanion();
+  const { attendee, openSheet, offlineStatus } = useCompanion();
+  const { preferences } = attendee;
   return (
     <div className="px-4">
       <h1 className="ios-large-title pt-2">You</h1>
-      <Section title="Your festival name" id="you-name">
-        <ProfileForm
-          initial={attendee.preferences.profile}
-          disabled={!attendee.ready}
-          savedCount={attendee.preferences.savedArtists.length}
-          onSave={(profile) => {
-            if (attendee.update({ profile, hasName: true })) attendee.notify("Your name is saved");
-          }}
-        />
+      <button
+        type="button"
+        className="ios-row mt-4 gap-4 rounded-2xl bg-popover py-5"
+        onClick={() => openSheet({ kind: "profile" })}
+      >
+        <Avatar label={initials(preferences.profile.name)} size="lg" />
+        <span className="min-w-0 flex-1">
+          <span className="block break-words text-[22px] font-bold tracking-tight">
+            {preferences.hasName ? preferences.profile.name : "Your festival name"}
+          </span>
+          <span className="mt-1 block text-[15px] text-muted-foreground">
+            Edit name · {preferences.savedArtists.length} saved artists
+          </span>
+        </span>
+        <Chevron />
+      </button>
+      <Section title="Festival mode" id="you-preferences">
+        <div className="ios-group ios-group-indent">
+          <a href="#events" className="ios-row">
+            <IconTile icon={CalendarDays} />
+            <RowText title="Switch event" />
+            <Chevron />
+          </a>
+          <label className="ios-row">
+            <IconTile icon={UserRound} />
+            <span className="flex-1 text-[17px]">Here for</span>
+            <select
+              aria-label="Festival mode"
+              className="min-h-11 max-w-[50%] bg-transparent text-right text-[17px] text-muted-foreground"
+              value={preferences.festivalMode ?? ""}
+              onChange={(event) => {
+                const mode = event.target.value;
+                if (mode === "music" || mode === "friends" || mode === "both")
+                  attendee.update({ festivalMode: mode });
+              }}
+            >
+              <option value="" disabled>
+                Choose
+              </option>
+              <option value="music">Music</option>
+              <option value="friends">Friends</option>
+              <option value="both">Both</option>
+            </select>
+          </label>
+        </div>
       </Section>
-      <label className="mt-6 block font-semibold">
-        Festival mode
-        <select
-          className="ios-field mt-2"
-          value={attendee.preferences.festivalMode ?? ""}
-          onChange={(e) => {
-            const mode = e.target.value;
-            if (mode === "music" || mode === "friends" || mode === "both")
-              attendee.update({ festivalMode: mode });
-          }}
-        >
-          <option value="" disabled>
-            Choose your mode
-          </option>
-          <option value="music">Here for the music</option>
-          <option value="friends">Here to meet people</option>
-          <option value="both">A bit of both</option>
-        </select>
-      </label>
-      <details className="mt-6 border-y border-border py-2">
-        <summary className="min-h-12 cursor-pointer content-center text-[17px] font-semibold">
-          Location, privacy & saved data
-        </summary>
-        <PrivacyPanel />
-      </details>
-      <PlanBackup />
-      <TicketVault />
-      <OfflineReadiness />
+      <Section title="Saved on this phone" id="you-saved">
+        <div className="ios-group ios-group-indent">
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "ticket" })}>
+            <IconTile icon={Ticket} />
+            <RowText title="Ticket vault" subtitle="Your offline ticket copy" />
+            <Chevron />
+          </button>
+        </div>
+      </Section>
+      <Section title="Privacy & app" id="you-app">
+        <div className="ios-group ios-group-indent">
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "privacy" })}>
+            <IconTile icon={ShieldCheck} />
+            <RowText
+              title="Location & saved data"
+              subtitle="Private pins, sharing and clear data"
+            />
+            <Chevron />
+          </button>
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "offline" })}>
+            <IconTile icon={Smartphone} />
+            <RowText
+              title="Offline & installation"
+              subtitle={
+                offlineStatus === "registered"
+                  ? "Offline copy saved on this phone"
+                  : "Check your offline copy"
+              }
+            />
+            <Chevron />
+          </button>
+        </div>
+      </Section>
       <AfterEventData />
     </div>
   );

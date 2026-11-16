@@ -16,7 +16,7 @@ export function ArtistAvatar({
       aria-hidden
       className={cn(
         "grid flex-none place-items-center overflow-hidden rounded-full bg-secondary text-secondary-foreground ring-1 ring-border",
-        large ? "size-16" : "size-10",
+        large ? "size-16" : "size-12",
       )}
     >
       {artist.avatarUrl && !failed ? (

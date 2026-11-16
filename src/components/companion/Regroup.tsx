@@ -118,7 +118,7 @@ export function Regroup() {
     <>
       <button
         type="button"
-        className="min-h-11 rounded-full border border-border px-4 text-[15px] font-semibold"
+        className="ios-press min-h-11 rounded-full bg-secondary px-4 text-[15px] font-semibold"
         disabled={!attendee.ready}
         onClick={() => {
           setOpen(true);

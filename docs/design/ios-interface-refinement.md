@@ -1,0 +1,47 @@
+# iOS interface refinement
+
+## Brief
+
+Event Buddies is a mobile PWA for Sound of Summer attendees finding facilities, saving artists and meeting friends on a low-signal coast. The primary tasks are opening a venue point, finding a friend’s shared meetup and reviewing the lineup. Navigation remains Events, Map, Crew and You, with browser hash history.
+
+Retain the supplied festival photography, artist portraits, paper/black/hot-pink identity and authentic venue plan. Use readable system typography, compact toolbars, inset rows and contextual sheets. Avoid the previous long editorial Home, duplicated event facts, permanent forms and app-maintenance controls in Crew.
+
+## Screen and state ownership
+
+- First visit collects a name, then shows deliberate event selection. The real event opens a preview sheet with “I’m going.” Selection persists in event-scoped preferences. Existing named users retain their event. You offers Switch event. Accepted, validated plan imports select the same event.
+- Selection has no bottom tab bar. Its past-event state opens the existing recap. Only the real event is listed.
+- Home keeps the event pass, countdown, crew action, two action tiles, tappable people and one Essentials link. Transport, coast details and the assistant live in Essentials.
+- Crew shows the attendee and people from actually imported plans. Avatars open saved-plan details with a meeting-point action and removal. QR sharing, scanning, regroup and the find-me screen retain their real local behavior. The meetup editor is secondary.
+- Map shows search, category counts, a category dropdown list and the venue plan. Place details open in a sheet. Location privacy remains reachable through the eye-off control. A private active pin retains its expiry bar.
+- You shows identity, festival preference, event switching, ticket copy, privacy and offline installation. Low-power and backup controls were removed from this primary surface.
+- The attendee menu no longer links to the organiser workspace. The separate organiser route still exists.
+
+## Product-specific choices
+
+1. The actual festival photo anchors the event pass, while utility screens use system typography.
+2. The 41 supplied venue points own category counts and sheets. The plan remains pinchable and pannable, with accessible zoom controls.
+3. Crew avatars come from imported plans and open those saved records. Empty Crew has QR sharing and scanning actions.
+
+## Component research
+
+Konsta 5.5.0 is MIT licensed, supports React and uses Tailwind 4 in the supplied source. Installed through Bun to preserve the committed lockfile. The iOS provider disables Material ripples and hover highlights. The event-selection confirmation uses its Button. Existing native-dialog sheets retain their focus management, Escape dismissal and drag behavior.
+
+The archive contains source and kitchen-sink examples for navigation bars, grouped lists, tab bars, sheets and action sheets. It contains no SKILL.md. Reusable engineering guidance can be written from these patterns, with separate accessibility and gesture verification.
+
+@makemore/mobile-design-system 0.1.1 declares Next >=14 as a peer. Event Buddies uses TanStack Start. @ayuuxh/ios-kit 0.2.0 declares React >=18 and depends on Framer Motion 11. Neither was installed.
+
+The two supplied Figma URLs returned HTTP 403 to direct requests. Browser navigation to the Builder file timed out. Their internal components, variables, licence, usage counts and code-generation claims remain unverified. Refero searches earlier returned an inactive-subscription error. Supplied screenshots, iOS guidance and accessible Konsta source informed this pass.
+
+## Verification
+
+The production check runs strict TypeScript, scoped lint, Vitest, credential-scanner tests, the production build and bundle credential-format checks. Playwright covers onboarding and event selection, saved artists, event switching, attendee-menu exclusions, meetup validation, category counts, actual two-touch pinch, drag, offline ticket persistence, offline assistant access from Essentials, selected-place handoff, profile focus return and sheet drag dismissal.
+
+Rendered Chromium inspection includes 390px Home, Crew, Map, Lineup and You. The event selector and preview sheet were inspected at 320px with reduced motion. Additional responsive and browser results are recorded in the delivery report after the final run.
+
+Physical iPhone Safari, installed standalone mode, soft keyboard, VoiceOver and Android device tests remain NOT RUN.
+
+## Integration boundaries
+
+Live crew membership, moving GPS positions, event-only public discovery, delivery of location requests and ticket entitlements await the deferred Cloud connection and authoritative integrations. Imported plans are saved copies. The ticket vault stores a local file and does not verify ticket tier. Vendor menus are absent from the event source. Set times remain unpublished.
+
+The Lovable builder reported insufficient workspace credits during this session. GitHub synchronization remains the delivery path. No local database migrations were added.

@@ -62,7 +62,7 @@ export function FindMe() {
     <>
       <button
         type="button"
-        className="min-h-11 rounded-full bg-favorite px-4 text-[15px] font-semibold text-primary-foreground"
+        className="ios-press min-h-11 rounded-full bg-favorite-soft px-4 text-[15px] font-semibold text-favorite"
         onClick={() => setOpen(true)}
       >
         Find me screen

@@ -7,7 +7,6 @@ import {
   Download,
   Heart,
   IdCard,
-  LayoutDashboard,
   Map as MapIcon,
   MapPin,
   Music2,
@@ -17,7 +16,6 @@ import {
   Shuffle,
   User,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
 import { cn } from "@/lib/utils";
@@ -25,6 +23,12 @@ import { initials, useCompanion, type Sheet as SheetState } from "./context";
 import { MeetingForm, ProfileForm } from "./forms";
 import { ArtistAvatar } from "./ArtistAvatar";
 import { PrivacyPanel } from "./PrivacyPanel";
+import { EventAssistant } from "./EventAssistant";
+import { TicketVault } from "./TicketVault";
+import { PlanBackup } from "./PlanBackup";
+import { OfflineReadiness } from "./OfflineReadiness";
+import { QuickPings } from "./QuickPings";
+import { FestivalPassport } from "./FestivalPassport";
 import { TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Avatar, Chevron, IconTile, Notice, PrimaryButton, RowText, SecondaryButton } from "./ui";
 
@@ -50,6 +54,12 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         updates: "Event updates",
         meeting: "Meeting plan",
         privacy: "Location & privacy",
+        assistant: "Ask about the festival",
+        ticket: "Your ticket",
+        backup: "Your saved plan",
+        offline: "Offline & installation",
+        pings: "Quick message",
+        passport: "Festival passport",
         install: "Add to Home Screen",
         event: ctx.data.event.name,
         profile: "My profile",
@@ -89,6 +99,18 @@ export function SheetContent({
   const savedCount = preferences.savedArtists.length + preferences.saved.length;
 
   switch (sheet.kind) {
+    case "pings":
+      return <QuickPings />;
+    case "passport":
+      return <FestivalPassport />;
+    case "assistant":
+      return <EventAssistant />;
+    case "ticket":
+      return <TicketVault />;
+    case "backup":
+      return <PlanBackup />;
+    case "offline":
+      return <OfflineReadiness />;
     case "places":
       return (
         <div className="ios-group ios-group-indent">
@@ -136,6 +158,15 @@ export function SheetContent({
               <MapIcon size={18} /> Find the stage
             </SecondaryButton>
           )}
+          <a
+            href={`https://open.spotify.com/search/${encodeURIComponent(sheet.artist.name)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="ios-row rounded-xl bg-secondary font-semibold"
+          >
+            Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
+            <span className="sr-only"> Opens in a new tab</span>
+          </a>
           <p className="text-[13px] text-muted-foreground">
             {sheet.artist.avatarUrl
               ? "Artist and stage billing from the supplied 2026 announcement posts."
@@ -395,13 +426,6 @@ export function SheetContent({
               <RowText title="Add to Home Screen" /> <Chevron />
             </button>
           </div>
-          <div className="ios-group">
-            <Link to="/organiser" className="ios-row" onClick={closeSheet}>
-              <IconTile icon={LayoutDashboard} tone="bg-pin-other" />
-              <RowText title="Organiser workspace" subtitle="Demo preview · read-only data" />
-              <Chevron />
-            </Link>
-          </div>
         </div>
       );
 
@@ -519,8 +543,12 @@ export function SheetContent({
           eventEnd={data.event.endAt}
           timezone={tz}
           places={places}
-          initial={preferences.meeting}
-          selectedId={map.selected}
+          initial={
+            preferences.meeting
+              ? { ...preferences.meeting, pointId: sheet.pointId ?? preferences.meeting.pointId }
+              : null
+          }
+          selectedId={sheet.pointId ?? map.selected}
           disabled={!ready}
           onSave={(next) => {
             if (update({ meeting: next })) {

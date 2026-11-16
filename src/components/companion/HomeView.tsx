@@ -1,109 +1,66 @@
-import {
-  ArrowUpRight,
-  CalendarDays,
-  Heart,
-  IdCard,
-  MapPin,
-  Share2,
-  Ticket,
-  Users,
-  Building2,
-} from "lucide-react";
+import { Heart, Share2, Users, Music2 } from "lucide-react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
-import { useCompanion } from "./context";
-import { ArtistRow } from "./LineupView";
-import { Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
-import { cn } from "@/lib/utils";
-import { RideBookmark } from "./RideBookmark";
-import { PostEventState } from "./PostEventState";
 import { eventLifecycle } from "@/lib/attendee/lifecycle";
-import { EventAssistant } from "./EventAssistant";
+import { useCompanion } from "./context";
+import { CrewPeople } from "./CrewPeople";
+import { Chevron, PrimaryButton } from "./ui";
+
+import { PostEventState } from "./PostEventState";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
   const { data, attendee, now, navigate, openSheet, places } = useCompanion();
-  const { preferences, toggleFollow, toggleArtist, ready } = attendee;
+  const { preferences, toggleFollow, ready } = attendee;
   const phase = eventPhase(data, now);
-  const tz = data.event.timezone;
-  const longDate = dateLabel(data.event.startAt, tz, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const meeting = preferences.meeting;
-  const meetingPlace = meeting ? places.find((p) => p.id === meeting.pointId) : undefined;
   const life = eventLifecycle(data, now);
+  const meeting = preferences.meeting;
+  const meetingPlace = places.find((place) => place.id === meeting?.pointId);
   if (life.phase !== "upcoming" && life.phase !== "live") return <PostEventState />;
 
   return (
     <>
-      <div className="px-4">
-        <div className="flex items-center justify-between gap-3 pt-3 text-[11px] font-bold uppercase tracking-wide">
-          <span className="flex min-w-0 flex-1 items-center gap-1">
-            <MapPin size={13} className="flex-none" aria-hidden />
-            <span>
-              {preferences.following ? "Your event · " : ""}
-              {data.event.city}, {data.event.country}
-            </span>
-          </span>
-          <time className="flex-none">
-            {dateLabel(data.event.startAt, tz, {
-              day: "2-digit",
-              month: "2-digit",
-              year: "2-digit",
-            })}
-          </time>
-        </div>
-        <h1 className="display-title mt-6 text-[clamp(3.5rem,20vw,6rem)] leading-[1.03] uppercase">
-          Sound of
-          <br />
-          <span className="text-favorite">Summer</span>
-        </h1>
+      <div className="px-4 pb-3 pt-2">
+        <h1 className="ios-large-title">Events</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">Your Sound of Summer companion</p>
       </div>
-
-      <div className="mt-4 px-4">
-        <PrimaryButton onClick={() => navigate("crew")}>
-          <Users size={20} /> Find your crew <ArrowUpRight size={20} className="ml-auto" />
-        </PrimaryButton>
-      </div>
-
-      <figure className="relative mx-4 mt-4 overflow-hidden">
-        <img
-          src={data.event.heroImageUrl}
-          alt="Crowd at a past Sound of Summer edition, from Namib Rage’s official gallery"
-          width={1200}
-          height={800}
-          fetchPriority="high"
-          className="aspect-[1.4] w-full bg-muted object-cover grayscale"
-        />
-        <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-foreground/80 to-transparent p-4 text-primary-foreground">
-          <span className="text-[20px] font-extrabold uppercase leading-none">
-            One coast.
-            <br />
-            Three stages.
-          </span>
-          <button
-            type="button"
-            onClick={() => openSheet({ kind: "event" })}
-            aria-label="About Sound of Summer"
-            className="grid size-11 place-items-center rounded-full bg-background text-foreground"
-          >
-            <ArrowUpRight size={24} />
-          </button>
-        </figcaption>
-        <span className="absolute right-4 top-4 grid size-16 rotate-12 place-content-center rounded-full bg-success text-center text-primary-foreground">
-          <strong className="text-[30px] leading-none">28</strong>
-          <span className="text-[11px] font-bold tracking-widest">DEC</span>
-        </span>
-      </figure>
-
-      <div className="px-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[15px] font-bold">{data.event.venueName}</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Monday 28 December · From {eventTime(data.event.startAt)}
+      <section
+        className="event-pass mx-4 overflow-hidden rounded-[20px] bg-popover"
+        aria-label={data.event.name}
+      >
+        <button
+          type="button"
+          onClick={() => openSheet({ kind: "event" })}
+          className="relative block w-full text-left"
+          aria-label="About Sound of Summer"
+        >
+          <img
+            src={data.event.heroImageUrl}
+            alt="Crowd at a past Sound of Summer edition, from Namib Rage’s official gallery"
+            width={1200}
+            height={800}
+            fetchPriority="high"
+            className="aspect-[1.8] w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/90 via-foreground/10 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-4 text-primary-foreground">
+            <p className="mb-1 text-[13px] font-semibold">
+              {dateLabel(data.event.startAt, data.event.timezone, {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
+            <h2 className="display-title text-[42px]">
+              Sound of <span className="text-favorite">Summer</span>
+            </h2>
+          </div>
+        </button>
+        <div className="flex items-center gap-3 px-4 pb-3 pt-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[17px] font-semibold leading-snug">{data.event.venueName}</p>
+            <p className="mt-1 text-[15px] text-muted-foreground">
+              {data.event.city} · {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT
             </p>
           </div>
           <button
@@ -112,200 +69,49 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             aria-label="Save event"
             aria-pressed={preferences.following}
             onClick={toggleFollow}
-            className="grid size-11 place-items-center rounded-full bg-muted"
+            className="ios-press grid size-11 flex-none place-items-center rounded-full bg-secondary text-favorite"
           >
-            <Heart size={21} fill={preferences.following ? "currentColor" : "none"} />
+            <Heart size={22} fill={preferences.following ? "currentColor" : "none"} />
           </button>
         </div>
-        <p className="my-4 border-t border-border pt-3 text-[12px] font-semibold text-favorite">
-          {phase.label}
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <a
-            href="#lineup"
-            className="flex min-h-44 flex-col justify-between rounded-2xl bg-favorite p-4 text-primary-foreground"
-          >
-            <CalendarDays size={24} />
-            <span className="display-title text-[27px] uppercase leading-tight">
-              Your night.
-              <br />
-              Your lineup.
-            </span>
-            <span className="text-[13px]">
-              {preferences.savedArtists.length} saved · Explore lineup ↗
-            </span>
-          </a>
-          <a
-            href="#crew"
-            className="flex min-h-44 flex-col justify-between rounded-2xl bg-primary p-4 text-primary-foreground"
-          >
-            <Users size={24} />
-            <span className="display-title text-[27px] uppercase leading-tight">
-              Better
-              <br />
-              together.
-            </span>
-            <span className="text-[13px]">
-              {meeting ? "Your meeting plan" : "Plan with friends"} ↗
-            </span>
-          </a>
-        </div>
-      </div>
-
-      <RideBookmark />
-      <div className="mx-4 my-4 border-b border-border pb-4">
-        <h2 className="text-[20px] font-bold">Coast watch</h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Sunset, weather and tide information pending.
-        </p>
-        <p className="mt-2 text-[15px]">
-          Bring warm layers for the evening. Check beach conditions with the on-site team.
-        </p>
-      </div>
-      <Section title="Event" id="home-event" className="px-4">
-        <div className="ios-group ios-group-indent">
-          <div className="ios-row">
-            <IconTile icon={CalendarDays} />
-            <RowText
-              title={longDate}
-              subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT`}
-            />
-          </div>
-          <button
-            type="button"
-            className="ios-row"
-            onClick={() => openSheet({ kind: "transport" })}
-          >
-            <IconTile icon={MapPin} tone="bg-pin-entrance" />
-            <RowText
-              title={data.event.venueName}
-              subtitle={`${data.event.city} · Parking & buses`}
-            />
-            <Chevron />
-          </button>
-          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "rules" })}>
-            <IconTile icon={IdCard} tone="bg-pin-amenity" />
-            <RowText title="18+ with valid ID" subtitle="Rules & prohibited items" />
-            <Chevron />
-          </button>
-          <a
-            className="ios-row"
-            href={data.event.ticketUrl ?? data.festival.ticketUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <IconTile icon={Ticket} />
-            <RowText title="Tickets on Howler" subtitle="Official ticketing site" />
-            <ArrowUpRight size={18} className="text-tertiary-foreground" aria-hidden />
-            <span className="sr-only">(opens in a new tab)</span>
-          </a>
-          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
-            <IconTile icon={Building2} tone="bg-pin-other" />
-            <RowText title="Event details" subtitle={`Organised by ${data.festival.organiser}`} />
-            <Chevron />
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={!ready}
-            aria-pressed={preferences.following}
-            onClick={toggleFollow}
-            className={cn(
-              "flex min-h-11 items-center justify-center gap-2 rounded-xl bg-popover ring-1 ring-border text-[15px] font-semibold",
-              preferences.following ? "text-favorite" : "text-primary",
-            )}
-          >
-            <Heart size={18} fill={preferences.following ? "currentColor" : "none"} aria-hidden />
-            {preferences.following ? "Saved" : "Save event"}
-          </button>
+        <div className="flex items-center justify-between border-t border-border px-4 py-2">
+          <p className="text-[13px] font-semibold text-muted-foreground">{phase.label}</p>
           <button
             type="button"
             onClick={onShare}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-popover ring-1 ring-border text-[15px] font-semibold text-primary"
+            aria-label="Share event"
+            className="grid size-11 place-items-center text-favorite"
           >
-            <Share2 size={18} aria-hidden /> Share
+            <Share2 size={21} strokeWidth={1.75} />
           </button>
         </div>
-      </Section>
-
-      <Section
-        title="Lineup"
-        id="home-lineup"
-        className="px-4"
-        action={
-          <a href="#lineup" className="mb-1 min-h-11 content-center px-1 text-[15px] text-primary">
-            See all
-          </a>
-        }
-        footer="Set times haven’t been published yet."
-      >
-        <div className="ios-group ios-group-indent">
-          {data.festival.artists.slice(0, 3).map((artist) => (
-            <ArtistRow
-              key={artist.id}
-              artist={artist}
-              saved={preferences.savedArtists.includes(artist.id)}
-              disabled={!ready}
-              onOpen={() => openSheet({ kind: "artist", artist })}
-              onSave={() => toggleArtist(artist.id)}
-            />
-          ))}
-        </div>
-      </Section>
-
-      <EventAssistant />
-      <div className="px-4 mt-4">
-        <a href="#you" className="ios-row">
-          <IconTile icon={Ticket} />
-          <RowText
-            title="Save your ticket offline"
-            subtitle="Keep a screenshot or PDF on this phone"
-          />
+      </section>
+      <div className="px-4 pt-4">
+        <PrimaryButton onClick={() => navigate("crew")}>
+          <Users size={20} />
+          {meetingPlace ? `Meet at ${meetingPlace.name}` : "Find your crew"}
           <Chevron />
+        </PrimaryButton>
+      </div>
+      <div className="grid grid-cols-2 gap-3 px-4 pt-4">
+        <a href="#lineup" className="ios-press rounded-2xl bg-popover p-4">
+          <Music2 size={23} className="mb-3 text-favorite" />
+          <span className="block text-[14px] text-muted-foreground">Your night</span>
+          <span className="block text-[19px] font-bold">Your lineup</span>
+        </a>
+        <a href="#crew" className="ios-press rounded-2xl bg-popover p-4">
+          <Users size={23} className="mb-3 text-favorite" />
+          <span className="block text-[14px] text-muted-foreground">Better together</span>
+          <span className="block text-[19px] font-bold">Find your people</span>
         </a>
       </div>
-      <Section title="Your crew" id="home-crew" className="px-4">
-        <div className="ios-group">
-          <a href="#crew" className="ios-row py-3">
-            <IconTile icon={Users} />
-            <RowText
-              title={
-                meetingPlace ? `Meet at ${meetingPlace.name}` : "Make a plan with your friends"
-              }
-              subtitle={
-                meeting
-                  ? `${eventTime(meeting.at)} CAT · saved on this device`
-                  : "Choose a meeting point, then share it by QR"
-              }
-            />
-            <Chevron />
-          </a>
-        </div>
-      </Section>
-
-      <Section title="Also from Namib Rage" id="home-related" className="px-4">
-        <div className="ios-group">
-          <a
-            className="ios-row"
-            href={data.festival.relatedEvent.url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <IconTile icon={Users} tone="bg-pin-amenity" />
-            <RowText
-              title={data.festival.relatedEvent.name}
-              subtitle={`${data.festival.relatedEvent.date} · ${data.festival.relatedEvent.venue}`}
-            />
-            <ArrowUpRight size={18} className="text-tertiary-foreground" aria-hidden />
-            <span className="sr-only">(opens in a new tab)</span>
-          </a>
-        </div>
-      </Section>
-
-      <p className="ios-footnote mt-6 px-8 pb-4 text-center">
-        Event information checked {data.festival.sourceCheckedAt}.
-      </p>
+      <CrewPeople />
+      <a
+        href="#info"
+        className="mx-4 mt-5 flex min-h-11 items-center justify-between text-[17px] font-medium"
+      >
+        Festival essentials <Chevron />
+      </a>
     </>
   );
 }

@@ -17,6 +17,7 @@ import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/sch
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
 import { ArtistAvatar } from "./ArtistAvatar";
+import { EventSections } from "./EventSections";
 import { Chevron, IconTile, Notice, RowText, SearchField, Section, Segmented } from "./ui";
 
 export function ArtistRow({
@@ -80,15 +81,6 @@ export function ArtistRow({
           }
         />
       </button>
-      <a
-        href={`https://open.spotify.com/search/${encodeURIComponent(artist.name)}`}
-        target="_blank"
-        rel="noreferrer"
-        aria-label={`Find ${artist.name} on Spotify, opens in a new tab`}
-        className="grid min-h-11 flex-none place-items-center px-2 text-[13px] font-semibold"
-      >
-        Spotify ↗
-      </a>
       <button
         type="button"
         disabled={disabled}
@@ -211,6 +203,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
   return (
     <>
       <h1 className="ios-large-title px-4 pt-2">Lineup</h1>
+      <EventSections />
       <div className="space-y-2 bg-background px-4 pb-2 pt-2">
         <SearchField
           id="lineup-search"
@@ -231,36 +224,30 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
         />
       </div>
       <div
-        className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-1"
+        className="flex items-center justify-between gap-3 px-4 py-1"
         role="group"
         aria-label="Filter by stage"
       >
-        {[
-          { id: "all", label: "All stages" },
-          ...data.stages.map((s) => ({ id: s.id, label: s.name.replace(" Stage", "") })),
-          { id: "tba", label: "Stage TBA" },
-        ].map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className="ios-chip"
-            aria-pressed={stage === option.id}
-            onClick={() => setStage(option.id)}
+        <span className="text-[13px] text-muted-foreground">
+          {hasTimetable ? "Stage schedule" : "Set times pending"}
+        </span>
+        <label className="min-w-0 max-w-[60%]">
+          <span className="sr-only">Stage</span>
+          <select
+            className="min-h-11 w-full bg-transparent text-[15px] font-semibold"
+            value={stage}
+            onChange={(event) => setStage(event.target.value)}
           >
-            {option.label}
-          </button>
-        ))}
+            <option value="all">All stages</option>
+            {data.stages.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+            <option value="tba">Stage not mapped</option>
+          </select>
+        </label>
       </div>
-
-      {!hasTimetable && (
-        <div className="mt-3 px-4">
-          <Notice icon={Info} tone="warning">
-            <strong className="font-semibold">Timetable not published yet.</strong> These are the
-            announced artists. Stage billing follows the supplied announcement posts. Set times are
-            awaiting publication.
-          </Notice>
-        </div>
-      )}
 
       {clashes.length > 0 && onlySaved === "saved" && (
         <div className="mt-3 px-4">

@@ -20,6 +20,7 @@ export function PinPrivacy() {
     }
   }, [attendee, here, now, active]);
   const remaining = active && now !== null ? Math.ceil((active.expiresAt - now) / 60000) : 0;
+  if (!active) return null;
   return (
     <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 border-t border-border px-safe py-1 text-[13px]">
       <button
@@ -29,7 +30,7 @@ export function PinPrivacy() {
       >
         {active
           ? `Private pin · ${places.find((p) => p.id === active.pointId)?.name} · ${remaining}m left`
-          : "Ghost mode · no location broadcast"}
+          : "Hidden · private landmark mode"}
       </button>
       {active && (
         <button
