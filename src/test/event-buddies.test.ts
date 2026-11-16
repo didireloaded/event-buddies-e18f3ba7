@@ -10,9 +10,10 @@ const data = getDemoData();
 const places = buildPlaces(data);
 
 describe("Sound of Summer verified data", () => {
-  it("keeps 41 image-based map points and 3 stages", () => {
-    expect(data.points).toHaveLength(41);
+  it("keeps 41 image-based map points: 38 venue points plus 3 stages", () => {
+    expect(data.points).toHaveLength(38);
     expect(data.stages).toHaveLength(3);
+    expect(places).toHaveLength(41);
   });
   it("keeps GPS null everywhere", () => {
     for (const item of [data.event, ...data.stages, ...data.points]) {

@@ -45,7 +45,7 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
     },
     {
       label: "Venue plan points",
-      detail: `${data.points.length} points and ${data.stages.length} stages placed on the supplied image`,
+      detail: `${data.points.length + data.stages.length} points (${data.stages.length} stages) placed on the supplied image`,
       state: "ok",
     },
     {

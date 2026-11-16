@@ -200,7 +200,7 @@ export function MapView() {
     <>
       <h1 className="px-4 text-[34px] font-bold tracking-tight">Map</h1>
       <p className="px-4 text-[15px] text-muted-foreground">
-        {data.event.venueName} · {data.points.length} marked points
+        {data.event.venueName} · {places.length} marked points
       </p>
       <div className="mt-3 px-4">
         <SearchField
