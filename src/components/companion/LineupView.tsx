@@ -189,6 +189,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
     setPlanError(null);
     try {
       const result = await suggestDayPlan({
+        signal: AbortSignal.timeout(8000),
         data: {
           savedArtistIds: preferences.savedArtists,
           meeting: preferences.meeting,

@@ -14,7 +14,7 @@ import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
 import { useAttendee } from "@/lib/attendee/use-attendee";
 import type { DemoData } from "@/lib/event/types";
-import { registerServiceWorker } from "@/lib/pwa";
+import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 import {
   Companion,
@@ -91,6 +91,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const now = useEventClock(attendee.preferences.batterySaver ? 60000 : 10000);
   const places = useMemo(() => buildPlaces(data), [data]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("checking");
   const [filter, setFilter] = useState<MapFilter>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -112,7 +113,13 @@ export function EventCompanion({ data }: { data: DemoData }) {
   }, []);
 
   useEffect(() => {
-    void registerServiceWorker();
+    let active = true;
+    void registerServiceWorker().then((status) => {
+      if (active) setOfflineStatus(status);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Leaving the Map tab (including via browser Back) closes the full-screen map.
@@ -150,6 +157,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
     places,
     attendee,
     now,
+    offlineStatus,
     view,
     navigate,
     openSheet: setSheet,

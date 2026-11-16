@@ -19,6 +19,7 @@ export type Preferences = {
   sharedPlans: { receivedAt: number; plan: BumpPlan }[];
   onboardingDone: boolean;
   hasName: boolean;
+  installHintDismissed: boolean;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -40,6 +41,7 @@ export function defaultPreferences(data: DemoData): Preferences {
     sharedPlans: [],
     onboardingDone: false,
     hasName: false,
+    installHintDismissed: false,
   };
 }
 
@@ -78,6 +80,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    installHintDismissed: stored["installHintDismissed"] === true,
     hasName:
       typeof stored["hasName"] === "boolean"
         ? stored["hasName"] &&

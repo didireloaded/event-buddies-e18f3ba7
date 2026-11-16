@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-client-secrets.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check:client-secrets": "node scripts/check-client-secrets.mjs",
+    "test:security": "node --test scripts/check-client-secrets.test.mjs",
+    "check": "npm run typecheck && eslint src/components/companion src/lib/attendee src/lib/day-plan src/lib/pwa.ts --quiet && npm run test && npm run test:security && npm run build",
     "test:watch": "vitest"
   },
   "overrides": {

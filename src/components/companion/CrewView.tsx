@@ -11,6 +11,7 @@ import { SharedPlans } from "./SharedPlans";
 import { QuickPings } from "./QuickPings";
 import { FindMe } from "./FindMe";
 import { Switch } from "@/components/ui/switch";
+import { InstallReminder } from "./OfflineReadiness";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
 export { countdownLabel } from "@/lib/attendee/event-clock";
@@ -33,6 +34,7 @@ export function CrewView() {
   return (
     <>
       <h1 className="ios-large-title px-4 pt-2">Crew</h1>
+      <InstallReminder />
       <p className="px-4 text-[15px] text-muted-foreground">
         Pick a place. Agree on a time. Share the plan.
       </p>
