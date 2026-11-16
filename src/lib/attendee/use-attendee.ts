@@ -10,6 +10,8 @@ export type Preferences = {
   following: boolean;
   status: string;
   meeting: LocalMeeting | null;
+  ride: { pointId: string; note: string; kind: "car" | "shuttle" } | null;
+  stamps: string[];
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -23,6 +25,8 @@ export function defaultPreferences(data: DemoData): Preferences {
     following: data.following,
     status: "Enjoying the music",
     meeting: null,
+    ride: null,
+    stamps: [],
   };
 }
 
@@ -37,8 +41,18 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const savedArtists = strings(stored["savedArtists"]);
   const profile = stored["profile"] as Record<string, unknown> | undefined;
   const meeting = stored["meeting"] as Record<string, unknown> | undefined;
+  const ride = stored["ride"] as Record<string, unknown> | undefined;
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
   return {
+    ride:
+      ride &&
+      typeof ride["pointId"] === "string" &&
+      placeIds.includes(ride["pointId"]) &&
+      typeof ride["note"] === "string" &&
+      (ride["kind"] === "car" || ride["kind"] === "shuttle")
+        ? { pointId: ride["pointId"], note: ride["note"].slice(0, 300), kind: ride["kind"] }
+        : null,
+    stamps: [...new Set((strings(stored["stamps"]) ?? []).filter((id) => placeIds.includes(id)))],
     saved: saved
       ? [...new Set(saved.filter((id) => data.performances.some((p) => p.id === id)))]
       : fallback.saved,

@@ -23,8 +23,8 @@ export default defineConfig({
         injectRegister: null,
         manifest: false, // public/manifest.webmanifest is the single manifest
         filename: "sw.js",
-        // TanStack Start/Nitro serves static files from dist/client.
-        outDir: "dist/client",
+        // Nitro serves the generated client assets from .output/public.
+        outDir: ".output/public",
         devOptions: { enabled: false },
         workbox: {
           globPatterns: ["**/*.{js,css,png,jpg,svg,ico,webmanifest}"],

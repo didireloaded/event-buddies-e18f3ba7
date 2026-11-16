@@ -34,7 +34,12 @@ export const suggestDayPlan = createServerFn({ method: "POST" })
         instructions: INSTRUCTIONS,
         input: [{ role: "user", content: `Facts (JSON):\n${JSON.stringify(facts)}` }],
         text: {
-          format: { type: "json_schema", name: "day_plan", strict: true, schema: dayPlanJsonSchema },
+          format: {
+            type: "json_schema",
+            name: "day_plan",
+            strict: true,
+            schema: dayPlanJsonSchema,
+          },
         },
       });
       const text = response.output

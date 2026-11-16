@@ -16,6 +16,7 @@ import { initials, useCompanion } from "./context";
 import { ArtistRow } from "./LineupView";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
 import { cn } from "@/lib/utils";
+import { RideBookmark } from "./RideBookmark";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
   const { data, attendee, now, navigate, openSheet, places } = useCompanion();
@@ -139,6 +140,16 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         </div>
       </div>
 
+      <RideBookmark />
+      <div className="mx-4 my-4 border-b border-border pb-4">
+        <h2 className="text-[20px] font-bold">Coast watch</h2>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          Sunset, weather and tide information pending.
+        </p>
+        <p className="mt-2 text-[15px]">
+          Bring warm layers for the evening. Check beach conditions with the on-site team.
+        </p>
+      </div>
       <Section title="Event" id="home-event" className="px-4">
         <div className="ios-group ios-group-indent">
           <div className="ios-row">

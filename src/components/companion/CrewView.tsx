@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { eventTime } from "@/lib/attendee/schedule";
 import type { LocalMeeting } from "@/lib/attendee/meeting";
 import { initials, useCompanion } from "./context";
+import { FestivalBump } from "./FestivalBump";
+import { FestivalPassport } from "./FestivalPassport";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
 export function countdownLabel(meetingAt: string, now: number | null) {
@@ -40,6 +42,8 @@ export function CrewView() {
     <>
       <h1 className="display-title px-4 pt-2 text-[44px]">Crew</h1>
       <p className="px-4 text-[15px] text-muted-foreground">{data.crew.name} · demo crew</p>
+      <FestivalBump />
+      <FestivalPassport />
 
       <Section title="Meeting plan" id="crew-meeting" className="px-4">
         <div className="ios-card p-4">
@@ -79,8 +83,7 @@ export function CrewView() {
           )}
         </div>
         <p className="ios-footnote">
-          Saved on this device only. Sharing plans with your crew needs accounts, which aren’t
-          connected yet.
+          Saved on this device. Use Festival Bump to share a copy with a friend.
         </p>
       </Section>
 

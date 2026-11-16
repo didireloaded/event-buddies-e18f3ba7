@@ -65,7 +65,11 @@ export function buildPlanFacts(data: DemoData, input: DayPlanInput) {
     .map((a) => ({ name: a.name, stage: placeName(a.stageId), time: TBA }));
   const meetingPlace = input.meeting ? placeName(input.meeting.pointId) : null;
   const meeting =
-    input.meeting && meetingPlace && Number.isFinite(Date.parse(input.meeting.at))
+    input.meeting &&
+    meetingPlace &&
+    Number.isFinite(Date.parse(input.meeting.at)) &&
+    Date.parse(input.meeting.at) >= +data.event.startAt &&
+    Date.parse(input.meeting.at) <= +data.event.endAt
       ? { place: meetingPlace, time: `${eventTime(input.meeting.at)} CAT` }
       : null;
   return {

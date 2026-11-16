@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
+import { RideBookmark } from "./RideBookmark";
+import { NearbyPlaces } from "./NearbyPlaces";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
@@ -51,10 +53,14 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     return () => cancelAnimationFrame(frame);
   }, [target, zoom]);
 
-  const groups = clusterMapPlaces(
-    visiblePins(places, map.filter, map.query, map.selected, data),
-    zoom,
-  );
+  const pins = visiblePins(places, map.filter, map.query, map.selected, data);
+  const groups = [
+    ...clusterMapPlaces(
+      pins.filter((p) => p.id !== map.selected),
+      zoom,
+    ),
+    ...pins.filter((p) => p.id === map.selected).map((place) => ({ place, ids: [place.id] })),
+  ];
 
   return (
     <div
@@ -301,6 +307,7 @@ export function MapView() {
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
         <div className="lg:sticky lg:top-20">
           <MapCanvas expanded={false} />
+          <NearbyPlaces />
           <p className="ios-footnote text-center">{data.festival.mapNotice}</p>
         </div>
 
@@ -362,6 +369,7 @@ export function MapView() {
         </div>
       </div>
       {map.expanded && <ExpandedMap />}
+      <RideBookmark />
     </>
   );
 }

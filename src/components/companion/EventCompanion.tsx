@@ -25,6 +25,7 @@ import {
 } from "./context";
 import { CrewView } from "./CrewView";
 import { HomeView } from "./HomeView";
+import { SafetyAccess } from "./SafetyAccess";
 import { LineupView } from "./LineupView";
 import { MapView } from "./MapView";
 import { Sheet } from "./Sheet";
@@ -180,7 +181,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
         <div className="min-w-0">
           <header className="ios-bar sticky top-0 z-20 pt-safe">
-            <div className="mx-auto grid h-16 max-w-3xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center px-safe">
+            <div className="mx-auto grid h-16 max-w-3xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem_2.75rem] items-center gap-1 px-safe">
               <button
                 type="button"
                 aria-label="Menu: profile, updates, rules and settings"
@@ -196,6 +197,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
               >
                 eventbuddies<span className="text-favorite">.</span>
               </a>
+              <SafetyAccess />
               <button
                 type="button"
                 aria-label="My profile"
@@ -224,6 +226,20 @@ export function EventCompanion({ data }: { data: DemoData }) {
               view === "map" && "lg:max-w-6xl",
             )}
           >
+            {attendee.preferences.ride &&
+              now !== null &&
+              now >= +data.event.endAt - 30 * 60000 &&
+              now <= +data.event.endAt && (
+                <button
+                  type="button"
+                  className="mx-4 mb-4 block min-h-11 rounded-xl bg-warning-soft p-3 text-left text-[15px]"
+                  onClick={() => ctx.openPlace(attendee.preferences.ride!.pointId)}
+                >
+                  Heading home soon? Your {attendee.preferences.ride.kind} is bookmarked at{" "}
+                  {places.find((p) => p.id === attendee.preferences.ride?.pointId)?.name}. Show gate
+                  ↗
+                </button>
+              )}
             {view === "home" && <HomeView onShare={shareEvent} />}
             {view === "lineup" && <LineupView searchRef={searchRef} />}
             {view === "map" && <MapView />}

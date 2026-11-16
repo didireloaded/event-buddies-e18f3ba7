@@ -49,6 +49,15 @@ export function ArtistRow({
           subtitle={artist.stageId ? "Headliner · Main Stage" : "Stage & set time to be announced"}
         />
       </button>
+      <a
+        href={`https://open.spotify.com/search/${encodeURIComponent(artist.name)}`}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Find ${artist.name} on Spotify, opens in a new tab`}
+        className="grid min-h-11 flex-none place-items-center px-2 text-[13px] font-semibold"
+      >
+        Spotify ↗
+      </a>
       <button
         type="button"
         disabled={disabled}
@@ -304,7 +313,12 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
 
       <Section title="Plan" id="lineup-tools" className="px-4">
         <div className="ios-group ios-group-indent">
-          <button type="button" className="ios-row" onClick={suggestPlan} disabled={planState === "loading"}>
+          <button
+            type="button"
+            className="ios-row"
+            onClick={suggestPlan}
+            disabled={planState === "loading"}
+          >
             <IconTile icon={CalendarPlus} tone="bg-favorite" />
             <RowText
               title="Suggest my day plan"
@@ -363,7 +377,11 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
                   <h2 className="text-[20px] font-bold">Your suggested day</h2>
                   <p className="mt-1 text-[15px] text-muted-foreground">{plan.summary}</p>
                 </div>
-                <button type="button" className="text-[15px] font-semibold text-primary" onClick={() => setPlan(null)}>
+                <button
+                  type="button"
+                  className="text-[15px] font-semibold text-primary"
+                  onClick={() => setPlan(null)}
+                >
                   Clear
                 </button>
               </div>
@@ -371,17 +389,23 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
                 {plan.items.map((item, index) => (
                   <li key={`${item.kind}-${index}`} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex gap-3">
-                      <time className="w-20 flex-none text-[15px] font-semibold tabular-nums">{item.time}</time>
+                      <time className="w-20 flex-none text-[15px] font-semibold tabular-nums">
+                        {item.time}
+                      </time>
                       <div className="min-w-0">
                         <p className="font-semibold">{item.title}</p>
-                        {item.place && <p className="text-[15px] text-muted-foreground">{item.place}</p>}
+                        {item.place && (
+                          <p className="text-[15px] text-muted-foreground">{item.place}</p>
+                        )}
                         <p className="mt-0.5 text-[15px] text-muted-foreground">{item.detail}</p>
                       </div>
                     </div>
                   </li>
                 ))}
               </ol>
-              <p className="mt-4 text-[14px] text-muted-foreground">{plan.note} This plan is saved on this device only.</p>
+              <p className="mt-4 text-[14px] text-muted-foreground">
+                {plan.note} This plan is saved on this device only.
+              </p>
             </div>
           </div>
         )}
