@@ -198,6 +198,10 @@
     color: var(--color-foreground);
     transition: background-color 120ms;
   }
+  .ios-row:focus-visible {
+    outline-offset: -3px;
+    border-radius: inherit;
+  }
   button.ios-row:active,
   a.ios-row:active {
     background: var(--color-fill);
