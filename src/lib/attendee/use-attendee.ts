@@ -18,6 +18,7 @@ export type Preferences = {
   batterySaver: boolean;
   sharedPlans: { receivedAt: number; plan: BumpPlan }[];
   onboardingDone: boolean;
+  hasName: boolean;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -38,6 +39,7 @@ export function defaultPreferences(data: DemoData): Preferences {
     batterySaver: true,
     sharedPlans: [],
     onboardingDone: false,
+    hasName: false,
   };
 }
 
@@ -76,6 +78,14 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    hasName:
+      typeof stored["hasName"] === "boolean"
+        ? stored["hasName"] &&
+          typeof profile?.["name"] === "string" &&
+          profile["name"].trim().length >= 2
+        : typeof profile?.["name"] === "string" &&
+          profile["name"].trim().length >= 2 &&
+          profile["name"] !== "Guest",
     onboardingDone:
       typeof stored["onboardingDone"] === "boolean"
         ? stored["onboardingDone"]

@@ -81,7 +81,7 @@ export function FestivalBump() {
   const [contact, setContact] = useState({ name: "", phone: "" });
   const [shareLink, setShareLink] = useState("");
   const [receiverName, setReceiverName] = useState("");
-  const needsName = attendee.preferences.profile.name === "Guest";
+  const needsName = !attendee.preferences.hasName;
   const payload = JSON.stringify({
     version: 1,
     event: data.event.id,
@@ -310,6 +310,7 @@ export function FestivalBump() {
                       if (
                         attendee.update({
                           onboardingDone: true,
+                          hasName: true,
                           following: true,
                           ...(needsName
                             ? {

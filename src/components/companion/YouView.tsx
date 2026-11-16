@@ -15,7 +15,7 @@ export function YouView() {
           disabled={!attendee.ready}
           savedCount={attendee.preferences.savedArtists.length}
           onSave={(profile) => {
-            if (attendee.update({ profile })) attendee.notify("Your name is saved");
+            if (attendee.update({ profile, hasName: true })) attendee.notify("Your name is saved");
           }}
         />
       </Section>

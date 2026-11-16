@@ -10,6 +10,18 @@ const data = getDemoData();
 const places = buildPlaces(data);
 
 describe("utility preference migration", () => {
+  it("distinguishes a confirmed name from the default Guest placeholder", () => {
+    expect(
+      parseStoredPreferences({ profile: { name: "Guest", handle: "guest" } }, data).hasName,
+    ).toBe(false);
+    expect(
+      parseStoredPreferences({ profile: { name: "Guest", handle: "guest" }, hasName: true }, data)
+        .hasName,
+    ).toBe(true);
+    expect(
+      parseStoredPreferences({ profile: { name: "Maya", handle: "maya" } }, data).hasName,
+    ).toBe(true);
+  });
   it("defaults old storage to low-power mode without inventing a check-in", () => {
     const parsed = parseStoredPreferences({ savedArtists: ["shimza"] }, data);
     expect(parsed.batterySaver).toBe(true);

@@ -95,7 +95,6 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [welcomeSkipped, setWelcomeSkipped] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -171,8 +170,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   };
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
-  const onboarding =
-    attendee.ready && view === "home" && !attendee.preferences.onboardingDone && !welcomeSkipped;
+  const onboarding = attendee.ready && view === "home" && !attendee.preferences.hasName;
   const activeTab = view === "lineup" || view === "info" ? "home" : view;
   const message = attendee.message;
 
@@ -238,7 +236,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
               view === "map" && "lg:max-w-6xl",
             )}
           >
-            {onboarding && <Onboarding onSkip={() => setWelcomeSkipped(true)} />}
+            {onboarding && <Onboarding />}
             {!onboarding &&
               (view === "home" || view === "lineup" || view === "map" || view === "info") && (
                 <EventSections />

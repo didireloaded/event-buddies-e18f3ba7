@@ -224,7 +224,7 @@ export function SheetContent({
           disabled={!ready}
           savedCount={savedCount}
           onSave={(profile) => {
-            if (update({ profile })) {
+            if (update({ profile, hasName: true })) {
               notify("Profile saved on this device");
               closeSheet();
             }

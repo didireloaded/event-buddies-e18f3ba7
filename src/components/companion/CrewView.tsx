@@ -91,9 +91,7 @@ export function CrewView() {
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "profile" })}>
             <Avatar index={0} label={initials(preferences.profile.name)} />
             <RowText
-              title={
-                preferences.profile.name === "Guest" ? "Add your name" : preferences.profile.name
-              }
+              title={!preferences.hasName ? "Add your name" : preferences.profile.name}
               subtitle="The name friends see when you share your plan"
             />
             <Chevron />

@@ -3,29 +3,24 @@ import { MapPin, Music2, Users } from "lucide-react";
 import { initials, useCompanion } from "./context";
 import { PrimaryButton, SecondaryButton } from "./ui";
 
-export function Onboarding({ onSkip }: { onSkip: () => void }) {
+export function Onboarding() {
   const { attendee, navigate, data } = useCompanion();
-  const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<"music" | "friends" | "both">("both");
+  const [step, setStep] = useState(attendee.preferences.onboardingDone ? 2 : 0);
+  const [mode, setMode] = useState<"music" | "friends" | "both">(
+    attendee.preferences.festivalMode ?? "both",
+  );
   const [name, setName] = useState(
     attendee.preferences.profile.name === "Guest" ? "" : attendee.preferences.profile.name,
   );
-  const finish = (skip: boolean) => {
-    if (skip) {
-      attendee.update({ onboardingDone: true });
-      onSkip();
-      return;
-    }
+  const finish = () => {
+    if (name.trim().length < 2) return;
     if (
       attendee.update({
         onboardingDone: true,
-        ...(skip
-          ? {}
-          : {
-              festivalMode: mode,
-              following: true,
-              profile: { ...attendee.preferences.profile, name: name.trim() },
-            }),
+        hasName: true,
+        festivalMode: mode,
+        following: true,
+        profile: { ...attendee.preferences.profile, name: name.trim() },
       })
     )
       navigate("home");
@@ -37,9 +32,18 @@ export function Onboarding({ onSkip }: { onSkip: () => void }) {
     >
       <div className="flex min-h-12 items-center justify-between">
         <span className="text-[14px] text-muted-foreground">{step + 1} of 3</span>
-        <button type="button" className="min-h-12 px-3 font-semibold" onClick={() => finish(true)}>
-          Skip
-        </button>
+        {step < 2 && (
+          <button
+            type="button"
+            className="min-h-12 px-3 font-semibold"
+            onClick={() => {
+              setMode("both");
+              setStep(2);
+            }}
+          >
+            Skip
+          </button>
+        )}
       </div>
       {step === 0 && (
         <div className="flex flex-1 flex-col justify-center py-6">
@@ -90,7 +94,7 @@ export function Onboarding({ onSkip }: { onSkip: () => void }) {
           className="flex flex-1 flex-col py-6"
           onSubmit={(event) => {
             event.preventDefault();
-            if (name.trim().length >= 2) finish(false);
+            if (name.trim().length >= 2) finish();
           }}
         >
           <h1 className="text-[30px] font-bold">What should we call you?</h1>
