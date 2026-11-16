@@ -6,13 +6,47 @@
 // Never set ssr.external or resolve.external: the Worker has no runtime module resolution, so
 // the build fails. Never add compression (compressPublicAssets, vite-plugin-compression):
 // hosting already compresses at the edge.
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
+  },
+  vite: {
+    plugins: [
+      // Offline support: Workbox generates /sw.js from the real client build.
+      // Registration happens only in src/lib/pwa.ts (never in dev or Lovable preview).
+      VitePWA({
+        strategies: "generateSW",
+        registerType: "autoUpdate",
+        injectRegister: null,
+        manifest: false, // public/manifest.webmanifest is the single manifest
+        filename: "sw.js",
+        // TanStack Start/Nitro serves static files from dist/client.
+        outDir: "dist/client",
+        devOptions: { enabled: false },
+        workbox: {
+          globPatterns: ["**/*.{js,css,png,jpg,svg,ico,webmanifest}"],
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          navigateFallback: null,
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          runtimeCaching: [
+            {
+              // SSR pages: network first, cached copy when offline. Never cache OAuth.
+              urlPattern: ({ request, url }) =>
+                request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "event-buddies-pages",
+                networkTimeoutSeconds: 4,
+                expiration: { maxEntries: 10 },
+              },
+            },
+          ],
+        },
+      }),
+    ],
   },
 });

@@ -1,0 +1,1007 @@
+import { soundOfSummerDemo, type FestivalInfo } from "./sound-of-summer";
+import { db } from "@/db";
+import {
+  artists,
+  auditLogs,
+  crewMembers,
+  crews,
+  eventAnnouncements,
+  eventFollows,
+  eventMapPoints,
+  events,
+  locationShares,
+  meetingPoints,
+  organiserMembers,
+  organisers,
+  performances,
+  profiles,
+  stages,
+  userScheduleItems,
+} from "@/db/schema";
+import { asc, desc, eq } from "drizzle-orm";
+
+export type DemoData = {
+  festival?: FestivalInfo;
+  storageMode: "demo" | "database";
+  event: Omit<typeof events.$inferSelect, "latitude" | "longitude"> & {
+    latitude: number | null;
+    longitude: number | null;
+  };
+  stages: (Omit<typeof stages.$inferSelect, "latitude" | "longitude"> & {
+    latitude: number | null;
+    longitude: number | null;
+  })[];
+  performances: {
+    id: string;
+    stageId: string;
+    artistId: string;
+    artistName: string;
+    genre: string | null;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+    status: string;
+    sortOrder: number;
+  }[];
+  points: (Omit<
+    typeof eventMapPoints.$inferSelect,
+    "latitude" | "longitude"
+  > & { latitude: number | null; longitude: number | null })[];
+  announcements: (typeof eventAnnouncements.$inferSelect)[];
+  savedPerformanceIds: string[];
+  crew: typeof crews.$inferSelect;
+  crewMembers: {
+    userId: string;
+    displayName: string;
+    role: string;
+    mode: string | null;
+    mapX: number | null;
+    mapY: number | null;
+    zoneName: string | null;
+    active: boolean | null;
+    updatedAt: Date | null;
+  }[];
+  meeting: typeof meetingPoints.$inferSelect | undefined;
+  following: boolean;
+};
+export type OrganiserData = DemoData & {
+  organiser: typeof organisers.$inferSelect;
+  membership: typeof organiserMembers.$inferSelect;
+  recentActivity: (typeof auditLogs.$inferSelect)[];
+};
+
+export const DEMO_IDS = {
+  user: "00000000-0000-4000-8000-000000000001",
+  stacy: "00000000-0000-4000-8000-000000000002",
+  andrea: "00000000-0000-4000-8000-000000000003",
+  shandre: "00000000-0000-4000-8000-000000000004",
+  organiser: "10000000-0000-4000-8000-000000000001",
+  event: "20000000-0000-4000-8000-000000000001",
+  crew: "60000000-0000-4000-8000-000000000001",
+  meeting: "70000000-0000-4000-8000-000000000001",
+} as const;
+
+const stageIds = {
+  savannah: "30000000-0000-4000-8000-000000000001",
+  coke: "30000000-0000-4000-8000-000000000002",
+  jetty: "30000000-0000-4000-8000-000000000003",
+};
+
+const artistIds = {
+  castro: "40000000-0000-4000-8000-000000000001",
+  yeezir: "40000000-0000-4000-8000-000000000002",
+  gazza: "40000000-0000-4000-8000-000000000003",
+  dreas: "40000000-0000-4000-8000-000000000004",
+  ava: "40000000-0000-4000-8000-000000000005",
+  tides: "40000000-0000-4000-8000-000000000006",
+};
+
+const performanceIds = {
+  castro: "50000000-0000-4000-8000-000000000001",
+  yeezir: "50000000-0000-4000-8000-000000000002",
+  gazza: "50000000-0000-4000-8000-000000000003",
+  dreas: "50000000-0000-4000-8000-000000000004",
+  ava: "50000000-0000-4000-8000-000000000005",
+  tides: "50000000-0000-4000-8000-000000000006",
+  gazzaLate: "50000000-0000-4000-8000-000000000007",
+};
+
+const eventDay = (time: string) => new Date(`2026-12-28T${time}:00+02:00`);
+
+export async function ensureDemoSeed() {
+  await db
+    .insert(profiles)
+    .values([
+      {
+        id: DEMO_IDS.user,
+        displayName: "Didi",
+        username: "didi",
+        email: "didi@example.com",
+      },
+      { id: DEMO_IDS.stacy, displayName: "Stacy", username: "stacy" },
+      { id: DEMO_IDS.andrea, displayName: "Andrea", username: "andrea" },
+      { id: DEMO_IDS.shandre, displayName: "Shandre", username: "shandre" },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(organisers)
+    .values({
+      id: DEMO_IDS.organiser,
+      name: "Coastal Culture Collective",
+      slug: "coastal-culture",
+      verified: true,
+      ownerUserId: DEMO_IDS.user,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(organiserMembers)
+    .values({
+      organiserId: DEMO_IDS.organiser,
+      userId: DEMO_IDS.user,
+      role: "owner",
+      permissions: [
+        "events:write",
+        "map:write",
+        "schedule:write",
+        "announcements:write",
+        "safety:write",
+        "analytics:read",
+      ],
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(events)
+    .values({
+      id: DEMO_IDS.event,
+      organiserId: DEMO_IDS.organiser,
+      name: "Eternal Summer",
+      slug: "eternal-summer-demo",
+      description:
+        "A one-night celebration of sound, culture and summer energy on Namibia’s Atlantic coast.",
+      category: "Music festival",
+      status: "live",
+      startAt: eventDay("15:00"),
+      endAt: new Date("2026-12-29T02:30:00+02:00"),
+      doorsOpenAt: eventDay("15:00"),
+      venueName: "Coastal Festival Grounds",
+      city: "Swakopmund",
+      country: "Namibia",
+      latitude: -22.6784,
+      longitude: 14.5266,
+      timezone: "Africa/Windhoek",
+      heroImageUrl: "/images/eternal-summer-hero.svg",
+      mapImageUrl: "/images/coastal-festival-map.svg",
+      ticketUrl: "https://example.com/tickets",
+      minTicketPrice: "350.00",
+      currency: "N$",
+      packageVersion: 18,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(eventFollows)
+    .values({ eventId: DEMO_IDS.event, userId: DEMO_IDS.user })
+    .onConflictDoNothing();
+
+  await db
+    .insert(stages)
+    .values([
+      {
+        id: stageIds.savannah,
+        eventId: DEMO_IDS.event,
+        name: "Savannah Stage",
+        description: "The main stage — big sounds under an open sky.",
+        latitude: -22.6776,
+        longitude: 14.5267,
+        mapX: 52,
+        mapY: 27,
+        colorKey: "coral",
+        status: "live",
+        sortOrder: 1,
+      },
+      {
+        id: stageIds.coke,
+        eventId: DEMO_IDS.event,
+        name: "Coke Studio",
+        description: "Live collaborations and genre-crossing sets.",
+        latitude: -22.6792,
+        longitude: 14.5258,
+        mapX: 28,
+        mapY: 69,
+        colorKey: "violet",
+        status: "live",
+        sortOrder: 2,
+      },
+      {
+        id: stageIds.jetty,
+        eventId: DEMO_IDS.event,
+        name: "Jetty Stage",
+        description: "Electronic music right at the water’s edge.",
+        latitude: -22.6786,
+        longitude: 14.5274,
+        mapX: 75,
+        mapY: 50,
+        colorKey: "cyan",
+        status: "live",
+        sortOrder: 3,
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(artists)
+    .values([
+      {
+        id: artistIds.castro,
+        name: "DJ Castro",
+        slug: "dj-castro",
+        genre: "Afro house",
+      },
+      {
+        id: artistIds.yeezir,
+        name: "Yeezir",
+        slug: "yeezir",
+        genre: "Hip-hop",
+      },
+      { id: artistIds.gazza, name: "Gazza", slug: "gazza", genre: "Kwaito" },
+      {
+        id: artistIds.dreas,
+        name: "DJ Dreas",
+        slug: "dj-dreas",
+        genre: "Amapiano",
+      },
+      {
+        id: artistIds.ava,
+        name: "Ava Nova",
+        slug: "ava-nova",
+        genre: "Alt pop",
+      },
+      {
+        id: artistIds.tides,
+        name: "Desert Tides",
+        slug: "desert-tides",
+        genre: "Electronic",
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(performances)
+    .values([
+      {
+        id: performanceIds.castro,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.savannah,
+        artistId: artistIds.castro,
+        scheduledStart: eventDay("19:30"),
+        scheduledEnd: eventDay("20:30"),
+        status: "live",
+        sortOrder: 1,
+      },
+      {
+        id: performanceIds.yeezir,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.savannah,
+        artistId: artistIds.yeezir,
+        scheduledStart: eventDay("20:30"),
+        scheduledEnd: eventDay("21:15"),
+        status: "starting_soon",
+        sortOrder: 2,
+      },
+      {
+        id: performanceIds.gazza,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.savannah,
+        artistId: artistIds.gazza,
+        scheduledStart: eventDay("21:15"),
+        scheduledEnd: eventDay("22:00"),
+        status: "scheduled",
+        sortOrder: 3,
+      },
+      {
+        id: performanceIds.dreas,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.coke,
+        artistId: artistIds.dreas,
+        scheduledStart: eventDay("20:00"),
+        scheduledEnd: eventDay("21:20"),
+        status: "live",
+        sortOrder: 4,
+      },
+      {
+        id: performanceIds.ava,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.jetty,
+        artistId: artistIds.ava,
+        scheduledStart: eventDay("19:45"),
+        scheduledEnd: eventDay("20:45"),
+        status: "live",
+        sortOrder: 5,
+      },
+      {
+        id: performanceIds.tides,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.jetty,
+        artistId: artistIds.tides,
+        scheduledStart: eventDay("20:45"),
+        scheduledEnd: eventDay("22:00"),
+        status: "scheduled",
+        sortOrder: 6,
+      },
+      {
+        id: performanceIds.gazzaLate,
+        eventId: DEMO_IDS.event,
+        stageId: stageIds.jetty,
+        artistId: artistIds.gazza,
+        scheduledStart: eventDay("23:45"),
+        scheduledEnd: new Date("2026-12-29T00:30:00+02:00"),
+        status: "scheduled",
+        sortOrder: 7,
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(userScheduleItems)
+    .values([
+      {
+        userId: DEMO_IDS.user,
+        performanceId: performanceIds.yeezir,
+        reminderMinutes: 15,
+      },
+      {
+        userId: DEMO_IDS.user,
+        performanceId: performanceIds.gazza,
+        reminderMinutes: 15,
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(eventMapPoints)
+    .values([
+      {
+        id: "80000000-0000-4000-8000-000000000001",
+        eventId: DEMO_IDS.event,
+        name: "Main Entrance",
+        type: "entrance",
+        latitude: -22.6801,
+        longitude: 14.5255,
+        mapX: 17,
+        mapY: 88,
+        description: "General admission and ticket help.",
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000002",
+        eventId: DEMO_IDS.event,
+        name: "Savannah Bar",
+        type: "bar",
+        latitude: -22.6779,
+        longitude: 14.5262,
+        mapX: 39,
+        mapY: 37,
+        description: "Cocktails, beer and soft drinks. Card and cash accepted.",
+        metadata: { walkMinutes: 3 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000003",
+        eventId: DEMO_IDS.event,
+        name: "Jetty Bar",
+        type: "bar",
+        latitude: -22.6785,
+        longitude: 14.5271,
+        mapX: 68,
+        mapY: 56,
+        description: "Ocean-side bar. Open until 01:30.",
+        metadata: { walkMinutes: 4 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000004",
+        eventId: DEMO_IDS.event,
+        name: "Food Court",
+        type: "food",
+        latitude: -22.6787,
+        longitude: 14.5263,
+        mapX: 42,
+        mapY: 59,
+        description: "Six local kitchens with vegan and halaal options.",
+        metadata: { walkMinutes: 4 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000005",
+        eventId: DEMO_IDS.event,
+        name: "Toilets North",
+        type: "toilet",
+        latitude: -22.6774,
+        longitude: 14.5263,
+        mapX: 39,
+        mapY: 21,
+        description: "Accessible facilities available.",
+        metadata: { walkMinutes: 2 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000006",
+        eventId: DEMO_IDS.event,
+        name: "Toilets South",
+        type: "toilet",
+        latitude: -22.6793,
+        longitude: 14.5265,
+        mapX: 49,
+        mapY: 76,
+        description: "Facilities and handwashing station.",
+        metadata: { walkMinutes: 5 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000007",
+        eventId: DEMO_IDS.event,
+        name: "First Aid",
+        type: "first-aid",
+        latitude: -22.6781,
+        longitude: 14.5258,
+        mapX: 25,
+        mapY: 45,
+        description:
+          "Open throughout the event. Emergency line: +264 81 000 1122",
+        metadata: { walkMinutes: 6, phone: "+264 81 000 1122" },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000008",
+        eventId: DEMO_IDS.event,
+        name: "Security",
+        type: "security",
+        latitude: -22.6797,
+        longitude: 14.5257,
+        mapX: 22,
+        mapY: 83,
+        description: "Security help desk near the main entrance.",
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000009",
+        eventId: DEMO_IDS.event,
+        name: "Yango Pickup",
+        type: "transport",
+        latitude: -22.6802,
+        longitude: 14.5261,
+        mapX: 37,
+        mapY: 92,
+        description: "Dedicated rideshare pickup after 22:00.",
+        metadata: { walkMinutes: 8 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000010",
+        eventId: DEMO_IDS.event,
+        name: "Main Parking",
+        type: "transport",
+        latitude: -22.6771,
+        longitude: 14.5254,
+        mapX: 13,
+        mapY: 13,
+        description: "General parking. Exit via Coastal Road.",
+        metadata: { walkMinutes: 9 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000011",
+        eventId: DEMO_IDS.event,
+        name: "Water Station",
+        type: "water",
+        latitude: -22.6787,
+        longitude: 14.5267,
+        mapX: 55,
+        mapY: 61,
+        description: "Free filtered drinking water. Bring your bottle.",
+        metadata: { walkMinutes: 4 },
+      },
+      {
+        id: "80000000-0000-4000-8000-000000000012",
+        eventId: DEMO_IDS.event,
+        name: "Emergency Exit",
+        type: "exit",
+        latitude: -22.6778,
+        longitude: 14.5275,
+        mapX: 82,
+        mapY: 35,
+        description: "Emergency use only.",
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(eventAnnouncements)
+    .values([
+      {
+        id: "90000000-0000-4000-8000-000000000001",
+        eventId: DEMO_IDS.event,
+        title: "Welcome to Eternal Summer",
+        body: "Gates are open. Download the site plan and stay hydrated.",
+        category: "general",
+        priority: "normal",
+        publishAt: eventDay("15:00"),
+      },
+      {
+        id: "90000000-0000-4000-8000-000000000002",
+        eventId: DEMO_IDS.event,
+        title: "Cooler evening expected",
+        body: "The temperature will drop after sunset. Keep a light layer nearby.",
+        category: "safety",
+        priority: "important",
+        publishAt: eventDay("18:45"),
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(crews)
+    .values({
+      id: DEMO_IDS.crew,
+      eventId: DEMO_IDS.event,
+      name: "Didi’s Crew",
+      ownerUserId: DEMO_IDS.user,
+      inviteCode: "SUMMER26",
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(crewMembers)
+    .values([
+      { crewId: DEMO_IDS.crew, userId: DEMO_IDS.user, role: "owner" },
+      { crewId: DEMO_IDS.crew, userId: DEMO_IDS.stacy, role: "member" },
+      { crewId: DEMO_IDS.crew, userId: DEMO_IDS.andrea, role: "member" },
+      { crewId: DEMO_IDS.crew, userId: DEMO_IDS.shandre, role: "member" },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(locationShares)
+    .values([
+      {
+        crewId: DEMO_IDS.crew,
+        userId: DEMO_IDS.user,
+        mode: "exact",
+        latitude: -22.6785,
+        longitude: 14.5265,
+        mapX: 49,
+        mapY: 53,
+        zoneName: "Food Court",
+        active: true,
+        expiresAt: new Date("2026-12-29T02:30:00+02:00"),
+      },
+      {
+        crewId: DEMO_IDS.crew,
+        userId: DEMO_IDS.stacy,
+        mode: "exact",
+        latitude: -22.6777,
+        longitude: 14.5267,
+        mapX: 55,
+        mapY: 31,
+        zoneName: "Savannah Stage",
+        active: true,
+        expiresAt: new Date("2026-12-29T02:30:00+02:00"),
+      },
+      {
+        crewId: DEMO_IDS.crew,
+        userId: DEMO_IDS.andrea,
+        mode: "approximate",
+        latitude: -22.6786,
+        longitude: 14.5272,
+        mapX: 71,
+        mapY: 53,
+        zoneName: "Jetty Stage",
+        active: true,
+        expiresAt: new Date("2026-12-29T02:30:00+02:00"),
+      },
+      {
+        crewId: DEMO_IDS.crew,
+        userId: DEMO_IDS.shandre,
+        mode: "off",
+        zoneName: "Location paused",
+        active: false,
+        expiresAt: new Date("2026-12-29T02:30:00+02:00"),
+        updatedAt: eventDay("19:54"),
+      },
+    ])
+    .onConflictDoNothing();
+
+  await db
+    .insert(meetingPoints)
+    .values({
+      id: DEMO_IDS.meeting,
+      crewId: DEMO_IDS.crew,
+      createdBy: DEMO_IDS.user,
+      label: "Meet after Gazza",
+      message: "Near Savannah Bar",
+      latitude: -22.6779,
+      longitude: 14.5262,
+      mapX: 42,
+      mapY: 39,
+      meetAt: eventDay("22:10"),
+      expiresAt: eventDay("22:45"),
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(auditLogs)
+    .values({
+      id: "a0000000-0000-4000-8000-000000000001",
+      organiserId: DEMO_IDS.organiser,
+      eventId: DEMO_IDS.event,
+      userId: DEMO_IDS.user,
+      action: "event.published",
+      entityType: "event",
+      entityId: DEMO_IDS.event,
+      payload: { status: "live", packageVersion: 18 },
+      createdAt: eventDay("14:45"),
+    })
+    .onConflictDoNothing();
+}
+
+export async function getDemoData() {
+  if (!process.env.DATABASE_URL) {
+    const event = {
+      id: DEMO_IDS.event,
+      name: "Eternal Summer",
+      description:
+        "A one-night celebration of sound, culture and summer energy on Namibia’s Atlantic coast.",
+      category: "Music festival",
+      status: "live",
+      startAt: eventDay("15:00"),
+      endAt: new Date("2026-12-29T02:30:00+02:00"),
+      venueName: "Coastal Festival Grounds",
+      city: "Swakopmund",
+      country: "Namibia",
+      latitude: -22.6784,
+      longitude: 14.5266,
+      timezone: "Africa/Windhoek",
+      heroImageUrl: "/images/eternal-summer-hero.svg",
+      mapImageUrl: "/images/coastal-festival-map.svg",
+      ticketUrl: "https://example.com/tickets",
+      minTicketPrice: "350.00",
+      currency: "N$",
+      packageVersion: 18,
+    };
+    const stages = [
+      {
+        id: stageIds.savannah,
+        eventId: DEMO_IDS.event,
+        name: "Savannah Stage",
+        description: "The main stage — big sounds under an open sky.",
+        latitude: -22.6776,
+        longitude: 14.5267,
+        mapX: 52,
+        mapY: 27,
+        colorKey: "coral",
+        status: "live",
+        sortOrder: 1,
+      },
+      {
+        id: stageIds.coke,
+        eventId: DEMO_IDS.event,
+        name: "Coke Studio",
+        description: "Live collaborations and genre-crossing sets.",
+        latitude: -22.6792,
+        longitude: 14.5258,
+        mapX: 28,
+        mapY: 69,
+        colorKey: "violet",
+        status: "live",
+        sortOrder: 2,
+      },
+      {
+        id: stageIds.jetty,
+        eventId: DEMO_IDS.event,
+        name: "Jetty Stage",
+        description: "Electronic music right at the water’s edge.",
+        latitude: -22.6786,
+        longitude: 14.5274,
+        mapX: 75,
+        mapY: 50,
+        colorKey: "cyan",
+        status: "live",
+        sortOrder: 3,
+      },
+    ];
+    const artistNames = [
+      "DJ Castro",
+      "Yeezir",
+      "Gazza",
+      "DJ Dreas",
+      "Ava Nova",
+      "Desert Tides",
+      "Gazza",
+    ];
+    const genres = [
+      "Afro house",
+      "Hip-hop",
+      "Kwaito",
+      "Amapiano",
+      "Alt pop",
+      "Electronic",
+      "Kwaito",
+    ];
+    const performanceRows = Object.values(performanceIds).map((id, index) => ({
+      id,
+      stageId: [
+        stageIds.savannah,
+        stageIds.savannah,
+        stageIds.savannah,
+        stageIds.coke,
+        stageIds.jetty,
+        stageIds.jetty,
+        stageIds.jetty,
+      ][index],
+      artistId: Object.values(artistIds)[Math.min(index, 5)],
+      artistName: artistNames[index],
+      genre: genres[index],
+      scheduledStart: eventDay(
+        ["19:30", "20:30", "21:15", "20:00", "19:45", "20:45", "23:45"][index],
+      ),
+      scheduledEnd: eventDay(
+        ["20:30", "21:15", "22:00", "21:20", "20:45", "22:00", "23:59"][index],
+      ),
+      status: [
+        "live",
+        "starting_soon",
+        "scheduled",
+        "live",
+        "live",
+        "scheduled",
+        "scheduled",
+      ][index],
+      sortOrder: index + 1,
+    }));
+    const points = [
+      ["Main Entrance", "entrance", 17, 88],
+      ["Savannah Bar", "bar", 39, 37],
+      ["Jetty Bar", "bar", 68, 56],
+      ["Food Court", "food", 42, 59],
+      ["Toilets North", "toilet", 39, 21],
+      ["Toilets South", "toilet", 49, 76],
+      ["First Aid", "first-aid", 25, 45],
+      ["Security", "security", 22, 83],
+      ["Yango Pickup", "transport", 37, 92],
+      ["Main Parking", "transport", 13, 13],
+      ["Water Station", "water", 55, 61],
+      ["Emergency Exit", "exit", 82, 35],
+    ].map(([name, type, mapX, mapY], index) => ({
+      id: `80000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      eventId: DEMO_IDS.event,
+      name,
+      type,
+      latitude: -22.678 + index * 0.0001,
+      longitude: 14.526 + index * 0.0001,
+      mapX,
+      mapY,
+      description: `${name} at the festival grounds.`,
+      status: "open",
+      metadata: { walkMinutes: (index % 6) + 2 },
+    }));
+    const announcements = [
+      {
+        id: "90000000-0000-4000-8000-000000000001",
+        eventId: DEMO_IDS.event,
+        title: "Welcome to Eternal Summer",
+        body: "Gates are open. Download the site plan and stay hydrated.",
+        category: "general",
+        priority: "normal",
+        publishAt: eventDay("15:00"),
+      },
+      {
+        id: "90000000-0000-4000-8000-000000000002",
+        eventId: DEMO_IDS.event,
+        title: "Cooler evening expected",
+        body: "The temperature will drop after sunset. Keep a light layer nearby.",
+        category: "safety",
+        priority: "important",
+        publishAt: eventDay("18:45"),
+      },
+    ];
+    const crew = {
+      id: DEMO_IDS.crew,
+      eventId: DEMO_IDS.event,
+      name: "Didi’s Crew",
+      ownerUserId: DEMO_IDS.user,
+      inviteCode: "SUMMER26",
+    };
+    const crewMembers = [
+      {
+        userId: DEMO_IDS.user,
+        displayName: "Didi",
+        role: "owner",
+        mode: "exact",
+        mapX: 49,
+        mapY: 53,
+        zoneName: "Food Court",
+        active: true,
+        updatedAt: eventDay("19:54"),
+      },
+      {
+        userId: DEMO_IDS.stacy,
+        displayName: "Stacy",
+        role: "member",
+        mode: "exact",
+        mapX: 55,
+        mapY: 31,
+        zoneName: "Savannah Stage",
+        active: true,
+        updatedAt: eventDay("19:54"),
+      },
+      {
+        userId: DEMO_IDS.andrea,
+        displayName: "Andrea",
+        role: "member",
+        mode: "approximate",
+        mapX: 71,
+        mapY: 53,
+        zoneName: "Jetty Stage",
+        active: true,
+        updatedAt: eventDay("19:54"),
+      },
+      {
+        userId: DEMO_IDS.shandre,
+        displayName: "Shandre",
+        role: "member",
+        mode: "off",
+        mapX: null,
+        mapY: null,
+        zoneName: "Location paused",
+        active: false,
+        updatedAt: eventDay("19:54"),
+      },
+    ];
+    const meeting = {
+      id: DEMO_IDS.meeting,
+      crewId: DEMO_IDS.crew,
+      createdBy: DEMO_IDS.user,
+      label: "Meet after Gazza",
+      message: "Near Savannah Bar",
+      latitude: -22.6779,
+      longitude: 14.5262,
+      mapX: 42,
+      mapY: 39,
+      meetAt: eventDay("22:10"),
+      expiresAt: eventDay("22:45"),
+    };
+    return soundOfSummerDemo({
+      storageMode: "demo",
+      event,
+      stages,
+      performances: performanceRows,
+      points,
+      announcements,
+      savedPerformanceIds: [performanceIds.yeezir, performanceIds.gazza],
+      crew,
+      crewMembers,
+      meeting,
+      following: true,
+    } as unknown as DemoData);
+  }
+  await ensureDemoSeed();
+
+  const [event] = await db
+    .select()
+    .from(events)
+    .where(eq(events.id, DEMO_IDS.event));
+  const stageRows = await db
+    .select()
+    .from(stages)
+    .where(eq(stages.eventId, DEMO_IDS.event))
+    .orderBy(asc(stages.sortOrder));
+  const performanceRows = await db
+    .select({
+      id: performances.id,
+      stageId: performances.stageId,
+      artistId: performances.artistId,
+      artistName: artists.name,
+      genre: artists.genre,
+      scheduledStart: performances.scheduledStart,
+      scheduledEnd: performances.scheduledEnd,
+      status: performances.status,
+      sortOrder: performances.sortOrder,
+    })
+    .from(performances)
+    .innerJoin(artists, eq(performances.artistId, artists.id))
+    .where(eq(performances.eventId, DEMO_IDS.event))
+    .orderBy(asc(performances.sortOrder));
+  const pointRows = await db
+    .select()
+    .from(eventMapPoints)
+    .where(eq(eventMapPoints.eventId, DEMO_IDS.event));
+  const announcementRows = await db
+    .select()
+    .from(eventAnnouncements)
+    .where(eq(eventAnnouncements.eventId, DEMO_IDS.event));
+  const scheduleRows = await db
+    .select({ performanceId: userScheduleItems.performanceId })
+    .from(userScheduleItems)
+    .where(eq(userScheduleItems.userId, DEMO_IDS.user));
+  const [crew] = await db
+    .select()
+    .from(crews)
+    .where(eq(crews.id, DEMO_IDS.crew));
+  const crewRows = await db
+    .select({
+      userId: profiles.id,
+      displayName: profiles.displayName,
+      role: crewMembers.role,
+      mode: locationShares.mode,
+      mapX: locationShares.mapX,
+      mapY: locationShares.mapY,
+      zoneName: locationShares.zoneName,
+      active: locationShares.active,
+      updatedAt: locationShares.updatedAt,
+    })
+    .from(crewMembers)
+    .innerJoin(profiles, eq(crewMembers.userId, profiles.id))
+    .leftJoin(locationShares, eq(crewMembers.userId, locationShares.userId))
+    .where(eq(crewMembers.crewId, DEMO_IDS.crew));
+  const [meeting] = await db
+    .select()
+    .from(meetingPoints)
+    .where(eq(meetingPoints.crewId, DEMO_IDS.crew));
+  const [follow] = await db
+    .select({ id: eventFollows.id })
+    .from(eventFollows)
+    .where(eq(eventFollows.userId, DEMO_IDS.user));
+
+  return {
+    storageMode: "database",
+    event,
+    stages: stageRows,
+    performances: performanceRows,
+    points: pointRows,
+    announcements: announcementRows,
+    savedPerformanceIds: scheduleRows.map((row) => row.performanceId),
+    crew,
+    crewMembers: crewRows,
+    meeting,
+    following: Boolean(follow),
+  } as DemoData;
+}
+
+export async function getOrganiserData() {
+  const eventData = await getDemoData();
+  if (!process.env.DATABASE_URL) {
+    return {
+      ...eventData,
+      organiser: {
+        id: DEMO_IDS.organiser,
+        name: "Coastal Culture Collective",
+        slug: "coastal-culture",
+        verified: true,
+      },
+      membership: {
+        role: "owner",
+        permissions: ["events:write", "schedule:write", "announcements:write"],
+      },
+      recentActivity: [
+        {
+          id: "a0000000-0000-4000-8000-000000000001",
+          action: "event.published",
+          createdAt: eventDay("14:45"),
+        },
+      ],
+    } as unknown as OrganiserData;
+  }
+  const [organiser] = await db
+    .select()
+    .from(organisers)
+    .where(eq(organisers.id, DEMO_IDS.organiser));
+  const [membership] = await db
+    .select()
+    .from(organiserMembers)
+    .where(eq(organiserMembers.userId, DEMO_IDS.user));
+  const recentActivity = await db
+    .select()
+    .from(auditLogs)
+    .where(eq(auditLogs.eventId, DEMO_IDS.event))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(12);
+
+  return {
+    ...eventData,
+    organiser,
+    membership,
+    recentActivity,
+  } as OrganiserData;
+}

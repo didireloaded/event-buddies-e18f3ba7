@@ -1,0 +1,195 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { DemoData } from "@/lib/demo-data";
+
+export type LocalMeeting = { pointId: string; at: string };
+export type Preferences = {
+  saved: string[];
+  savedArtists: string[];
+  profile: { name: string; handle: string };
+  following: boolean;
+  status: string;
+  meeting: LocalMeeting | null;
+};
+
+export function useAttendee(data: DemoData) {
+  const initial: Preferences = {
+    saved: data.savedPerformanceIds,
+    savedArtists: [],
+    profile: {
+      name: data.crewMembers[0]?.displayName ?? "Guest",
+      handle: "didi",
+    },
+    following: data.following,
+    status: "Enjoying the music",
+    meeting: null,
+  };
+  const [preferences, setPreferences] = useState(initial);
+  const current = useRef(initial);
+  const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState(false);
+  const busy = useRef(false);
+  const [message, setMessage] = useState<{
+    text: string;
+    error: boolean;
+  } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const key = `event-buddies:${data.event.id}:attendee`;
+
+  const notify = (text: string, error = false) => {
+    if (timer.current) clearTimeout(timer.current);
+    setMessage({ text, error });
+    timer.current = setTimeout(() => setMessage(null), 4200);
+  };
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const stored = JSON.parse(raw);
+          const saved =
+            data.storageMode === "demo" && Array.isArray(stored.saved)
+              ? stored.saved.filter(
+                  (id: unknown) =>
+                    typeof id === "string" &&
+                    data.performances.some(
+                      (performance) => performance.id === id,
+                    ),
+                )
+              : data.savedPerformanceIds;
+          const meeting =
+            stored.meeting &&
+            [...data.points, ...data.stages].some(
+              (point) => point.id === stored.meeting.pointId,
+            ) &&
+            Number.isFinite(Date.parse(stored.meeting.at))
+              ? (stored.meeting as LocalMeeting)
+              : null;
+          const next = {
+            saved: [...new Set<string>(saved)],
+            savedArtists: Array.isArray(stored.savedArtists)
+              ? stored.savedArtists.filter(
+                  (id: unknown) =>
+                    typeof id === "string" &&
+                    data.festival?.artists.some((artist) => artist.id === id),
+                )
+              : [],
+            profile:
+              stored.profile &&
+              typeof stored.profile.name === "string" &&
+              typeof stored.profile.handle === "string"
+                ? {
+                    name: stored.profile.name.slice(0, 50),
+                    handle: stored.profile.handle.slice(0, 30),
+                  }
+                : {
+                    name: data.crewMembers[0]?.displayName ?? "Guest",
+                    handle: "didi",
+                  },
+            following:
+              data.storageMode === "demo" &&
+              typeof stored.following === "boolean"
+                ? stored.following
+                : data.following,
+            status:
+              typeof stored.status === "string"
+                ? stored.status.slice(0, 50)
+                : "Enjoying the music",
+            meeting,
+          };
+          current.current = next;
+          setPreferences(next);
+        }
+      } catch {
+        notify("Your saved preferences couldn’t be loaded", true);
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [data, key]);
+
+  const update = async (
+    patch: Partial<Preferences>,
+    action?: Record<string, unknown>,
+  ) => {
+    if (!ready || busy.current) return false;
+    busy.current = true;
+    setPending(true);
+    const previous = current.current;
+    const next = { ...previous, ...patch };
+    current.current = next;
+    setPreferences(next);
+    try {
+      if (data.storageMode === "database" && action) {
+        const response = await fetch("/api/demo-actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(action),
+        });
+        if (!response.ok) throw new Error("Save failed");
+      } else {
+        localStorage.setItem(key, JSON.stringify(next));
+      }
+      return true;
+    } catch {
+      current.current = previous;
+      setPreferences(previous);
+      notify("Couldn’t save your change. Please try again.", true);
+      return false;
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  };
+
+  const toggleSaved = async (id: string) => {
+    const enabled = !current.current.saved.includes(id);
+    const saved = enabled
+      ? [...current.current.saved, id]
+      : current.current.saved.filter((item) => item !== id);
+    const success = await update(
+      { saved },
+      { action: "toggle-schedule", performanceId: id, enabled },
+    );
+    if (success)
+      notify(enabled ? "Added to your lineup" : "Removed from your lineup");
+    return success;
+  };
+
+  const toggleArtist = async (id: string) => {
+    const enabled = !current.current.savedArtists.includes(id);
+    const savedArtists = enabled
+      ? [...current.current.savedArtists, id]
+      : current.current.savedArtists.filter((item) => item !== id);
+    if (await update({ savedArtists }))
+      notify(
+        enabled ? "Artist saved on this device" : "Artist removed from saved",
+      );
+  };
+
+  const toggleFollow = async () => {
+    const enabled = !current.current.following;
+    if (
+      await update({ following: enabled }, { action: "toggle-follow", enabled })
+    ) {
+      notify(enabled ? "Event saved" : "Event removed from saved");
+    }
+  };
+
+  return {
+    preferences,
+    ready,
+    pending,
+    message,
+    notify,
+    update,
+    toggleSaved,
+    toggleArtist,
+    toggleFollow,
+  };
+}

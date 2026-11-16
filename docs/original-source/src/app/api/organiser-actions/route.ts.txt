@@ -1,0 +1,188 @@
+import { db } from "@/db";
+import {
+  auditLogs,
+  eventAnnouncements,
+  events,
+  organiserMembers,
+  performances,
+} from "@/db/schema";
+import { DEMO_IDS } from "@/lib/demo-data";
+import { and, eq, sql } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { z } from "zod";
+
+export const dynamic = "force-dynamic";
+
+const announcementSchema = z.object({
+  action: z.literal("publish-announcement"),
+  title: z.string().trim().min(3).max(80),
+  body: z.string().trim().min(5).max(500),
+  category: z.enum(["general", "schedule", "safety", "transport"]),
+  priority: z.enum(["normal", "important", "critical"]),
+  confirmCritical: z.boolean().optional().default(false),
+});
+
+const performanceSchema = z.object({
+  action: z.literal("set-performance-status"),
+  performanceId: z.string().uuid(),
+  status: z.enum([
+    "scheduled",
+    "starting_soon",
+    "live",
+    "delayed",
+    "paused",
+    "completed",
+    "cancelled",
+  ]),
+});
+
+const eventSchema = z.object({
+  action: z.literal("set-event-status"),
+  status: z.enum(["published", "live", "ended", "cancelled", "postponed"]),
+  confirmCritical: z.boolean().optional().default(false),
+});
+
+const actionSchema = z.discriminatedUnion("action", [
+  announcementSchema,
+  performanceSchema,
+  eventSchema,
+]);
+
+async function can(permission: string) {
+  const [membership] = await db
+    .select({ permissions: organiserMembers.permissions, role: organiserMembers.role })
+    .from(organiserMembers)
+    .where(
+      and(
+        eq(organiserMembers.organiserId, DEMO_IDS.organiser),
+        eq(organiserMembers.userId, DEMO_IDS.user),
+      ),
+    );
+  return membership?.role === "owner" || membership?.permissions.includes(permission);
+}
+
+export async function POST(request: NextRequest) {
+  const parsed = actionSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return Response.json(
+      { ok: false, error: "Invalid action", details: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  const input = parsed.data;
+
+  if (input.action === "publish-announcement") {
+    if (!(await can("announcements:write"))) {
+      return Response.json({ ok: false, error: "Not permitted" }, { status: 403 });
+    }
+    if (input.priority === "critical" && !input.confirmCritical) {
+      return Response.json(
+        { ok: false, error: "Critical notices require confirmation" },
+        { status: 409 },
+      );
+    }
+
+    const [announcement] = await db.transaction(async (tx) => {
+      const created = await tx
+        .insert(eventAnnouncements)
+        .values({
+          eventId: DEMO_IDS.event,
+          title: input.title,
+          body: input.body,
+          category: input.category,
+          priority: input.priority,
+          publishAt: new Date(),
+        })
+        .returning();
+      await tx.insert(auditLogs).values({
+        organiserId: DEMO_IDS.organiser,
+        eventId: DEMO_IDS.event,
+        userId: DEMO_IDS.user,
+        action: input.priority === "critical" ? "announcement.critical_sent" : "announcement.published",
+        entityType: "announcement",
+        entityId: created[0].id,
+        payload: {
+          title: input.title,
+          category: input.category,
+          priority: input.priority,
+        },
+      });
+      return created;
+    });
+
+    return Response.json({ ok: true, announcement });
+  }
+
+  if (input.action === "set-performance-status") {
+    if (!(await can("schedule:write"))) {
+      return Response.json({ ok: false, error: "Not permitted" }, { status: 403 });
+    }
+
+    const [performance] = await db.transaction(async (tx) => {
+      const updated = await tx
+        .update(performances)
+        .set({ status: input.status })
+        .where(
+          and(
+            eq(performances.id, input.performanceId),
+            eq(performances.eventId, DEMO_IDS.event),
+          ),
+        )
+        .returning();
+      if (!updated[0]) return [];
+      await tx
+        .update(events)
+        .set({
+          packageVersion: sql`${events.packageVersion} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(events.id, DEMO_IDS.event));
+      await tx.insert(auditLogs).values({
+        organiserId: DEMO_IDS.organiser,
+        eventId: DEMO_IDS.event,
+        userId: DEMO_IDS.user,
+        action: "performance.status_changed",
+        entityType: "performance",
+        entityId: input.performanceId,
+        payload: { status: input.status },
+      });
+      return updated;
+    });
+
+    if (!performance) {
+      return Response.json({ ok: false, error: "Performance not found" }, { status: 404 });
+    }
+    return Response.json({ ok: true, performance });
+  }
+
+  if (!(await can("events:write"))) {
+    return Response.json({ ok: false, error: "Not permitted" }, { status: 403 });
+  }
+  if (["cancelled", "postponed"].includes(input.status) && !input.confirmCritical) {
+    return Response.json(
+      { ok: false, error: "This status change requires confirmation" },
+      { status: 409 },
+    );
+  }
+
+  const [event] = await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(events)
+      .set({ status: input.status, updatedAt: new Date() })
+      .where(eq(events.id, DEMO_IDS.event))
+      .returning();
+    await tx.insert(auditLogs).values({
+      organiserId: DEMO_IDS.organiser,
+      eventId: DEMO_IDS.event,
+      userId: DEMO_IDS.user,
+      action: "event.status_changed",
+      entityType: "event",
+      entityId: DEMO_IDS.event,
+      payload: { status: input.status },
+    });
+    return updated;
+  });
+
+  return Response.json({ ok: true, event });
+}

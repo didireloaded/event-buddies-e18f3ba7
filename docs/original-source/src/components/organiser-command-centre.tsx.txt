@@ -1,0 +1,384 @@
+"use client";
+
+import type { OrganiserData } from "@/lib/demo-data";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  BarChart3,
+  BellRing,
+  CalendarClock,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  CircleDot,
+  Clock3,
+  Command,
+  Eye,
+  FileCheck2,
+  Image as ImageIcon,
+  LayoutDashboard,
+  ListMusic,
+  Loader2,
+  Map as MapIcon,
+  MapPin,
+  Megaphone,
+  Menu,
+  MessageSquareText,
+  MoreHorizontal,
+  Music2,
+  Navigation,
+  Plus,
+  Radio,
+  Search,
+  Send,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+  TramFront,
+  Users,
+  Utensils,
+  Wine,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useMemo, useState } from "react";
+
+type Workspace = "overview" | "schedule" | "map" | "communications";
+type PerformanceStatus =
+  | "scheduled"
+  | "starting_soon"
+  | "live"
+  | "delayed"
+  | "paused"
+  | "completed"
+  | "cancelled";
+
+type NoticePriority = "normal" | "important" | "critical";
+
+type Props = { data: OrganiserData };
+
+const NAVIGATION: { id: Workspace; label: string; icon: LucideIcon }[] = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "schedule", label: "Schedule", icon: ListMusic },
+  { id: "map", label: "Site map", icon: MapIcon },
+  { id: "communications", label: "Communications", icon: Megaphone },
+];
+
+const STATUS_OPTIONS: { value: PerformanceStatus; label: string }[] = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "starting_soon", label: "Starting soon" },
+  { value: "live", label: "Live now" },
+  { value: "delayed", label: "Delayed" },
+  { value: "paused", label: "Paused" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+function eventTime(value: Date | string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Windhoek",
+  }).format(new Date(value));
+}
+
+function relativeActivity(value: Date | string) {
+  const date = new Date(value);
+  return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Africa/Windhoek" })} · ${eventTime(date)}`;
+}
+
+async function action(body: Record<string, unknown>) {
+  const response = await fetch("/api/organiser-actions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = (await response.json()) as { ok: boolean; error?: string };
+  if (!response.ok || !result.ok) throw new Error(result.error ?? "Action failed");
+  return result;
+}
+
+export function OrganiserCommandCentre({ data }: Props) {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<Workspace>("overview");
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [eventStatus, setEventStatus] = useState(data.event.status);
+  const [performanceStates, setPerformanceStates] = useState<Record<string, string>>(
+    Object.fromEntries(data.performances.map((performance) => [performance.id, performance.status])),
+  );
+  const [pending, setPending] = useState<string | null>(null);
+
+  const notify = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2600);
+  };
+
+  const changePerformance = async (performanceId: string, status: PerformanceStatus) => {
+    const previous = performanceStates[performanceId];
+    setPerformanceStates((current) => ({ ...current, [performanceId]: status }));
+    setPending(performanceId);
+    try {
+      await action({ action: "set-performance-status", performanceId, status });
+      notify(`Performance marked ${status.replace("_", " ")}`);
+      router.refresh();
+    } catch (error) {
+      setPerformanceStates((current) => ({ ...current, [performanceId]: previous }));
+      notify(error instanceof Error ? error.message : "Couldn’t update performance");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const changeEventStatus = async (status: string) => {
+    const sensitive = status === "cancelled" || status === "postponed";
+    if (sensitive && !window.confirm(`Confirm marking Eternal Summer as ${status}? This affects every attendee.`)) return;
+    const previous = eventStatus;
+    setEventStatus(status);
+    setPending("event-status");
+    try {
+      await action({ action: "set-event-status", status, confirmCritical: sensitive });
+      notify(`Event status updated to ${status}`);
+      router.refresh();
+    } catch (error) {
+      setEventStatus(previous);
+      notify(error instanceof Error ? error.message : "Couldn’t update event status");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <main className="organiser-shell">
+      <OrganiserSidebar
+        data={data}
+        workspace={workspace}
+        onWorkspace={(next) => { setWorkspace(next); setMobileMenu(false); }}
+        mobileMenu={mobileMenu}
+      />
+      <section className="organiser-main">
+        <OrganiserTopbar
+          data={data}
+          eventStatus={eventStatus}
+          onEventStatus={changeEventStatus}
+          pending={pending === "event-status"}
+          onMenu={() => setMobileMenu(!mobileMenu)}
+        />
+        <div className="organiser-content">
+          {workspace === "overview" && (
+            <OverviewWorkspace
+              data={data}
+              performanceStates={performanceStates}
+              onPerformance={changePerformance}
+              onWorkspace={setWorkspace}
+              pending={pending}
+            />
+          )}
+          {workspace === "schedule" && (
+            <ScheduleWorkspace
+              data={data}
+              performanceStates={performanceStates}
+              onPerformance={changePerformance}
+              pending={pending}
+              notify={notify}
+            />
+          )}
+          {workspace === "map" && <MapWorkspace data={data} notify={notify} />}
+          {workspace === "communications" && <CommunicationsWorkspace data={data} notify={notify} />}
+        </div>
+      </section>
+      {mobileMenu && <button className="organiser-scrim" aria-label="Close menu" onClick={() => setMobileMenu(false)} />}
+      {toast && <div className="organiser-toast"><Check size={16} />{toast}</div>}
+    </main>
+  );
+}
+
+function OrganiserSidebar({ data, workspace, onWorkspace, mobileMenu }: { data: OrganiserData; workspace: Workspace; onWorkspace: (value: Workspace) => void; mobileMenu: boolean }) {
+  return (
+    <aside className={`organiser-sidebar ${mobileMenu ? "open" : ""}`}>
+      <Link className="organiser-brand" href="/organiser"><span><Command size={18} /></span><strong>event<span>companion</span></strong><small>ORGANISER</small></Link>
+      <button className="organiser-event-switcher"><span className="organiser-event-art"><Image src={data.event.heroImageUrl} alt="" fill sizes="38px" /></span><span><small>ACTIVE EVENT</small><strong>{data.event.name}</strong></span><ChevronDown size={15} /></button>
+      <nav className="organiser-nav">
+        <p>MANAGE EVENT</p>
+        {NAVIGATION.map((item) => { const Icon = item.icon; return <button key={item.id} className={workspace === item.id ? "active" : ""} onClick={() => onWorkspace(item.id)}><Icon size={17} /><span>{item.label}</span>{item.id === "communications" && <em>{data.announcements.length}</em>}</button>; })}
+        <p>OPERATIONS</p>
+        <button><Music2 size={17} /><span>Artists</span></button>
+        <button><Utensils size={17} /><span>Vendors</span></button>
+        <button><Shield size={17} /><span>Safety</span></button>
+        <button><TramFront size={17} /><span>Transport</span></button>
+        <p>ORGANISATION</p>
+        <button><Users size={17} /><span>Team</span></button>
+        <button><BarChart3 size={17} /><span>Analytics</span></button>
+        <button><Settings size={17} /><span>Settings</span></button>
+      </nav>
+      <div className="organiser-sidebar-foot"><span className="organiser-avatar">DI</span><span><strong>Didi</strong><small>Owner · Full access</small></span><MoreHorizontal size={16} /></div>
+    </aside>
+  );
+}
+
+function OrganiserTopbar({ data, eventStatus, onEventStatus, pending, onMenu }: { data: OrganiserData; eventStatus: string; onEventStatus: (value: string) => void; pending: boolean; onMenu: () => void }) {
+  return (
+    <header className="organiser-topbar">
+      <button className="organiser-menu" onClick={onMenu} aria-label="Open navigation"><Menu size={19} /></button>
+      <div className="organiser-breadcrumb"><span>{data.organiser.name}</span><ChevronRight size={13} /><strong>{data.event.name}</strong></div>
+      <div className="organiser-live-health"><span /> Systems operational</div>
+      <label className={`event-status-select ${eventStatus}`}>
+        {pending ? <Loader2 size={13} className="spin" /> : <CircleDot size={13} />}
+        <select value={eventStatus} onChange={(event) => onEventStatus(event.target.value)} aria-label="Event status">
+          <option value="published">Published</option><option value="live">Live</option><option value="ended">Ended</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option>
+        </select>
+        <ChevronDown size={12} />
+      </label>
+      <Link className="attendee-preview" href="/"><Eye size={15} /> Attendee preview <ArrowUpRight size={13} /></Link>
+      <button className="organiser-notification"><BellRing size={17} /><i /></button>
+    </header>
+  );
+}
+
+function OverviewWorkspace({ data, performanceStates, onPerformance, onWorkspace, pending }: { data: OrganiserData; performanceStates: Record<string, string>; onPerformance: (id: string, status: PerformanceStatus) => void; onWorkspace: (value: Workspace) => void; pending: string | null }) {
+  const live = data.performances.filter((performance) => performanceStates[performance.id] === "live");
+  const readiness = [
+    { label: "Site map aligned", note: `${data.points.length} POIs published`, complete: true },
+    { label: "Schedule validated", note: `${data.performances.length} performances across ${data.stages.length} stages`, complete: true },
+    { label: "Safety information", note: "First aid, security and emergency exit present", complete: true },
+    { label: "Transport plan", note: "Pickup and parking points published", complete: true },
+  ];
+  return (
+    <>
+      <div className="workspace-heading"><div><span className="organiser-eyebrow"><Radio size={11} /> LIVE COMMAND CENTRE</span><h1>Good evening, Didi.</h1><p>Here’s what’s happening across Eternal Summer right now.</p></div><button className="quick-announce" onClick={() => onWorkspace("communications")}><Megaphone size={15} /> New announcement</button></div>
+      <div className="organiser-metrics">
+        <Metric icon={Users} label="CREW MEMBERS" value={String(data.crewMembers.length)} note={`${data.crewMembers.filter((member) => member.active).length} actively sharing`} tone="coral" />
+        <Metric icon={Radio} label="LIVE STAGES" value={`${live.length}/${data.stages.length}`} note="All feeds connected" tone="green" />
+        <Metric icon={MapPin} label="PUBLISHED POIS" value={String(data.points.length)} note="Map package v18" tone="blue" />
+        <Metric icon={CalendarClock} label="SCHEDULE SAVES" value={String(data.savedPerformanceIds.length)} note="Demo attendee activity" tone="violet" />
+      </div>
+      <div className="overview-grid">
+        <section className="organiser-card live-control-card">
+          <div className="organiser-card-head"><span><small>LIVE OPERATIONS</small><h2>Stages right now</h2></span><button onClick={() => onWorkspace("schedule")}>Full schedule <ChevronRight size={14} /></button></div>
+          <div className="stage-control-list">
+            {data.stages.map((stage) => {
+              const current = data.performances.find((performance) => performance.stageId === stage.id && performanceStates[performance.id] === "live") ?? data.performances.find((performance) => performance.stageId === stage.id);
+              if (!current) return null;
+              return <article key={stage.id}><i className={stage.colorKey} /><span className="stage-control-copy"><small>{stage.name}</small><strong>{current.artistName}</strong><em>{eventTime(current.scheduledStart)}–{eventTime(current.scheduledEnd)}</em></span><StatusControl value={performanceStates[current.id] as PerformanceStatus} onChange={(status) => onPerformance(current.id, status)} pending={pending === current.id} /></article>;
+            })}
+          </div>
+        </section>
+        <section className="organiser-card readiness-card">
+          <div className="organiser-card-head"><span><small>EVENT READINESS</small><h2>Published & healthy</h2></span><span className="readiness-score"><strong>100</strong><small>/100</small></span></div>
+          <div className="readiness-progress"><span /></div>
+          <div className="readiness-list">{readiness.map((item) => <div key={item.label}><CheckCircle2 size={16} /><span><strong>{item.label}</strong><small>{item.note}</small></span></div>)}</div>
+          <button className="validation-report"><FileCheck2 size={15} /> View validation report <ChevronRight size={14} /></button>
+        </section>
+        <section className="organiser-card update-card">
+          <div className="organiser-card-head"><span><small>RECENT UPDATES</small><h2>Attendee communications</h2></span><button onClick={() => onWorkspace("communications")}>View all <ChevronRight size={14} /></button></div>
+          <div className="overview-announcements">{data.announcements.slice(-3).reverse().map((announcement) => <article key={announcement.id}><span className={announcement.priority}><Megaphone size={14} /></span><span><strong>{announcement.title}</strong><small>{announcement.body}</small><em>{eventTime(announcement.publishAt)} · {announcement.category}</em></span></article>)}</div>
+        </section>
+        <section className="organiser-card activity-card">
+          <div className="organiser-card-head"><span><small>AUDIT TRAIL</small><h2>Recent activity</h2></span><ShieldCheck size={19} /></div>
+          <div className="audit-list">{data.recentActivity.slice(0, 4).map((log) => <div key={log.id}><span><Activity size={13} /></span><p><strong>{log.action.replaceAll(".", " ")}</strong><small>Didi · {relativeActivity(log.createdAt)}</small></p></div>)}</div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function Metric({ icon: Icon, label, value, note, tone }: { icon: LucideIcon; label: string; value: string; note: string; tone: string }) {
+  return <article className={`organiser-metric ${tone}`}><span><Icon size={17} /></span><small>{label}</small><strong>{value}</strong><em>{note}</em><div className="metric-spark"><i /><i /><i /><i /><i /><i /><i /></div></article>;
+}
+
+function StatusControl({ value, onChange, pending }: { value: PerformanceStatus; onChange: (value: PerformanceStatus) => void; pending: boolean }) {
+  return <label className={`performance-status ${value}`}>{pending ? <Loader2 size={12} className="spin" /> : <span />}<select value={value} onChange={(event) => onChange(event.target.value as PerformanceStatus)}>{STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown size={11} /></label>;
+}
+
+function ScheduleWorkspace({ data, performanceStates, onPerformance, pending, notify }: { data: OrganiserData; performanceStates: Record<string, string>; onPerformance: (id: string, status: PerformanceStatus) => void; pending: string | null; notify: (message: string) => void }) {
+  const [stageFilter, setStageFilter] = useState("all");
+  const visible = data.performances.filter((performance) => stageFilter === "all" || performance.stageId === stageFilter);
+  return (
+    <>
+      <div className="workspace-heading"><div><span className="organiser-eyebrow">PROGRAMME CONTROL</span><h1>Schedule</h1><p>Manage live states and keep attendee reminders accurate.</p></div><button className="quick-announce" onClick={() => notify("Performance editor opened")}><Plus size={15} /> Add performance</button></div>
+      <div className="schedule-admin-tools"><label><Search size={15} /><input placeholder="Search artists or stages" /></label><select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}><option value="all">All stages</option>{data.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</select><span><CheckCircle2 size={14} /> No stage conflicts</span></div>
+      <section className="organiser-card schedule-admin-card">
+        <div className="schedule-admin-head"><span>TIME</span><span>PERFORMANCE</span><span>STAGE</span><span>STATUS</span><span>ACTIONS</span></div>
+        <div className="schedule-admin-rows">{visible.map((performance) => { const stage = data.stages.find((item) => item.id === performance.stageId); return <article key={performance.id}><time><strong>{eventTime(performance.scheduledStart)}</strong><small>{eventTime(performance.scheduledEnd)}</small></time><span className="schedule-artist"><i className={stage?.colorKey} /><span><strong>{performance.artistName}</strong><small>{performance.genre}</small></span></span><span className="schedule-stage"><MapPin size={13} />{stage?.name}</span><StatusControl value={performanceStates[performance.id] as PerformanceStatus} onChange={(status) => onPerformance(performance.id, status)} pending={pending === performance.id} /><button className="row-menu"><MoreHorizontal size={17} /></button></article>; })}</div>
+      </section>
+      <div className="schedule-footnote"><ShieldCheck size={15} /><span><strong>Changes are audited</strong>Status overrides appear in Event Mode immediately. Package version increments automatically.</span></div>
+    </>
+  );
+}
+
+function MapWorkspace({ data, notify }: { data: OrganiserData; notify: (message: string) => void }) {
+  const [layer, setLayer] = useState<"pois" | "stages" | "safety">("pois");
+  const pointVisible = (type: string) => layer === "pois" || (layer === "safety" && ["first-aid", "security", "exit"].includes(type));
+  return (
+    <>
+      <div className="workspace-heading"><div><span className="organiser-eyebrow">MAP MANAGER</span><h1>Site map</h1><p>Validate alignment, points and attendee map coverage.</p></div><button className="quick-announce" onClick={() => notify("Map edit mode enabled")}><Plus size={15} /> Add map point</button></div>
+      <div className="map-admin-layout">
+        <section className="organiser-card admin-map-card">
+          <div className="admin-map-toolbar"><div><button className={layer === "pois" ? "active" : ""} onClick={() => setLayer("pois")}>All POIs</button><button className={layer === "stages" ? "active" : ""} onClick={() => setLayer("stages")}>Stages</button><button className={layer === "safety" ? "active" : ""} onClick={() => setLayer("safety")}>Safety</button></div><span><Navigation size={13} /> Aligned to venue coordinates</span></div>
+          <div className="admin-map-canvas"><Image src={data.event.mapImageUrl} alt="Organiser event map" fill sizes="70vw" />
+            {(layer === "pois" || layer === "stages") && data.stages.map((stage) => <button key={stage.id} className={`admin-stage-pin ${stage.colorKey}`} style={{ left: `${stage.mapX}%`, top: `${stage.mapY}%` }}><Music2 size={14} /><span>{stage.name}</span></button>)}
+            {layer !== "stages" && data.points.filter((point) => pointVisible(point.type)).map((point) => <button key={point.id} className={`admin-poi-pin ${["first-aid", "security", "exit"].includes(point.type) ? "safety" : ""}`} style={{ left: `${point.mapX}%`, top: `${point.mapY}%` }}><MapPin size={12} /><span>{point.name}</span></button>)}
+            <div className="map-corner nw">NW</div><div className="map-corner ne">NE</div><div className="map-corner sw">SW</div><div className="map-corner se">SE</div>
+          </div>
+        </section>
+        <aside className="map-validation-panel">
+          <section className="organiser-card"><div className="organiser-card-head"><span><small>PUBLISH CHECKS</small><h2>Map validation</h2></span><span className="map-valid"><Check size={13} /> Ready</span></div><div className="map-checks"><div><CheckCircle2 size={15} /><span><strong>Geographic alignment</strong><small>4 corners confirmed</small></span></div><div><CheckCircle2 size={15} /><span><strong>Entrance coverage</strong><small>1 public entrance</small></span></div><div><CheckCircle2 size={15} /><span><strong>Safety coverage</strong><small>3 critical points</small></span></div><div><CheckCircle2 size={15} /><span><strong>POI bounds</strong><small>{data.points.length} of {data.points.length} within venue</small></span></div></div></section>
+          <section className="organiser-card map-package-card"><span><ImageIcon size={19} /></span><div><small>ATTENDEE PACKAGE</small><strong>Version {data.event.packageVersion}</strong><em>4.8 MB · optimised</em></div><button onClick={() => notify("Event package rebuilt")}>Rebuild</button></section>
+          <section className="organiser-card map-legend"><small>MAP INVENTORY</small><div><span><Music2 size={14} /> Stages</span><strong>{data.stages.length}</strong></div><div><span><MapPin size={14} /> Points of interest</span><strong>{data.points.length}</strong></div><div><span><Shield size={14} /> Safety points</span><strong>{data.points.filter((point) => ["first-aid", "security", "exit"].includes(point.type)).length}</strong></div></section>
+        </aside>
+      </div>
+    </>
+  );
+}
+
+function CommunicationsWorkspace({ data, notify }: { data: OrganiserData; notify: (message: string) => void }) {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [category, setCategory] = useState("general");
+  const [priority, setPriority] = useState<NoticePriority>("normal");
+  const [confirmed, setConfirmed] = useState(false);
+  const [sending, setSending] = useState(false);
+  const canSend = title.trim().length >= 3 && body.trim().length >= 5 && (priority !== "critical" || confirmed);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSend) return;
+    setSending(true);
+    try {
+      await action({ action: "publish-announcement", title, body, category, priority, confirmCritical: confirmed });
+      setTitle(""); setBody(""); setPriority("normal"); setConfirmed(false);
+      notify(priority === "critical" ? "Critical notice sent and pinned" : "Announcement published");
+      router.refresh();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Couldn’t publish announcement");
+    } finally { setSending(false); }
+  };
+
+  const sorted = useMemo(() => [...data.announcements].sort((a, b) => new Date(b.publishAt).getTime() - new Date(a.publishAt).getTime()), [data.announcements]);
+  return (
+    <>
+      <div className="workspace-heading"><div><span className="organiser-eyebrow">LIVE COMMUNICATIONS</span><h1>Announcements</h1><p>Reach followers and attendees already inside the event.</p></div></div>
+      <div className="communications-layout">
+        <form className="organiser-card announcement-composer" onSubmit={submit}>
+          <div className="organiser-card-head"><span><small>COMPOSE</small><h2>New announcement</h2></span><MessageSquareText size={19} /></div>
+          <label><span>Title <em>{title.length}/80</em></span><input value={title} onChange={(event) => setTitle(event.target.value.slice(0, 80))} placeholder="What do attendees need to know?" /></label>
+          <label><span>Message <em>{body.length}/500</em></span><textarea value={body} onChange={(event) => setBody(event.target.value.slice(0, 500))} placeholder="Keep it concise and actionable." rows={5} /></label>
+          <div className="composer-fields"><label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="general">General</option><option value="schedule">Schedule</option><option value="safety">Safety</option><option value="transport">Transport</option></select></label><label><span>Priority</span><select value={priority} onChange={(event) => { setPriority(event.target.value as NoticePriority); setConfirmed(false); }}><option value="normal">Normal</option><option value="important">Important</option><option value="critical">Critical</option></select></label></div>
+          <div className={`audience-preview ${priority}`}><span>{priority === "critical" ? <AlertTriangle size={18} /> : <Send size={18} />}</span><div><strong>{priority === "critical" ? "Critical delivery" : "Audience: everyone at this event"}</strong><small>{priority === "critical" ? "Push notification + pinned Event Mode notice" : "In-app update and enabled push subscribers"}</small></div></div>
+          {priority === "critical" && <label className="critical-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span><Check size={12} /></span><p><strong>I confirm this is a critical safety message.</strong><small>This action is permission-restricted and will be written to the audit log.</small></p></label>}
+          <div className="composer-actions"><button type="button">Save draft</button><button type="submit" disabled={!canSend || sending}>{sending ? <Loader2 size={14} className="spin" /> : <Send size={14} />} {priority === "critical" ? "Send critical notice" : "Publish now"}</button></div>
+        </form>
+        <section className="organiser-card announcement-history"><div className="organiser-card-head"><span><small>PUBLISHED</small><h2>Recent announcements</h2></span><span className="announcement-count">{data.announcements.length}</span></div><div className="announcement-admin-list">{sorted.map((announcement) => <article key={announcement.id}><span className={announcement.priority}>{announcement.priority === "critical" ? <AlertTriangle size={14} /> : <Megaphone size={14} />}</span><div><small>{announcement.priority} · {announcement.category}</small><strong>{announcement.title}</strong><p>{announcement.body}</p><em>{relativeActivity(announcement.publishAt)}</em></div><button><MoreHorizontal size={16} /></button></article>)}</div></section>
+      </div>
+    </>
+  );
+}

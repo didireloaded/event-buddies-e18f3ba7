@@ -1,0 +1,57 @@
+[
+  {
+    "path": "docs/reference-material/01-repository-analysis.md",
+    "source_attachment": "f0e39a53-f380-4475-9a25-f4cc1f3205ce",
+    "sha256": "ef7c5b25b3c0f3b45232e67b8c3aa79720a832f4d66d91f1bc3613013534d0ce"
+  },
+  {
+    "path": "docs/reference-material/02-foundational-features.md",
+    "source_attachment": "a6180764-83b8-4ef6-8bfa-0381dc0cbf26",
+    "sha256": "903993d3b0a5404b9a49463c8988bc759cdffb9497872e4762160e22d71e73ea"
+  },
+  {
+    "path": "docs/reference-material/03-phased-implementation-plan.md",
+    "source_attachment": "43e5e5a6-ba08-4f37-ab3f-9d843b53a071",
+    "sha256": "d1de1c2e97e0463665040850385be63e96f01aa2388d7b1c7f00fc388a18c70a"
+  },
+  {
+    "path": "docs/reference-material/04-attendee-feature-inventory.md",
+    "source_attachment": "fd86fb07-2350-4937-a1f8-a41f5b5af38b",
+    "sha256": "c90690c309ce52646a2148c880dc4d138a7db3f50604437de5c40edb5f52fdc8"
+  },
+  {
+    "path": "docs/reference-material/05-foundational-features-duplicate.md",
+    "source_attachment": "52214568-5aa8-476d-86af-14c4f9ea35d1",
+    "sha256": "903993d3b0a5404b9a49463c8988bc759cdffb9497872e4762160e22d71e73ea"
+  },
+  {
+    "path": "docs/reference-material/06-phased-implementation-plan-duplicate.md",
+    "source_attachment": "dfc1b74c-3e85-40e2-a1c9-5f01570c6656",
+    "sha256": "d1de1c2e97e0463665040850385be63e96f01aa2388d7b1c7f00fc388a18c70a"
+  },
+  {
+    "path": "docs/reference-material/07-attendee-feature-inventory-duplicate.md",
+    "source_attachment": "7d871164-6384-463c-bdb5-6eb2a63a1f62",
+    "sha256": "c90690c309ce52646a2148c880dc4d138a7db3f50604437de5c40edb5f52fdc8"
+  },
+  {
+    "path": "docs/reference-material/08-full-backend-proposal.md",
+    "source_attachment": "d848ea1e-825d-46f9-9029-8c57d9db23c7",
+    "sha256": "7b49385fab7dad3a90de828eba8553e3898805c61b4fcbf73da88b79acb48689"
+  },
+  {
+    "path": "docs/reference-material/09-delight-features.md",
+    "source_attachment": "2be70a28-d1c4-4363-a85d-724006caa62b",
+    "sha256": "b255eeb69a579020b85dfd123836692cf79d6aba337bf974ff8ba5e2addd1e7f"
+  },
+  {
+    "path": "docs/reference-material/10-interactive-features.md",
+    "source_attachment": "b6d239a9-55e4-43e2-a933-1c21e9b5b67c",
+    "sha256": "f05f020a85d9a28b5a8a64eafb6bf0ae3efab0b7b63d03eb5e68bd1bbd6a2588"
+  },
+  {
+    "path": "docs/reference-material/11-sound-of-summer-requirements.md",
+    "source_attachment": "4adc6103-f047-4013-babb-5e7b2e00bb19",
+    "sha256": "0e2969fb91eaea15f160d0a9601770d4ddbbda3bd2bc4360cee470c7ea690a77"
+  }
+]

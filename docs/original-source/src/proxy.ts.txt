@@ -1,0 +1,9 @@
+import { NextResponse, type NextRequest } from "next/server";
+export function proxy(request: NextRequest) {
+  const response = NextResponse.next();
+  if (request.nextUrl.pathname === "/" && !process.env.DATABASE_URL) {
+    response.headers.set("X-Event-Buddies-Demo", "1");
+  }
+  return response;
+}
+export const config = { matcher: ["/"] };
