@@ -57,6 +57,16 @@ test("attendee screens stay concise and event switching preserves saved artists"
   await page.goto("/#home");
   await expect(page.getByRole("button", { name: /Ask about the festival/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your crew", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /Your lineup/ }).click();
+  await expect(page).toHaveURL(/#lineup$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/#home$/);
+  await page.getByRole("link", { name: /Venue map/ }).click();
+  await expect(page).toHaveURL(/#map$/);
+  await page.goBack();
+  await page.getByRole("link", { name: /Festival essentials/ }).click();
+  await expect(page).toHaveURL(/#info$/);
+  await page.goBack();
   await page.getByRole("button", { name: /Menu: profile/ }).click();
   await expect(page.getByText("Organiser workspace", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Done", exact: true }).click();

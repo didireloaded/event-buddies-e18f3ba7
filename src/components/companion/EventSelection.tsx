@@ -16,7 +16,7 @@ export function EventSelection() {
       <h2 className="mt-7 mb-3 text-[20px] font-bold">{ended ? "Past events" : "Coming up"}</h2>
       <button
         type="button"
-        className="ios-press w-full overflow-hidden rounded-[20px] bg-popover text-left"
+        className="ios-press flex w-full items-center gap-3 overflow-hidden rounded-xl bg-popover p-3 text-left"
         onClick={() => setPreview(true)}
         aria-label={`Preview ${data.event.name}`}
       >
@@ -25,10 +25,10 @@ export function EventSelection() {
           alt="Sound of Summer festival crowd"
           width={1200}
           height={800}
-          className="aspect-[1.8] w-full object-cover"
+          className="size-20 flex-none rounded-[10px] object-cover"
         />
-        <span className="block p-4">
-          <span className="block text-[24px] font-bold">{data.event.name}</span>
+        <span className="block min-w-0">
+          <span className="block text-[20px] font-semibold">{data.event.name}</span>
           <span className="mt-1 block text-[16px] text-muted-foreground">
             {dateLabel(data.event.startAt, data.event.timezone, {
               day: "numeric",

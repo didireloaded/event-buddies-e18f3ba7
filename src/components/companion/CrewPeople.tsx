@@ -15,7 +15,7 @@ export function CrewPeople() {
   const place = places.find((point) => point.id === meeting?.pointId);
   return (
     <Section title="Your crew" id="crew-people" className="px-4">
-      <div className="scrollbar-none flex gap-4 overflow-x-auto py-2">
+      <div className="scrollbar-none flex gap-4 overflow-x-auto rounded-xl bg-popover px-4 py-4">
         <button
           type="button"
           className="flex min-w-16 flex-col items-center gap-2"

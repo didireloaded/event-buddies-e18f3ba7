@@ -2,7 +2,7 @@
 
 ## Current attendee experience
 
-The latest interface refinement uses compact 44px toolbars, system screen titles, a photo-led event pass and inset settings rows. Map place details, profile editing, ticket storage and longer utility tasks open in accessible sheets. The established paper/black/pink palette and four-destination navigation remain the product identity. See [the interface review](docs/design/ios-interface-refinement.md) for the design decisions and verification limits.
+The latest interface refinement uses compact 44px toolbars, system screen titles, a compact event thumbnail and Konsta iOS task rows. Neutral grouped-grey and white surfaces use the festival pink for actions and the light tab bar. Map place details, profile editing, ticket storage and longer utility tasks open in accessible sheets. See [the interface review](docs/design/ios-interface-refinement.md) for the design decisions and verification limits.
 
 ### Latest feature pass
 
