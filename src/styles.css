@@ -78,21 +78,21 @@
 
 :root {
   --radius: 0.75rem;
-  /* Codex reference: warm paper, black ink, hot pink accent only for active/favourite/map highlights */
-  --background: oklch(0.975 0.006 85);
-  --card: oklch(0.975 0.006 85);
-  --foreground: oklch(0.15 0.005 60);
+  /* iOS grouped canvas, white surfaces and the festival pink interaction tint. */
+  --background: oklch(0.96 0.003 265);
+  --card: oklch(0.96 0.003 265);
+  --foreground: oklch(0.16 0 0);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.99 0.004 85);
+  --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.15 0.005 60);
-  --primary-foreground: oklch(0.99 0.004 85);
-  --secondary: oklch(0.93 0.006 85);
+  --primary: oklch(0.57 0.23 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.925 0.005 265);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.93 0.006 85);
-  --muted-foreground: oklch(0.45 0.008 60);
-  --tertiary-foreground: oklch(0.55 0.008 60);
-  --accent: oklch(0.93 0.006 85);
+  --muted: oklch(0.925 0.005 265);
+  --muted-foreground: oklch(0.47 0.005 265);
+  --tertiary-foreground: oklch(0.52 0.005 265);
+  --accent: oklch(0.925 0.005 265);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.21 27);
   --destructive-foreground: oklch(0.99 0 0);
@@ -101,19 +101,19 @@
   --success: oklch(0.55 0.13 165);
   --warning: oklch(0.5 0.12 65);
   --warning-soft: oklch(0.95 0.04 85);
-  --fill: oklch(0.935 0.006 85);
-  --bar: oklch(0.975 0.006 85 / 0.92);
-  --border: oklch(0.86 0.006 85);
-  --separator: oklch(0.87 0.006 85);
-  --input: oklch(0.86 0.006 85);
+  --fill: oklch(0.915 0.005 265);
+  --bar: oklch(0.99 0 0 / 0.94);
+  --border: oklch(0.86 0.004 265);
+  --separator: oklch(0.86 0.004 265);
+  --input: oklch(0.86 0.004 265);
   --ring: oklch(0.6 0.24 0);
   --pin-stage: oklch(0.6 0.24 0);
   --pin-safety: oklch(0.15 0.005 60);
   --pin-entrance: oklch(0.15 0.005 60);
   --pin-amenity: oklch(0.3 0.005 60);
   --pin-other: oklch(0.42 0.006 60);
-  --nav: oklch(0.15 0.005 60);
-  --nav-foreground: oklch(0.82 0.005 85);
+  --nav: oklch(0.99 0 0);
+  --nav-foreground: oklch(0.47 0.005 265);
   --shadow-float: 0 1px 2px oklch(0 0 0 / 0.08), 0 6px 20px oklch(0 0 0 / 0.12);
   --shadow-sheet: 0 -8px 40px oklch(0 0 0 / 0.18);
   --sidebar: var(--background);
@@ -130,7 +130,7 @@
   --chart-4: oklch(0.6 0.24 0);
   --chart-5: oklch(0.45 0.008 60);
   /* floating pill height + gap above safe area */
-  --tabbar-h: 5rem;
+  --tabbar-h: 4.25rem;
 }
 
 @layer base {
@@ -144,6 +144,7 @@
   body {
     font-size: 17px;
     line-height: 22px;
+    letter-spacing: -0.025em;
     font-variant-numeric: tabular-nums;
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -223,12 +224,11 @@
     background: var(--color-fill);
   }
   .ios-section-title {
-    padding: 0 0 0.5rem;
-    font-size: 1.375rem;
-    font-weight: 700;
-    line-height: 1.75rem;
-    letter-spacing: -0.01em;
-    color: var(--color-foreground);
+    padding: 0 1rem 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    color: var(--color-muted-foreground);
   }
   .eyebrow {
     font-size: 0.75rem;
@@ -249,7 +249,7 @@
     font-size: 34px;
     line-height: 41px;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.012em;
   }
   .ios-press {
     transition:
@@ -260,9 +260,9 @@
     transform: scale(0.97);
   }
   .companion-tabs {
-    background: color-mix(in oklch, var(--color-nav) 92%, transparent);
+    background: color-mix(in oklch, var(--color-nav) 94%, transparent);
     backdrop-filter: blur(20px);
-    border: 0.5px solid var(--color-separator);
+    border-top: 0.5px solid var(--color-separator);
   }
   .ios-footnote {
     padding: 0.5rem 1rem 0;
@@ -299,8 +299,8 @@
     box-shadow: inset 0 0 0 0.5px var(--color-border);
   }
   .ios-chip[aria-pressed="true"] {
-    background: var(--color-foreground);
-    color: var(--color-card);
+    background: var(--color-favorite-soft);
+    color: var(--color-favorite);
     box-shadow: none;
   }
   .ios-search {
@@ -309,9 +309,8 @@
     gap: 0.375rem;
     min-height: 2.75rem;
     padding: 0 0.5rem 0 0.625rem;
-    border-radius: 999px;
-    background: var(--color-popover);
-    box-shadow: inset 0 0 0 1px var(--color-border);
+    border-radius: 10px;
+    background: var(--color-fill);
     color: var(--color-muted-foreground);
   }
   .ios-search input {
@@ -468,7 +467,9 @@
   .companion-navigation {
     width: 430px;
     left: calc(50% - 215px);
-    bottom: 36px;
+    bottom: 24px;
+    overflow: hidden;
+    border-radius: 0 0 36px 36px;
   }
   .companion-toast {
     bottom: 116px;

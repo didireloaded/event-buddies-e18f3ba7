@@ -155,10 +155,7 @@ export function FestivalBump() {
   };
   const meetingPlace = incoming?.meeting && places.find((p) => p.id === incoming.meeting?.pointId);
   return (
-    <Section title="Festival Bump" id="crew-bump" className="px-4">
-      <p className="mb-3 text-[15px] text-muted-foreground">
-        Share your meeting and top three artists. Works offline once the app is loaded.
-      </p>
+    <Section title="Share with a friend" id="crew-bump" className="px-4">
       <div className="grid grid-cols-2 gap-2">
         <PrimaryButton disabled={!attendee.ready} onClick={() => setMode("show")}>
           Show QR

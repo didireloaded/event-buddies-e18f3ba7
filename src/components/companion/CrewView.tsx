@@ -17,8 +17,8 @@ export function CrewView() {
     <>
       <h1 className="ios-large-title px-4 pt-2">Crew</h1>
       <CrewPeople />
-      <div className="mx-4 mt-4 rounded-2xl bg-popover p-4">
-        <h2 className="text-[22px] font-bold">Find each other</h2>
+      <div className="mx-4 mt-5">
+        <h2 className="ios-section-title">Find each other</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <Regroup />
           <FindMe />

@@ -229,7 +229,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
                     { home: "Events", map: "Map", crew: "Crew", you: "You", events: "Events" }[view]
                   ) : (
                     <>
-                      eventbuddies<span className="text-favorite">.</span>
+                      <span className="text-favorite">Events</span>
                     </>
                   )}
                 </a>
@@ -289,17 +289,14 @@ export function EventCompanion({ data }: { data: DemoData }) {
           </div>
 
           {!onboarding && !selecting && (
-            <nav
-              aria-label="Main"
-              className="companion-navigation fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
-            >
-              <ul className="companion-tabs mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
+            <nav aria-label="Main" className="companion-navigation fixed inset-x-0 bottom-0 z-30">
+              <ul className="companion-tabs mx-auto flex min-h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-md bg-nav px-2 pb-[env(safe-area-inset-bottom)]">
                 {NAV.map(({ id, label, icon: Icon }) => (
                   <li key={id} className="flex-1">
                     <a
                       href={`#${id}`}
                       aria-current={activeTab === id ? "page" : undefined}
-                      className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
+                      className="relative flex min-h-14 h-full flex-col items-center justify-center gap-0.5 text-[12px] font-medium text-nav-foreground aria-[current=page]:text-favorite"
                     >
                       <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
                       {label}
