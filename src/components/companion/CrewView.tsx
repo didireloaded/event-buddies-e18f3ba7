@@ -109,7 +109,7 @@ export function CrewView() {
             value={preferences.festivalMode ?? ""}
             onChange={(event) => {
               const value = event.target.value;
-              if (value === "music" || value === "friends")
+              if (value === "music" || value === "friends" || value === "both")
                 attendee.update({ festivalMode: value });
             }}
           >
@@ -117,7 +117,8 @@ export function CrewView() {
               Choose your mode
             </option>
             <option value="music">Here for the music</option>
-            <option value="friends">Planning with friends</option>
+            <option value="friends">Here to meet people</option>
+            <option value="both">A bit of both</option>
           </select>
         </label>
       </Section>

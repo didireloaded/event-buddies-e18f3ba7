@@ -163,6 +163,15 @@
 }
 
 @layer components {
+  .vibe-choice {
+    transition:
+      transform 120ms ease-out,
+      background-color 120ms ease-out;
+  }
+  .vibe-choice:active {
+    transform: scale(0.98);
+    background-color: var(--color-fill);
+  }
   /* Inset grouped list (UITableView .insetGrouped) */
   /* Flat full-width list with hairline separators (no card per row) */
   .ios-group {
@@ -417,6 +426,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .vibe-choice:active {
+    transform: none;
+  }
   *,
   *::before,
   *::after {

@@ -12,7 +12,7 @@ export type Preferences = {
   meeting: LocalMeeting | null;
   ride: { pointId: string; note: string; kind: "car" | "shuttle" } | null;
   stamps: string[];
-  festivalMode: "music" | "friends" | null;
+  festivalMode: "music" | "friends" | "both" | null;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -47,7 +47,9 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
   return {
     festivalMode:
-      stored["festivalMode"] === "music" || stored["festivalMode"] === "friends"
+      stored["festivalMode"] === "music" ||
+      stored["festivalMode"] === "friends" ||
+      stored["festivalMode"] === "both"
         ? stored["festivalMode"]
         : null,
     ride:

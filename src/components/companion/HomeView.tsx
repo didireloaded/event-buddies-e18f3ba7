@@ -61,26 +61,48 @@ export function HomeView({ onShare }: { onShare: () => void }) {
           className="mx-4 mt-5 border-y border-border py-4"
         >
           <h2 id="first-visit-title" className="text-[20px] font-bold">
-            How are you spending the festival?
+            Your music. Your people. One plan.
           </h2>
-          <p className="mb-3 mt-1 text-[15px] text-muted-foreground">
-            Save your artists, choose a meeting point and share the plan with your friends.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <PrimaryButton
-              onClick={() => {
-                if (attendee.update({ festivalMode: "music" })) navigate("lineup");
-              }}
-            >
-              Here for music
-            </PrimaryButton>
-            <PrimaryButton
-              onClick={() => {
-                if (attendee.update({ festivalMode: "friends" })) navigate("crew");
-              }}
-            >
-              Plan with friends
-            </PrimaryButton>
+          <p className="mb-3 mt-1 text-[15px] text-muted-foreground">What’s your festival mode?</p>
+          <div className="space-y-2">
+            {(
+              [
+                {
+                  mode: "music",
+                  label: "Here for the music",
+                  detail: "Find the stages and save your artists",
+                  icon: CalendarDays,
+                },
+                {
+                  mode: "friends",
+                  label: "Here to meet people",
+                  detail: "Choose a meetup spot to share by QR",
+                  icon: Users,
+                },
+                {
+                  mode: "both",
+                  label: "A bit of both",
+                  detail: "Make room for your music and your people",
+                  icon: MapIcon,
+                },
+              ] as const
+            ).map(({ mode, label, detail, icon: Icon }) => (
+              <button
+                key={mode}
+                type="button"
+                className="vibe-choice flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3 text-left"
+                onClick={() => {
+                  if (attendee.update({ festivalMode: mode })) navigate("map");
+                }}
+              >
+                <Icon size={22} className="flex-none text-favorite" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[17px] font-semibold">{label}</span>
+                  <span className="block text-[14px] text-muted-foreground">{detail}</span>
+                </span>
+                <ArrowUpRight size={18} aria-hidden />
+              </button>
+            ))}
           </div>
           <a href="#map" className="mt-2 flex min-h-11 items-center font-semibold">
             Explore the grounds ↗
