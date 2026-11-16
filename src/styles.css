@@ -169,6 +169,10 @@
   .ios-group > * + * {
     box-shadow: inset 0 0.5px 0 var(--color-separator);
   }
+  .ios-card {
+    background: var(--color-card);
+    border-radius: var(--radius-xl);
+  }
   .ios-group-indent > * + * {
     box-shadow: none;
     border-top: 0;
@@ -305,7 +309,7 @@
     height: 2.75rem;
     transform: translate(-50%, -50%);
   }
-  .map-pin > span {
+  .map-pin-dot {
     display: grid;
     place-items: center;
     width: 1.75rem;
@@ -318,7 +322,7 @@
     box-shadow: var(--shadow-float);
     transition: transform 150ms;
   }
-  .map-pin[data-selected="true"] > span {
+  .map-pin[data-selected="true"] .map-pin-dot {
     transform: scale(1.3);
     outline: 3px solid var(--color-foreground);
     outline-offset: 1px;

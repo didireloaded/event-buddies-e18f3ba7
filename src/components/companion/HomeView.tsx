@@ -45,7 +45,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       icon: Cross,
     },
     { filter: "food", label: "Food", count: count(["food"]), icon: Utensils },
-    { filter: "entrance", label: "Entrances", count: count(["entrance"]), icon: ArrowRightToLine },
+    { filter: "entrance", label: "Gates", count: count(["entrance"]), icon: ArrowRightToLine },
   ];
   const meeting = preferences.meeting;
   const meetingPlace = meeting ? places.find((p) => p.id === meeting.pointId) : undefined;

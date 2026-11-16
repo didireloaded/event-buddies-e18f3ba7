@@ -190,7 +190,7 @@ export function SheetContent({
         <div className="space-y-4 pt-2">
           {sheet.performance ? (
             <>
-              <div className="ios-group p-4">
+              <div className="ios-card p-4">
                 <p className="text-[15px] text-muted-foreground">{sheet.performance.genre}</p>
                 <p className="text-[22px] font-bold">{sheet.performance.artistName}</p>
                 <p className="text-[15px] text-muted-foreground">
@@ -258,7 +258,7 @@ export function SheetContent({
     case "transport":
       return (
         <div className="space-y-4">
-          <div className="ios-group p-4">
+          <div className="ios-card p-4">
             <p className="text-[17px] font-semibold">{data.event.venueName}</p>
             <p className="text-[15px] text-muted-foreground">
               {data.event.city}, {data.event.country}
@@ -309,7 +309,7 @@ export function SheetContent({
       return data.announcements.length ? (
         <div className="space-y-3">
           {data.announcements.map((a) => (
-            <article key={a.id} className="ios-group p-4">
+            <article key={a.id} className="ios-card p-4">
               <p className="text-[13px] text-muted-foreground">
                 {eventTime(a.publishAt)} · {a.category}
               </p>

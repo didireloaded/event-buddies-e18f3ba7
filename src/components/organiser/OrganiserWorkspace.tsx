@@ -161,7 +161,7 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
               footer="Saved as a draft in this browser only. Sending to attendees needs a connected backend."
             >
               <form
-                className="ios-group space-y-3 p-4"
+                className="ios-card space-y-3 p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (!draft.title.trim()) return setStatus("Add a title before saving.");

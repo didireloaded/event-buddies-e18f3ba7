@@ -227,7 +227,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             ))}
           </div>
         ) : (
-          <div className="ios-group px-6 py-8 text-center">
+          <div className="ios-card px-6 py-8 text-center">
             <Music2 size={28} className="mx-auto text-tertiary-foreground" aria-hidden />
             <p className="mt-2 text-[17px] font-semibold">
               {onlySaved === "saved" && !term ? "No favourites yet" : "No artists found"}

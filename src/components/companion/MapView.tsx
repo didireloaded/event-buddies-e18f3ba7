@@ -102,7 +102,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                   }
                 }}
               >
-                <span className={placeTone(place.type)}>
+                <span className={cn("map-pin-dot", placeTone(place.type))}>
                   {many ? ids.length : <Icon size={15} strokeWidth={2.4} aria-hidden />}
                 </span>
                 {(place.type === "stage" || selected || zoom >= 2.5) && !many && (
@@ -249,7 +249,7 @@ export function MapView() {
               aria-labelledby="place-title"
               className="mt-5 scroll-mt-24 px-4 lg:mt-0"
             >
-              <div className="ios-group p-4">
+              <div className="ios-card p-4">
                 <div className="flex items-start gap-3">
                   <IconTile icon={placeIcon(place.type)} tone={placeTone(place.type)} />
                   <div className="min-w-0 flex-1">

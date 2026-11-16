@@ -42,7 +42,7 @@ export function CrewView() {
       <p className="px-4 text-[15px] text-muted-foreground">{data.crew.name} · demo crew</p>
 
       <Section title="Meeting plan" id="crew-meeting" className="px-4">
-        <div className="ios-group p-4">
+        <div className="ios-card p-4">
           {meeting && meetingPlace ? (
             <>
               <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
