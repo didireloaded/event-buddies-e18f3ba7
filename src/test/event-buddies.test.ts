@@ -57,15 +57,15 @@ describe("Sound of Summer verified data", () => {
     expect(data.event.venueName).toBe("Tidal Pools & Jetty Beach");
     expect(data.event.city).toBe("Langstrand");
   });
-  it("lists the 5 announced artists with only Shimza assigned a stage", () => {
-    expect(data.festival.artists.map((a) => a.name)).toEqual([
-      "Shimza",
-      "Timo ODV",
-      "Kurt April",
-      "Celso Fabbri",
-      "Faffa Bruwer",
-    ]);
-    expect(data.festival.artists.filter((a) => a.stageId)).toHaveLength(1);
+  it("includes the supplied Post artwork and preserves existing favourite IDs", () => {
+    expect(data.festival.artists).toHaveLength(25);
+    expect(data.festival.artists.filter((a) => a.avatarUrl)).toHaveLength(24);
+    for (const id of ["shimza", "timo-odv", "kurt-april", "celso-fabbri", "faffa-bruwer"]) {
+      expect(data.festival.artists.some((a) => a.id === id)).toBe(true);
+    }
+    expect(new Set(data.festival.artists.map((a) => a.id)).size).toBe(25);
+    expect(data.festival.artists.find((a) => a.id === "hugo")?.stageId).toBe("sos-jetty");
+    expect(data.festival.artists.find((a) => a.id === "xduppy")?.stageId).toBeNull();
   });
 });
 

@@ -23,6 +23,7 @@ import { eventTime } from "@/lib/attendee/schedule";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion, type Sheet as SheetState } from "./context";
 import { MeetingForm, ProfileForm } from "./forms";
+import { ArtistAvatar } from "./ArtistAvatar";
 import { PrivacyPanel } from "./PrivacyPanel";
 import { TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Avatar, Chevron, IconTile, Notice, PrimaryButton, RowText, SecondaryButton } from "./ui";
@@ -108,18 +109,15 @@ export function SheetContent({
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-4 pt-2">
-            <span
-              className="grid size-16 place-items-center rounded-full bg-secondary text-xl font-bold text-secondary-foreground"
-              aria-hidden
-            >
-              {initials(sheet.artist.name)}
-            </span>
+            <ArtistAvatar artist={sheet.artist} large />
             <div>
               <p className="text-[15px] font-semibold text-primary">{sheet.artist.role}</p>
               <p className="text-[17px]">
                 {sheet.artist.stageId
-                  ? "Announced for the Savanna Main Stage"
-                  : "Stage assignment awaiting publication"}
+                  ? data.stages.find((stage) => stage.id === sheet.artist.stageId)?.name
+                  : sheet.artist.role === "Coke Studio Stage"
+                    ? "Coke Studio Stage · venue-plan correspondence pending"
+                    : "Stage assignment awaiting publication"}
               </p>
               <p className="text-[15px] text-muted-foreground">Set time awaiting publication</p>
             </div>
@@ -139,8 +137,9 @@ export function SheetContent({
             </SecondaryButton>
           )}
           <p className="text-[13px] text-muted-foreground">
-            Announced on{" "}
-            {sheet.artist.id === "shimza" ? "the organiser’s website and Howler" : "Howler"}.
+            {sheet.artist.avatarUrl
+              ? "Artist and stage billing from the supplied 2026 announcement posts."
+              : "Announced on the organiser’s website and Howler."}{" "}
             Reminders need confirmed set times.
           </p>
         </div>

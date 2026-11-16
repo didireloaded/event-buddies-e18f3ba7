@@ -16,6 +16,7 @@ import type { PerformanceRecord } from "@/lib/event/types";
 import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/schedule";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
+import { ArtistAvatar } from "./ArtistAvatar";
 import { Chevron, IconTile, Notice, RowText, SearchField, Section, Segmented } from "./ui";
 
 export function ArtistRow({
@@ -49,18 +50,14 @@ export function ArtistRow({
         onClick={onOpen}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
       >
-        <span
-          aria-hidden
-          className="grid size-10 flex-none place-items-center rounded-full bg-secondary text-[15px] font-semibold text-secondary-foreground"
-        >
-          {initials(artist.name)}
-        </span>
+        <ArtistAvatar artist={artist} />
         <RowText
           title={<span className="font-semibold">{artist.name}</span>}
           subtitle={
             <>
               <span className="block">
-                {stageLabel ? `${artist.role} · ${stageLabel}` : "Stage & set time to be announced"}
+                {artist.role === "Headliner" ? "Headliner · " : ""}
+                {stageLabel ?? artist.role}
               </span>
               {sharedNames.length > 0 && (
                 <span className="mt-1 flex flex-wrap items-center gap-1 text-[14px] text-favorite">
@@ -258,7 +255,8 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
         <div className="mt-3 px-4">
           <Notice icon={Info} tone="warning">
             <strong className="font-semibold">Timetable not published yet.</strong> These are the
-            announced artists. Set times and most stage assignments are pending from the organiser.
+            announced artists. Stage billing follows the supplied announcement posts. Set times are
+            awaiting publication.
           </Notice>
         </div>
       )}
