@@ -1,0 +1,9 @@
+[
+  {"capability":"code","source":"Next.js 16 app","outcome":"adapted to TanStack Start","status":"verified","next_action":null},
+  {"capability":"schema/records","source":"sound-of-summer.ts static data; Drizzle schema unused in demo","outcome":"kept static; schema archived in docs/original-source","status":"verified","next_action":"Enable Lovable Cloud when accounts/sync are wanted"},
+  {"capability":"auth identities","source":"none (demo profiles only)","outcome":"nothing to migrate","status":"accepted","next_action":null},
+  {"capability":"local preferences","source":"localStorage per event","outcome":"preserved, same key format","status":"verified","next_action":null},
+  {"capability":"public endpoints","source":"/api/demo-actions, /api/organiser-actions, /api/health","outcome":"removed (database-only paths)","status":"accepted","next_action":null},
+  {"capability":"PWA offline","source":"hand-written sw.js","outcome":"vite-plugin-pwa generateSW on real build","status":"pending","next_action":"Verify offline on the published URL on a phone"},
+  {"capability":"secrets","source":".env.example DATABASE_URL (optional)","outcome":"not needed","status":"accepted","next_action":null}
+]
