@@ -56,7 +56,7 @@ export function CrewView() {
               <MeetingCountdown meeting={meeting} />
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <SecondaryButton onClick={() => openPlace(meeting.pointId)}>
-                  <MapIcon size={18} /> Show on map
+                  <MapIcon size={18} /> Map
                 </SecondaryButton>
                 <SecondaryButton onClick={() => openSheet({ kind: "meeting" })}>
                   <Pencil size={17} /> Edit
