@@ -1,23 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { EventCompanion } from "@/components/companion/EventCompanion";
+import { getDemoData } from "@/lib/event/demo-data";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Sound of Summer 2026 · Event Buddies" },
+      {
+        name: "description",
+        content:
+          "Venue map, announced lineup, favourites and crew meeting plans for Sound of Summer 2026 at Tidal Pools & Jetty Beach, Langstrand.",
+      },
+      { property: "og:title", content: "Sound of Summer 2026 · Event Buddies" },
+      {
+        property: "og:description",
+        content: "Find stages, bars, toilets and medics, save artists and plan where your crew meets.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  // Static, deterministic demo data — identical on server and client.
+  const [data] = useState(getDemoData);
+  return <EventCompanion data={data} />;
 }
