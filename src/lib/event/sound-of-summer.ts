@@ -166,7 +166,7 @@ const amenities: [string, string, number, number, string][] = [
     "Blue zone labelled Platinum in the supplied plan. Confirm access entitlement with the organiser.",
   ],
 ];
-const bars = [
+const bars: [number, number][] = [
   [6.7, 25.2],
   [10.8, 22.8],
   [51.8, 23.5],
