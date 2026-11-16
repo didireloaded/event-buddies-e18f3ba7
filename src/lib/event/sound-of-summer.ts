@@ -1,0 +1,334 @@
+import type { DemoData } from "./types";
+import type { BaseDemoData } from "./demo-data";
+
+export const SOUND_OF_SUMMER = {
+  officialUrl: "https://namibrage.com/festivals/sound-of-summer",
+  ticketUrl: "https://namibrage.howler.co.za/events/sound-of-summer-2026-8a50",
+  organiser: "Namib Rage Events",
+  sourceCheckedAt: "2026-11-13",
+  timetablePublished: false,
+  mapGeoreferenced: false,
+  mapNotice:
+    "Supplied venue plan. The organiser’s 2026 stage list includes Coke Studio, while this plan labels the western stage Afro Tech & Amapiano. Final correspondence is unconfirmed.",
+  artists: [
+    { id: "shimza", name: "Shimza", role: "Headliner", stageId: "sos-main" },
+    {
+      id: "timo-odv",
+      name: "Timo ODV",
+      role: "Listed on Howler",
+      stageId: null,
+    },
+    {
+      id: "kurt-april",
+      name: "Kurt April",
+      role: "Listed on Howler",
+      stageId: null,
+    },
+    {
+      id: "celso-fabbri",
+      name: "Celso Fabbri",
+      role: "Listed on Howler",
+      stageId: null,
+    },
+    {
+      id: "faffa-bruwer",
+      name: "Faffa Bruwer",
+      role: "Listed on Howler",
+      stageId: null,
+    },
+  ],
+  rules: [
+    "18+ only. Bring valid identification for gate checks.",
+    "Outside food and drinks, glass, weapons, illegal substances and fireworks are prohibited.",
+    "Large umbrellas and tents are prohibited. Drones and professional camera equipment require accreditation.",
+    "Service animals are permitted. Other pets are prohibited.",
+  ],
+  transport:
+    "On-site parking is available. Howler advertises festival buses from Swakopmund and Walvis Bay. Bus stops, departure times and fares are awaiting confirmation.",
+  timingNotice:
+    "The organiser lists approved hours of 12:00–23:00. Howler lists a later finish. This app uses the organiser’s operating hours.",
+  relatedEvent: {
+    name: "Campout Dune Fest 2026",
+    date: "31 Dec 2026 – 1 Jan 2027",
+    venue: "Seukelduine, Dorob National Park",
+    url: "https://namibrage.com/festivals/campout",
+  },
+};
+export type FestivalInfo = typeof SOUND_OF_SUMMER;
+export type FestivalArtist = FestivalInfo["artists"][number];
+
+// Positions are normalized against the complete, uncropped supplied image.
+// They are image coordinates and must never be used as GPS coordinates.
+const amenities: [string, string, number, number, string][] = [
+  [
+    "West entrance",
+    "entrance",
+    20,
+    59.5,
+    "Entrance arrow on the western edge of the supplied venue plan.",
+  ],
+  [
+    "East entrance",
+    "entrance",
+    95.6,
+    67.5,
+    "Entrance arrow on the eastern edge of the supplied venue plan.",
+  ],
+  [
+    "South entrance",
+    "entrance",
+    65.3,
+    74.8,
+    "Entrance arrow beside the southeastern toilet block.",
+  ],
+  [
+    "Toilets · west",
+    "toilet",
+    23.2,
+    47.2,
+    "Toilet block beside the western Platinum area.",
+  ],
+  [
+    "Toilets · southwest",
+    "toilet",
+    27.1,
+    53.9,
+    "Toilet block inside the western Experience area.",
+  ],
+  [
+    "Toilets · southeast 1",
+    "toilet",
+    69.7,
+    74.5,
+    "First toilet marker along the southeast edge.",
+  ],
+  [
+    "Toilets · southeast 2",
+    "toilet",
+    74.5,
+    76.8,
+    "Middle toilet marker along the southeast edge.",
+  ],
+  [
+    "Toilets · southeast 3",
+    "toilet",
+    79.2,
+    78.6,
+    "Eastern toilet marker along the southeast edge.",
+  ],
+  [
+    "Medics · west",
+    "first-aid",
+    34.5,
+    55.1,
+    "Medic station marked with a cross in the western Experience area.",
+  ],
+  [
+    "Medics · east",
+    "first-aid",
+    79.1,
+    55.8,
+    "Medic station marked with a cross in the eastern Experience area.",
+  ],
+  [
+    "Food court",
+    "food",
+    71.4,
+    66.8,
+    "Food court shown in the supplied plan. Vendor names, menus, prices and dietary options are awaiting organiser confirmation.",
+  ],
+  [
+    "Tent · northwest",
+    "tent",
+    19.9,
+    23,
+    "Tent shown in the northwestern Experience area. Its use is not specified in the supplied plan.",
+  ],
+  [
+    "Tent · west stage",
+    "tent",
+    26.6,
+    28.4,
+    "Tent beside the western stage. Its use is not specified in the supplied plan.",
+  ],
+  [
+    "Savanna activation · west",
+    "sponsor",
+    31.4,
+    37.7,
+    "Savanna-branded point on the supplied plan. Activation details will be confirmed by the organiser.",
+  ],
+  [
+    "Savanna activation · Platinum",
+    "sponsor",
+    45.1,
+    28.2,
+    "Savanna-branded point within the blue Platinum area.",
+  ],
+  [
+    "Heineken activation",
+    "sponsor",
+    42.6,
+    56.1,
+    "Heineken-branded point on the supplied plan. Products, prices and opening hours are unconfirmed.",
+  ],
+  [
+    "Olmeca activation",
+    "sponsor",
+    59.9,
+    53.6,
+    "Olmeca-branded point beside the central bars.",
+  ],
+  [
+    "Jameson activation",
+    "sponsor",
+    62.4,
+    56.4,
+    "Jameson-branded point on the supplied plan.",
+  ],
+  [
+    "Monster activation",
+    "sponsor",
+    69.3,
+    58.7,
+    "Monster-branded point on the supplied plan.",
+  ],
+  [
+    "Experience area",
+    "zone",
+    53,
+    44.5,
+    "Orange zone labelled Experience in the supplied plan. Admission conditions must be checked against your ticket.",
+  ],
+  [
+    "Platinum area",
+    "zone",
+    51,
+    27,
+    "Blue zone labelled Platinum in the supplied plan. Confirm access entitlement with the organiser.",
+  ],
+];
+const bars = [
+  [6.7, 25.2],
+  [10.8, 22.8],
+  [51.8, 23.5],
+  [59.4, 21.5],
+  [47.4, 26.7],
+  [33.5, 36.5],
+  [44.8, 54.6],
+  [62.4, 54.2],
+  [71.7, 56.9],
+  [53.7, 59.9],
+  [62.6, 62.5],
+  [36.7, 60],
+  [40.9, 63.5],
+  [45, 66.7],
+  [50.6, 68.3],
+  [56.1, 69.3],
+  [62, 70.3],
+];
+
+export function soundOfSummerDemo(base: BaseDemoData): DemoData {
+  const eventId = "20000000-0000-4000-8000-000000000002";
+  const stageRows = [
+    {
+      id: "sos-main",
+      name: "Main Stage",
+      x: 41,
+      y: 33.7,
+      description:
+        "Main Stage on the supplied plan. Shimza is announced for the Savanna Main Stage. Individual set times are still to be published.",
+    },
+    {
+      id: "sos-afro",
+      name: "Afro Tech & Amapiano Stage",
+      x: 27.9,
+      y: 34.6,
+      description:
+        "Western stage labelled Afro Tech & Amapiano in the supplied plan. The organiser’s 2026 listing names a Coke Studio stage. Their correspondence is awaiting confirmation.",
+    },
+    {
+      id: "sos-jetty",
+      name: "Jetty Funk Stage",
+      x: 69.2,
+      y: 5.6,
+      description:
+        "Stage at the northern end of the jetty in the supplied plan. The 2026 organiser listing calls this the Jetty Stage. Set times are awaiting publication.",
+    },
+  ].map((stage, index) => ({
+    ...base.stages[index]!,
+    id: stage.id,
+    eventId,
+    name: stage.name,
+    description: stage.description,
+    latitude: null,
+    longitude: null,
+    mapX: stage.x,
+    mapY: stage.y,
+    status: "upcoming",
+  }));
+  const points = [
+    ...amenities,
+    ...bars.map(([x, y], index): (typeof amenities)[number] => [
+      `Bar ${String(index + 1).padStart(2, "0")}`,
+      "bar",
+      x,
+      y,
+      "Bar marker on the supplied venue plan. Drinks, prices, payment methods and trading hours are awaiting organiser confirmation.",
+    ]),
+  ].map(([name, type, mapX, mapY, description], index) => ({
+    ...base.points[0]!,
+    id: `sos-poi-${index + 1}`,
+    eventId,
+    name,
+    type,
+    mapX,
+    mapY,
+    description,
+    latitude: null,
+    longitude: null,
+    status: "unconfirmed",
+    metadata: { source: "user-supplied-plan", georeferenced: false },
+  }));
+  return {
+    ...base,
+    festival: SOUND_OF_SUMMER,
+    event: {
+      ...base.event,
+      id: eventId,
+      name: "Sound of Summer",
+      slug: "sound-of-summer-2026",
+      description:
+        "A coastal dance-music festival at Long Beach, organised by Namib Rage Events. Three stages, food vendors and bars beside the Atlantic.",
+      status: "published",
+      startAt: new Date("2026-12-28T12:00:00+02:00"),
+      endAt: new Date("2026-12-28T23:00:00+02:00"),
+      doorsOpenAt: new Date("2026-12-28T12:00:00+02:00"),
+      venueName: "Tidal Pools & Jetty Beach",
+      city: "Langstrand",
+      latitude: null,
+      longitude: null,
+      heroImageUrl: "/images/sound-of-summer-past-edition.jpg",
+      mapImageUrl: "/images/sound-of-summer-site-plan-2026.png",
+      ticketUrl: SOUND_OF_SUMMER.ticketUrl,
+      minTicketPrice: null,
+      packageVersion: 19,
+    },
+    stages: stageRows,
+    points,
+    performances: [],
+    savedPerformanceIds: [],
+    announcements: [],
+    following: false,
+    crew: { ...base.crew, eventId, inviteCode: "SOS-DEMO" },
+    crewMembers: base.crewMembers.map((member, index) => ({
+      ...member,
+      zoneName:
+        ["Food court", "Main Stage", "Jetty Funk Stage", "Location paused"][
+          index
+        ] ?? null,
+      active: false,
+      updatedAt: null,
+    })),
+  };
+}
