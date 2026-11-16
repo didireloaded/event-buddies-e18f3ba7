@@ -1,0 +1,15 @@
+import { OrganiserCommandCentre } from "@/components/organiser-command-centre";
+import { getOrganiserData } from "@/lib/demo-data";
+import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Eternal Summer · Organiser Command Centre",
+  description: "Manage the live event, schedule, site map and attendee communications.",
+};
+
+export default async function OrganiserPage() {
+  const data = await getOrganiserData();
+  return <OrganiserCommandCentre data={data} />;
+}

@@ -1,0 +1,283 @@
+import {
+  boolean,
+  doublePrecision,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+const createdAt = timestamp("created_at", { withTimezone: true })
+  .notNull()
+  .defaultNow();
+
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  displayName: text("display_name").notNull(),
+  username: text("username").notNull().unique(),
+  avatarUrl: text("avatar_url"),
+  email: text("email"),
+  createdAt,
+});
+
+export const organisers = pgTable("organisers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  verified: boolean("verified").notNull().default(false),
+  ownerUserId: uuid("owner_user_id").references(() => profiles.id),
+  createdAt,
+});
+
+export const organiserMembers = pgTable(
+  "organiser_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organiserId: uuid("organiser_id")
+      .notNull()
+      .references(() => organisers.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    permissions: jsonb("permissions")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("organiser_member_unique").on(table.organiserId, table.userId),
+  ],
+);
+
+export const events = pgTable("events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organiserId: uuid("organiser_id")
+    .notNull()
+    .references(() => organisers.id),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  status: text("status").notNull().default("published"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+  doorsOpenAt: timestamp("doors_open_at", { withTimezone: true }),
+  venueName: text("venue_name").notNull(),
+  city: text("city").notNull(),
+  country: text("country").notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  timezone: text("timezone").notNull(),
+  heroImageUrl: text("hero_image_url").notNull(),
+  mapImageUrl: text("map_image_url").notNull(),
+  ticketUrl: text("ticket_url"),
+  minTicketPrice: numeric("min_ticket_price", { precision: 10, scale: 2 }),
+  currency: text("currency"),
+  packageVersion: integer("package_version").notNull().default(1),
+  createdAt,
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const eventFollows = pgTable(
+  "event_follows",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt,
+  },
+  (table) => [uniqueIndex("event_follow_unique").on(table.eventId, table.userId)],
+);
+
+export const stages = pgTable("stages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  mapX: doublePrecision("map_x").notNull(),
+  mapY: doublePrecision("map_y").notNull(),
+  colorKey: text("color_key").notNull(),
+  status: text("status").notNull().default("live"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const artists = pgTable("artists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  genre: text("genre"),
+  imageUrl: text("image_url"),
+  bio: text("bio"),
+});
+
+export const performances = pgTable("performances", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  stageId: uuid("stage_id")
+    .notNull()
+    .references(() => stages.id, { onDelete: "cascade" }),
+  artistId: uuid("artist_id")
+    .notNull()
+    .references(() => artists.id, { onDelete: "cascade" }),
+  scheduledStart: timestamp("scheduled_start", { withTimezone: true }).notNull(),
+  scheduledEnd: timestamp("scheduled_end", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("scheduled"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const userScheduleItems = pgTable(
+  "user_schedule_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    performanceId: uuid("performance_id")
+      .notNull()
+      .references(() => performances.id, { onDelete: "cascade" }),
+    reminderMinutes: integer("reminder_minutes").notNull().default(15),
+    createdAt,
+  },
+  (table) => [
+    uniqueIndex("schedule_item_unique").on(table.userId, table.performanceId),
+  ],
+);
+
+export const eventMapPoints = pgTable("event_map_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  mapX: doublePrecision("map_x").notNull(),
+  mapY: doublePrecision("map_y").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("open"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+});
+
+export const eventAnnouncements = pgTable("event_announcements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  category: text("category").notNull(),
+  priority: text("priority").notNull().default("normal"),
+  publishAt: timestamp("publish_at", { withTimezone: true }).notNull(),
+  createdAt,
+});
+
+export const crews = pgTable("crews", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id")
+    .notNull()
+    .references(() => events.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  ownerUserId: uuid("owner_user_id")
+    .notNull()
+    .references(() => profiles.id),
+  inviteCode: text("invite_code").notNull().unique(),
+  createdAt,
+});
+
+export const crewMembers = pgTable(
+  "crew_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    crewId: uuid("crew_id")
+      .notNull()
+      .references(() => crews.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("crew_member_unique").on(table.crewId, table.userId)],
+);
+
+export const locationShares = pgTable(
+  "location_shares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    crewId: uuid("crew_id")
+      .notNull()
+      .references(() => crews.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull().default("off"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    mapX: doublePrecision("map_x"),
+    mapY: doublePrecision("map_y"),
+    zoneName: text("zone_name"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    active: boolean("active").notNull().default(false),
+  },
+  (table) => [uniqueIndex("location_share_unique").on(table.crewId, table.userId)],
+);
+
+export const meetingPoints = pgTable("meeting_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  crewId: uuid("crew_id")
+    .notNull()
+    .references(() => crews.id, { onDelete: "cascade" }),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => profiles.id),
+  label: text("label").notNull(),
+  message: text("message"),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
+  mapX: doublePrecision("map_x").notNull(),
+  mapY: doublePrecision("map_y").notNull(),
+  meetAt: timestamp("meet_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt,
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organiserId: uuid("organiser_id").references(() => organisers.id, {
+    onDelete: "set null",
+  }),
+  eventId: uuid("event_id").references(() => events.id, {
+    onDelete: "set null",
+  }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => profiles.id),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: uuid("entity_id"),
+  payload: jsonb("payload")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  createdAt,
+});

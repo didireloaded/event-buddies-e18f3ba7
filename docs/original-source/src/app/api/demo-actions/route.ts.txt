@@ -1,0 +1,91 @@
+import { db } from "@/db";
+import {
+  eventFollows,
+  locationShares,
+  userScheduleItems,
+} from "@/db/schema";
+import { DEMO_IDS } from "@/lib/demo-data";
+import { and, eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+type DemoAction =
+  | { action: "toggle-follow"; enabled: boolean }
+  | { action: "toggle-schedule"; performanceId: string; enabled: boolean }
+  | { action: "toggle-sharing"; enabled: boolean };
+
+export async function POST(request: NextRequest) {
+  let body: DemoAction;
+
+  try {
+    body = (await request.json()) as DemoAction;
+  } catch {
+    return Response.json({ ok: false, error: "Invalid request" }, { status: 400 });
+  }
+
+  if (body.action === "toggle-follow") {
+    if (body.enabled) {
+      await db
+        .insert(eventFollows)
+        .values({ eventId: DEMO_IDS.event, userId: DEMO_IDS.user })
+        .onConflictDoNothing();
+    } else {
+      await db
+        .delete(eventFollows)
+        .where(
+          and(
+            eq(eventFollows.eventId, DEMO_IDS.event),
+            eq(eventFollows.userId, DEMO_IDS.user),
+          ),
+        );
+    }
+    return Response.json({ ok: true, enabled: body.enabled });
+  }
+
+  if (body.action === "toggle-schedule") {
+    if (!/^[0-9a-f-]{36}$/i.test(body.performanceId)) {
+      return Response.json({ ok: false, error: "Invalid performance" }, { status: 400 });
+    }
+
+    if (body.enabled) {
+      await db
+        .insert(userScheduleItems)
+        .values({
+          userId: DEMO_IDS.user,
+          performanceId: body.performanceId,
+          reminderMinutes: 15,
+        })
+        .onConflictDoNothing();
+    } else {
+      await db
+        .delete(userScheduleItems)
+        .where(
+          and(
+            eq(userScheduleItems.userId, DEMO_IDS.user),
+            eq(userScheduleItems.performanceId, body.performanceId),
+          ),
+        );
+    }
+    return Response.json({ ok: true, enabled: body.enabled });
+  }
+
+  if (body.action === "toggle-sharing") {
+    await db
+      .update(locationShares)
+      .set({
+        active: body.enabled,
+        mode: body.enabled ? "exact" : "off",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(locationShares.crewId, DEMO_IDS.crew),
+          eq(locationShares.userId, DEMO_IDS.user),
+        ),
+      );
+    return Response.json({ ok: true, enabled: body.enabled });
+  }
+
+  return Response.json({ ok: false, error: "Unknown action" }, { status: 400 });
+}

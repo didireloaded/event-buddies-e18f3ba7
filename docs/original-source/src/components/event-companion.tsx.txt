@@ -1,0 +1,2265 @@
+"use client";
+
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import Image from "next/image";
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Compass,
+  Droplets,
+  Heart,
+  Home,
+  Info,
+  MapPin,
+  Menu,
+  Maximize2,
+  Minus,
+  Music2,
+  Plus,
+  Search,
+  Share2,
+  Shield,
+  Shuffle,
+  SlidersHorizontal,
+  Toilet,
+  Users,
+  Utensils,
+  Waves,
+  WifiOff,
+  Wine,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  useEventClock,
+  eventPhase,
+  dateLabel,
+} from "@/lib/attendee/event-clock";
+import type { FestivalArtist } from "@/lib/sound-of-summer";
+import type { DemoData } from "@/lib/demo-data";
+import {
+  downloadCalendar,
+  eventTime,
+  scheduleClashes,
+  type Performance,
+} from "@/lib/attendee/schedule";
+import { useAttendee, type LocalMeeting } from "@/lib/attendee/use-attendee";
+import { PwaRegistration } from "./pwa-registration";
+import "@/app/mobile-companion.css";
+
+type View = "home" | "lineup" | "map" | "crew";
+type Place = {
+  id: string;
+  name: string;
+  type: string;
+  x: number;
+  y: number;
+  description: string;
+};
+type Sheet =
+  | { kind: "performance"; performance: Performance }
+  | { kind: "roulette"; performance: Performance | null }
+  | { kind: "member"; id: string }
+  | { kind: "artist"; artist: FestivalArtist }
+  | { kind: "places"; ids: string[] }
+  | {
+      kind:
+        | "menu"
+        | "updates"
+        | "meeting"
+        | "privacy"
+        | "install"
+        | "event"
+        | "profile"
+        | "events"
+        | "rules"
+        | "transport";
+    }
+  | null;
+const NAV: { id: View; label: string; icon: LucideIcon }[] = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "lineup", label: "Lineup", icon: CalendarDays },
+  { id: "map", label: "Map", icon: Compass },
+  { id: "crew", label: "Crew", icon: Users },
+];
+const PLACE_ICONS: Record<string, LucideIcon> = {
+  stage: Music2,
+  food: Utensils,
+  bar: Wine,
+  toilet: Toilet,
+  water: Droplets,
+  "first-aid": Shield,
+  security: Shield,
+};
+const subscribeToRoute = (callback: () => void) => {
+  window.addEventListener("hashchange", callback);
+  return () => window.removeEventListener("hashchange", callback);
+};
+const getRoute = (): View =>
+  NAV.find((item) => `#${item.id}` === window.location.hash)?.id ?? "home";
+function useConnectivity() {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      try {
+        const response = await fetch("/manifest.webmanifest", {
+          method: "HEAD",
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (active) setOnline(response.ok);
+      } catch {
+        if (active) setOnline(false);
+      }
+    };
+    const offline = () => setOnline(false);
+    void check();
+    window.addEventListener("online", check);
+    window.addEventListener("offline", offline);
+    window.addEventListener("focus", check);
+    return () => {
+      active = false;
+      window.removeEventListener("online", check);
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("focus", check);
+    };
+  }, []);
+  return online;
+}
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2);
+
+export function EventCompanion({ data }: { data: DemoData }) {
+  const view = useSyncExternalStore(
+    subscribeToRoute,
+    getRoute,
+    () => "home" as View,
+  );
+  const online = useConnectivity();
+  const attendee = useAttendee(data);
+  const {
+    preferences,
+    pending,
+    ready,
+    message,
+    notify,
+    toggleSaved,
+    toggleFollow,
+    toggleArtist,
+  } = attendee;
+  const now = useEventClock();
+  const phase = eventPhase(data, now);
+  const eventDate = dateLabel(data.event.startAt, data.event.timezone, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const currentSet = sortedCurrent(data.performances, now);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [query, setQuery] = useState("");
+  const [onlySaved, setOnlySaved] = useState(false);
+  const [stageFilter, setStageFilter] = useState("all");
+  const [mapFilter, setMapFilter] = useState("all");
+  const [mapQuery, setMapQuery] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const mapViewport = useRef<HTMLDivElement>(null);
+  const mapSurface = useRef<HTMLDialogElement | HTMLDivElement>(null);
+  const MapSurface = mapExpanded ? "dialog" : "div";
+  useEffect(() => {
+    if (!mapExpanded || view !== "map") return;
+    const dialog = mapSurface.current;
+    if (!(dialog instanceof HTMLDialogElement)) return;
+    dialog.showModal();
+    const frame = requestAnimationFrame(() => {
+      const viewport = mapViewport.current;
+      if (viewport)
+        viewport.scrollTo({
+          left: Math.max(
+            0,
+            viewport.scrollWidth * 0.41 - viewport.clientWidth / 2,
+          ),
+          top: Math.max(
+            0,
+            viewport.scrollHeight * 0.337 - viewport.clientHeight / 2,
+          ),
+        });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      dialog.close();
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLButtonElement>(".eb-map-expand")
+          ?.focus({ preventScroll: true }),
+      );
+    };
+  }, [mapExpanded, view]);
+  useEffect(() => {
+    const closeExpandedMap = () => {
+      if (getRoute() !== "map") setMapExpanded(false);
+    };
+    window.addEventListener("hashchange", closeExpandedMap);
+    return () => window.removeEventListener("hashchange", closeExpandedMap);
+  }, []);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const sheetTrigger = useRef<HTMLElement | null>(null);
+  const placeDetailsRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!selectedPlace || view !== "map") return;
+    const frame = requestAnimationFrame(() => {
+      const target = [...data.stages, ...data.points].find(
+        (item) => item.id === selectedPlace,
+      );
+      const viewport = mapViewport.current;
+      if (target && viewport)
+        viewport.scrollTo({
+          left: Math.max(
+            0,
+            (viewport.scrollWidth * target.mapX) / 100 -
+              viewport.clientWidth / 2,
+          ),
+          top: Math.max(
+            0,
+            (viewport.scrollHeight * target.mapY) / 100 -
+              viewport.clientHeight / 2,
+          ),
+        });
+      placeDetailsRef.current?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedPlace, view, data]);
+  const sorted = [...data.performances].sort(
+    (a, b) => +new Date(a.scheduledStart) - +new Date(b.scheduledStart),
+  );
+  const mine = sorted.filter((performance) =>
+    preferences.saved.includes(performance.id),
+  );
+  const clashes = scheduleClashes(mine);
+  const savedCount = mine.length + preferences.savedArtists.length;
+  const visibleArtists =
+    data.festival?.artists.filter(
+      (artist) =>
+        (!onlySaved || preferences.savedArtists.includes(artist.id)) &&
+        (stageFilter === "all" ||
+          (stageFilter === "tba"
+            ? !artist.stageId
+            : artist.stageId === stageFilter)) &&
+        artist.name.toLowerCase().includes(query.trim().toLowerCase()),
+    ) ?? [];
+  const nextSaved =
+    now === null
+      ? undefined
+      : mine.find((performance) => +new Date(performance.scheduledStart) > now);
+  const places: Place[] = [
+    ...data.stages.map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      type: "stage",
+      x: stage.mapX ?? 50,
+      y: stage.mapY ?? 50,
+      description: stage.description ?? "",
+    })),
+    ...data.points.map((point) => ({
+      id: point.id,
+      name: point.name,
+      type: point.type,
+      x: point.mapX ?? 50,
+      y: point.mapY ?? 50,
+      description: point.description ?? "",
+    })),
+  ];
+  const place = places.find((item) => item.id === selectedPlace);
+  const meeting = preferences.meeting;
+  const visiblePerformances = sorted.filter(
+    (performance) =>
+      (!onlySaved || preferences.saved.includes(performance.id)) &&
+      (stageFilter === "all" || performance.stageId === stageFilter) &&
+      `${performance.artistName} ${performance.genre ?? ""} ${data.stages.find((stage) => stage.id === performance.stageId)?.name ?? ""}`
+        .toLowerCase()
+        .includes(query.toLowerCase().trim()),
+  );
+  const navigate = (target: View) => {
+    window.location.hash = target;
+  };
+  const openPlace = (id: string) => {
+    setMapExpanded(false);
+    setSelectedPlace(id);
+    setMapFilter("all");
+    setSheet(null);
+    navigate("map");
+  };
+  const spin = () => {
+    if (data.festival) {
+      const artists = data.festival.artists.filter(
+        (artist) => !preferences.savedArtists.includes(artist.id),
+      );
+      setSheet(
+        artists.length
+          ? {
+              kind: "artist",
+              artist:
+                artists[
+                  crypto.getRandomValues(new Uint32Array(1))[0] % artists.length
+                ],
+            }
+          : { kind: "roulette", performance: null },
+      );
+      return;
+    }
+    const candidates = sorted.filter(
+      (performance) =>
+        !preferences.saved.includes(performance.id) &&
+        !["cancelled", "completed"].includes(performance.status) &&
+        +new Date(performance.scheduledEnd) > Date.now(),
+    );
+    const previous = sheet?.kind === "roulette" ? sheet.performance?.id : null;
+    const pool =
+      candidates.length > 1
+        ? candidates.filter((performance) => performance.id !== previous)
+        : candidates;
+    setSheet({
+      kind: "roulette",
+      performance: pool.length
+        ? pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length]
+        : null,
+    });
+  };
+  const shareEvent = async () => {
+    const payload = {
+      title: data.event.name,
+      text: `${data.event.name} · ${eventDate} · ${data.event.city}`,
+      url: window.location.origin,
+    };
+    try {
+      if (navigator.share) await navigator.share(payload);
+      else {
+        await navigator.clipboard.writeText(payload.url);
+        notify("Event link copied");
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError"))
+        notify("Couldn’t share this event", true);
+    }
+  };
+  const stageName = (id: string) =>
+    data.stages.find((stage) => stage.id === id)?.name ?? "Stage";
+  const disabled = !ready || pending;
+
+  return (
+    <div
+      className="eb-app"
+      onClickCapture={(event) => {
+        const control = (event.target as Element).closest<HTMLElement>(
+          "button, a",
+        );
+        if (control) sheetTrigger.current = control;
+      }}
+    >
+      <PwaRegistration
+        demo={data.storageMode === "demo"}
+        onError={() =>
+          notify(
+            "Offline setup couldn’t finish. Reopen the app when connected.",
+            true,
+          )
+        }
+      />
+      <a
+        className="eb-skip"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      {!online && (
+        <div className="eb-offline" role="status">
+          <WifiOff size={15} /> Offline · showing your saved event
+        </div>
+      )}
+      <header className="eb-header">
+        <button
+          className="eb-round eb-menu"
+          aria-label="Open event menu"
+          onClick={() => setSheet({ kind: "menu" })}
+        >
+          <Menu size={21} />
+        </button>
+        <a className="eb-wordmark" href="#home">
+          event<span>buddies</span>
+          <span className="eb-wordmark-dot" />
+        </a>
+        <button
+          className="eb-round eb-profile-button"
+          aria-label="Open my profile"
+          onClick={() => setSheet({ kind: "profile" })}
+        >
+          {initials(preferences.profile.name)}
+        </button>
+      </header>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`eb-main eb-${view}`}
+        key={view}
+      >
+        {view === "home" && (
+          <>
+            <section className="eb-poster" aria-labelledby="home-title">
+              <div className="eb-poster-meta">
+                <span>
+                  <MapPin size={13} /> {data.event.city}, Namibia
+                </span>
+                <span>
+                  {dateLabel(data.event.startAt, data.event.timezone, {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "2-digit",
+                  })}
+                </span>
+              </div>
+              <h1 id="home-title">
+                {data.festival
+                  ? "SOUND OF"
+                  : data.event.name.split(" ").slice(0, -1).join(" ")}
+                <span>
+                  {data.event.name.split(" ").slice(-1).join(" ").toUpperCase()}
+                </span>
+              </h1>
+              <div className="eb-poster-photo">
+                <Image
+                  unoptimized
+                  src={
+                    data.festival
+                      ? data.event.heroImageUrl
+                      : "/images/festival-crowd.jpg"
+                  }
+                  alt={
+                    data.festival
+                      ? "Crowd at a past Sound of Summer edition, from Namib Rage’s official gallery"
+                      : "Concert reference photography"
+                  }
+                  fill
+                  sizes="(max-width: 600px) 100vw, 520px"
+                  priority
+                />
+                <div className="eb-poster-date">
+                  <strong>
+                    {dateLabel(data.event.startAt, data.event.timezone, {
+                      day: "numeric",
+                    })}
+                  </strong>
+                  <span>
+                    {dateLabel(data.event.startAt, data.event.timezone, {
+                      month: "short",
+                    }).toUpperCase()}
+                  </span>
+                </div>
+                <div className="eb-photo-caption">
+                  <span>
+                    ONE COAST.
+                    <br />
+                    THREE STAGES.
+                  </span>
+                  <button
+                    className="eb-round"
+                    aria-label={`About ${data.event.name}`}
+                    onClick={() => setSheet({ kind: "event" })}
+                  >
+                    <ArrowUpRight size={24} />
+                  </button>
+                </div>
+              </div>
+              <div className="eb-event-strip">
+                <span>
+                  <strong>{data.event.venueName}</strong>
+                  <small>
+                    {eventDate} · From {eventTime(data.event.startAt)}
+                  </small>
+                </span>
+                <button
+                  className={`eb-round ${preferences.following ? "is-saved" : ""}`}
+                  aria-label={
+                    preferences.following ? "Unsave event" : "Save event"
+                  }
+                  aria-pressed={preferences.following}
+                  disabled={disabled}
+                  onClick={toggleFollow}
+                >
+                  <Heart
+                    size={20}
+                    fill={preferences.following ? "currentColor" : "none"}
+                  />
+                </button>
+              </div>
+            </section>
+            <div className="eb-event-live">
+              <span className={phase.live ? "eb-is-live" : ""}>
+                {phase.label}
+              </span>
+              <time>
+                {now === null
+                  ? "Event time · CAT"
+                  : `${dateLabel(new Date(now), data.event.timezone, { day: "numeric", month: "short" })} · ${eventTime(new Date(now))} CAT`}
+              </time>
+            </div>
+            {currentSet && (
+              <button
+                className="eb-now-playing"
+                onClick={() =>
+                  setSheet({ kind: "performance", performance: currentSet })
+                }
+              >
+                <Music2 size={20} />
+                <span>
+                  <small>Playing now · {stageName(currentSet.stageId)}</small>
+                  <strong>{currentSet.artistName}</strong>
+                  <small>Until {eventTime(currentSet.scheduledEnd)}</small>
+                </span>
+                <ChevronRight size={20} />
+              </button>
+            )}
+            {nextSaved && (
+              <button
+                className="eb-next-set"
+                onClick={() =>
+                  setSheet({ kind: "performance", performance: nextSaved })
+                }
+              >
+                Your next set · {nextSaved.artistName} ·{" "}
+                {eventTime(nextSaved.scheduledStart)} <ChevronRight size={18} />
+              </button>
+            )}
+            <a
+              className="eb-open-event"
+              href="#map"
+              onClick={(event) => {
+                event.preventDefault();
+                navigate("map");
+                setMapExpanded(true);
+                setZoom(2.5);
+              }}
+            >
+              <Compass size={21} />
+              <span>Open event</span>
+              <ArrowUpRight size={21} />
+            </a>
+            <section className="eb-home-actions" aria-label="Plan your event">
+              <a href="#lineup" className="eb-lineup-card">
+                <span>
+                  <Music2 size={22} />
+                  <strong>
+                    YOUR NIGHT.
+                    <br />
+                    YOUR LINEUP.
+                  </strong>
+                  <small>
+                    {savedCount
+                      ? `${savedCount} saved`
+                      : "Pick the artists you love"}
+                  </small>
+                </span>
+                <span className="eb-action-bottom">
+                  Explore lineup <ArrowUpRight size={20} />
+                </span>
+              </a>
+              <a href="#crew" className="eb-crew-card">
+                <span>
+                  <div className="eb-avatar-stack">
+                    {data.crewMembers.slice(0, 3).map((member, index) => (
+                      <span
+                        className={`eb-avatar eb-avatar-${index}`}
+                        key={member.userId}
+                      >
+                        {initials(
+                          index === 0
+                            ? preferences.profile.name
+                            : member.displayName,
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  <strong>
+                    BETTER
+                    <br />
+                    TOGETHER.
+                  </strong>
+                  <small>{data.crew.name}</small>
+                </span>
+                <span className="eb-action-bottom">
+                  Find your people <ArrowUpRight size={20} />
+                </span>
+              </a>
+            </section>
+            <section className="eb-section">
+              <div className="eb-section-heading">
+                <h2>The lineup</h2>
+                <a href="#lineup">
+                  See all <ArrowRight size={16} />
+                </a>
+              </div>
+              {data.festival &&
+                data.festival.artists
+                  .slice(0, 3)
+                  .map((artist) => (
+                    <ArtistRow
+                      key={artist.id}
+                      artist={artist}
+                      saved={preferences.savedArtists.includes(artist.id)}
+                      disabled={disabled}
+                      onOpen={() => setSheet({ kind: "artist", artist })}
+                      onSave={() => toggleArtist(artist.id)}
+                    />
+                  ))}
+              {sorted.slice(0, 3).map((performance) => (
+                <SetRow
+                  key={performance.id}
+                  performance={performance}
+                  stage={stageName(performance.stageId)}
+                  saved={preferences.saved.includes(performance.id)}
+                  disabled={disabled}
+                  onOpen={() => setSheet({ kind: "performance", performance })}
+                  onSave={() => toggleSaved(performance.id)}
+                />
+              ))}
+            </section>
+            <a className="eb-venue-link" href="#map">
+              <span className="eb-venue-symbol">
+                <Compass size={30} />
+              </span>
+              <span>
+                <strong>Know your way around</strong>
+                <small>Stages, bars, food & entrances</small>
+              </span>
+              <ArrowUpRight size={22} />
+            </a>
+            {data.festival && (
+              <section className="eb-section eb-other-events">
+                <div className="eb-section-heading">
+                  <h2>Coming up on the coast</h2>
+                  <button onClick={() => setSheet({ kind: "events" })}>
+                    See all <ArrowRight size={16} />
+                  </button>
+                </div>
+                <a
+                  href={data.festival.relatedEvent.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>
+                    <strong>{data.festival.relatedEvent.name}</strong>
+                    <small>{data.festival.relatedEvent.date}</small>
+                  </span>
+                  <ArrowUpRight size={21} />
+                </a>
+              </section>
+            )}
+            <p className="eb-demo-caption">
+              Demo event · Your saved choices stay on this device
+            </p>
+          </>
+        )}
+        {view === "lineup" && (
+          <>
+            <PageTitle
+              kicker={eventDate.toUpperCase()}
+              title="THE LINEUP"
+              detail="Three stages. Make it your night."
+            />
+            <div className="eb-search">
+              <Search size={19} />
+              <input
+                ref={searchRef}
+                id="lineup-search"
+                name="lineupSearch"
+                type="search"
+                aria-label="Search artists, genres or stages"
+                placeholder="Artist, genre or stage"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              {query && (
+                <button aria-label="Clear search" onClick={() => setQuery("")}>
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+            <div className="eb-lineup-controls">
+              <div className="eb-segment">
+                <button
+                  aria-pressed={!onlySaved}
+                  onClick={() => setOnlySaved(false)}
+                >
+                  {data.festival ? "All artists" : "All sets"}
+                </button>
+                <button
+                  aria-pressed={onlySaved}
+                  onClick={() => setOnlySaved(true)}
+                >
+                  My lineup <span>{savedCount}</span>
+                </button>
+              </div>
+              <button
+                className="eb-round eb-roulette-button"
+                aria-label="Set roulette"
+                onClick={spin}
+              >
+                <Shuffle size={21} />
+              </button>
+            </div>
+            <div
+              className="eb-stage-filters"
+              aria-label="Filter lineup by stage"
+            >
+              <button
+                aria-pressed={stageFilter === "all"}
+                onClick={() => setStageFilter("all")}
+              >
+                All stages
+              </button>
+              {data.stages.map((stage) => (
+                <button
+                  key={stage.id}
+                  aria-pressed={stageFilter === stage.id}
+                  onClick={() => setStageFilter(stage.id)}
+                >
+                  {stage.name.replace(" Stage", "")}
+                </button>
+              ))}
+            </div>
+            {data.festival && (
+              <p className="eb-programme-notice">
+                Artists announced · Set times and remaining stage assignments
+                are awaiting publication. Artist saves stay on this device.
+              </p>
+            )}
+            {onlySaved && clashes.length > 0 && (
+              <div className="eb-clashes">
+                <Info size={18} />
+                <span>
+                  <strong>
+                    {clashes.length}{" "}
+                    {clashes.length === 1 ? "clash" : "clashes"} in your lineup
+                  </strong>
+                  {clashes.map(([first, second]) => (
+                    <small key={`${first.id}-${second.id}`}>
+                      {first.artistName} & {second.artistName} overlap
+                    </small>
+                  ))}
+                </span>
+              </div>
+            )}
+            <div className="eb-lineup-list">
+              {data.festival ? (
+                visibleArtists.length ? (
+                  visibleArtists.map((artist) => (
+                    <ArtistRow
+                      key={artist.id}
+                      artist={artist}
+                      saved={preferences.savedArtists.includes(artist.id)}
+                      disabled={disabled}
+                      onOpen={() => setSheet({ kind: "artist", artist })}
+                      onSave={() => toggleArtist(artist.id)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState
+                    title={
+                      query
+                        ? "No artists found"
+                        : "No saved artists in this view"
+                    }
+                    text="Try another name or clear the filters."
+                    action="Show all artists"
+                    onAction={() => {
+                      setQuery("");
+                      setOnlySaved(false);
+                      setStageFilter("all");
+                    }}
+                  />
+                )
+              ) : visiblePerformances.length ? (
+                visiblePerformances.map((performance) => (
+                  <SetRow
+                    key={performance.id}
+                    performance={performance}
+                    stage={stageName(performance.stageId)}
+                    saved={preferences.saved.includes(performance.id)}
+                    disabled={disabled || performance.status === "cancelled"}
+                    onOpen={() =>
+                      setSheet({ kind: "performance", performance })
+                    }
+                    onSave={() => toggleSaved(performance.id)}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  title={query ? "No sets found" : "Your night is wide open"}
+                  text={
+                    query
+                      ? "Try another artist, genre or stage."
+                      : "Tap the plus beside a set to add it to your lineup."
+                  }
+                  action="Show all sets"
+                  onAction={() => {
+                    setQuery("");
+                    setStageFilter("all");
+                    setOnlySaved(false);
+                  }}
+                />
+              )}
+            </div>
+            <div className="eb-lineup-footer">
+              <span>
+                {data.festival
+                  ? "Reminders and calendar export need confirmed set times."
+                  : `All times in ${data.event.timezone} (CAT)`}
+              </span>
+              <button
+                disabled={mine.length === 0}
+                onClick={() => downloadCalendar(data, mine)}
+              >
+                <ArrowDownToLine size={17} /> Export my lineup
+              </button>
+            </div>
+            <button className="eb-roulette-banner" onClick={spin}>
+              <Shuffle size={25} />
+              <span>
+                <strong>Take a chance on a set</strong>
+                <small>
+                  {data.festival
+                    ? "Discover an announced artist"
+                    : "Let set roulette choose for you"}
+                </small>
+              </span>
+              <ArrowUpRight size={21} />
+            </button>
+          </>
+        )}
+        {view === "map" && (
+          <>
+            <div className="eb-map-header">
+              <PageTitle
+                kicker={data.event.venueName.toUpperCase()}
+                title="THE GROUNDS"
+              />
+              <button
+                className="eb-round"
+                aria-label="Open safety information"
+                onClick={() => setSheet({ kind: "menu" })}
+              >
+                <Shield size={21} />
+              </button>
+            </div>
+            <div className="eb-search eb-map-search">
+              <Search size={18} />
+              <input
+                id="venue-search"
+                name="venueSearch"
+                aria-label="Search venue places or artists"
+                type="search"
+                placeholder="Stage, bar, toilet or artist"
+                value={mapQuery}
+                onChange={(event) => {
+                  setMapQuery(event.target.value);
+                  setSelectedPlace(null);
+                }}
+              />
+              {mapQuery && (
+                <button
+                  aria-label="Clear map search"
+                  onClick={() => setMapQuery("")}
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+            <div className="eb-map-filters" aria-label="Filter map places">
+              {[
+                ["all", "All", SlidersHorizontal],
+                ["stage", "Stages", Music2],
+                ["food", "Food", Utensils],
+                ["bar", "Bars", Wine],
+                ["toilet", "Toilets", Toilet],
+                ...(data.points.some((point) => point.type === "water")
+                  ? [["water", "Water", Droplets]]
+                  : []),
+                ["entrance", "Entrances", ArrowRight],
+                ["sponsor", "Sponsors", Info],
+                ["zone", "Zones", MapPin],
+                ["safety", "Safety", Shield],
+              ].map(([id, label, Icon]) => {
+                const FilterIcon = Icon as LucideIcon;
+                return (
+                  <button
+                    key={String(id)}
+                    aria-pressed={mapFilter === id}
+                    onClick={() => {
+                      setMapFilter(String(id));
+                      setSelectedPlace(null);
+                    }}
+                  >
+                    <FilterIcon size={16} />
+                    {String(label)}
+                  </button>
+                );
+              })}
+            </div>
+            <MapSurface
+              ref={(element: HTMLDialogElement | HTMLDivElement | null) => {
+                mapSurface.current = element;
+              }}
+              aria-label={mapExpanded ? "Expanded site plan" : undefined}
+              onCancel={() => {
+                setMapExpanded(false);
+                setZoom(1);
+              }}
+              className={`eb-map-canvas ${data.festival ? "eb-official-plan" : ""} ${mapExpanded ? "eb-map-expanded" : ""}`}
+            >
+              <div ref={mapViewport} className="eb-map-scroll">
+                <div
+                  className="eb-map-art"
+                  style={{
+                    width: `${100 * zoom}%`,
+                    ...(data.festival
+                      ? { aspectRatio: "1", height: "auto" }
+                      : { height: `${100 * zoom}%` }),
+                  }}
+                >
+                  <Image
+                    unoptimized
+                    src={data.event.mapImageUrl}
+                    alt={`Supplied ${data.event.name} venue plan with Experience and Platinum zones`}
+                    fill
+                    sizes="600px"
+                  />
+                  {clusterMapPlaces(
+                    places
+                      .filter((item) => matchesMapSearch(item, mapQuery, data))
+                      .filter(
+                        (item) =>
+                          item.id === selectedPlace ||
+                          (mapQuery.trim()
+                            ? true
+                            : mapFilter === "all"
+                              ? item.type === "stage" ||
+                                ["first-aid", "entrance"].includes(item.type)
+                              : mapFilter === "safety"
+                                ? ["first-aid", "security", "exit"].includes(
+                                    item.type,
+                                  )
+                                : item.type === mapFilter),
+                      ),
+                    zoom,
+                  ).map((group) => {
+                    const item = group.place;
+                    const Icon = PLACE_ICONS[item.type] ?? MapPin;
+                    return (
+                      <button
+                        className={`eb-map-pin ${item.type === "stage" ? "eb-stage-pin" : ""} ${group.ids.includes(selectedPlace ?? "") ? "selected" : ""}`}
+                        key={item.id}
+                        aria-label={
+                          group.ids.length > 1
+                            ? `View ${group.ids.length} nearby ${item.type} points`
+                            : `View ${item.name}`
+                        }
+                        style={{ left: `${item.x}%`, top: `${item.y}%` }}
+                        onClick={() =>
+                          group.ids.length > 1
+                            ? setSheet({ kind: "places", ids: group.ids })
+                            : (setMapExpanded(false), setSelectedPlace(item.id))
+                        }
+                      >
+                        <span>
+                          {group.ids.length > 1 ? (
+                            group.ids.length
+                          ) : (
+                            <Icon size={16} />
+                          )}
+                        </span>
+                        <strong>
+                          {group.ids.length > 1
+                            ? `${group.ids.length} ${item.type} points`
+                            : item.name}
+                        </strong>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <button
+                className="eb-map-expand eb-round"
+                aria-label={
+                  mapExpanded ? "Close expanded map" : "Expand site plan"
+                }
+                onClick={() => {
+                  setMapExpanded(!mapExpanded);
+                  setZoom(mapExpanded ? 1 : 2.5);
+                }}
+              >
+                {mapExpanded ? <X size={20} /> : <Maximize2 size={20} />}
+              </button>
+              <div className="eb-map-zoom">
+                <button
+                  aria-label="Zoom in"
+                  disabled={zoom >= 4}
+                  onClick={() => setZoom(Math.min(4, zoom + 0.5))}
+                >
+                  <Plus size={20} />
+                </button>
+                <button
+                  aria-label="Zoom out"
+                  disabled={zoom <= 1}
+                  onClick={() => setZoom(Math.max(1, zoom - 0.5))}
+                >
+                  <Minus size={20} />
+                </button>
+              </div>
+              <span className="eb-map-note">
+                {data.festival
+                  ? "Supplied venue layout · Pinch/zoom or use + to explore"
+                  : "Illustrated venue plan · Demo locations"}
+              </span>
+            </MapSurface>
+            {data.festival && (
+              <p className="eb-plan-caption">
+                Supplied venue layout · Expand or zoom to explore
+              </p>
+            )}
+            {place ? (
+              <section
+                ref={placeDetailsRef}
+                className="eb-place-detail"
+                aria-live="polite"
+              >
+                <button
+                  className="eb-place-close eb-round"
+                  aria-label="Close place details"
+                  onClick={() => setSelectedPlace(null)}
+                >
+                  <X size={18} />
+                </button>
+                <span className="eb-small-label">
+                  {place.type.replace("-", " ")}
+                </span>
+                <h2>{place.name}</h2>
+                <p>{place.description}</p>
+                {data.festival && place.type === "stage" && (
+                  <div className="eb-place-programme">
+                    <strong>
+                      {data.festival.artists.find(
+                        (artist) => artist.stageId === place.id,
+                      )?.name ?? "Artists to be confirmed"}
+                    </strong>
+                    <p>Set times awaiting publication.</p>
+                  </div>
+                )}
+                {data.festival && place.type === "stage" && (
+                  <button
+                    className="eb-button"
+                    onClick={() => setSheet({ kind: "meeting" })}
+                  >
+                    <Users size={18} /> Plan a meeting here
+                  </button>
+                )}
+                {place.type === "stage" ? (
+                  sorted
+                    .filter((performance) => performance.stageId === place.id)
+                    .map((performance) => (
+                      <button
+                        className="eb-place-set"
+                        key={performance.id}
+                        onClick={() =>
+                          setSheet({ kind: "performance", performance })
+                        }
+                      >
+                        <time>{eventTime(performance.scheduledStart)}</time>
+                        <strong>{performance.artistName}</strong>
+                        <ChevronRight size={18} />
+                      </button>
+                    ))
+                ) : (
+                  <button
+                    className="eb-button"
+                    onClick={() => setSheet({ kind: "meeting" })}
+                  >
+                    <Users size={18} /> Plan a meeting here
+                  </button>
+                )}
+              </section>
+            ) : (
+              <div className="eb-map-directory">
+                <h2>{mapQuery ? "Search results" : "Find a place"}</h2>
+                {mapQuery &&
+                  !places.some((item) =>
+                    matchesMapSearch(item, mapQuery, data),
+                  ) && (
+                    <p className="eb-body-copy">
+                      No matching places. Try a stage, bar, toilet or medic
+                      point.
+                    </p>
+                  )}
+                {places
+                  .filter((item) => matchesMapSearch(item, mapQuery, data))
+                  .filter(
+                    (item) =>
+                      Boolean(mapQuery.trim()) ||
+                      mapFilter === "all" ||
+                      (mapFilter === "safety"
+                        ? ["first-aid", "security", "exit"].includes(item.type)
+                        : item.type === mapFilter),
+                  )
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedPlace(item.id)}
+                    >
+                      <span>{item.name}</span>
+                      <ChevronRight size={18} />
+                    </button>
+                  ))}
+              </div>
+            )}
+          </>
+        )}
+        {view === "crew" && (
+          <>
+            <PageTitle
+              kicker="YOUR PEOPLE"
+              title="THE CREW"
+              detail={data.crew.name}
+            />
+            <div className="eb-crew-hero">
+              <div className="eb-crew-hero-avatars">
+                {data.crewMembers.map((member, index) => (
+                  <span
+                    className={`eb-avatar eb-avatar-${index}`}
+                    key={member.userId}
+                  >
+                    {initials(
+                      index === 0
+                        ? preferences.profile.name
+                        : member.displayName,
+                    )}
+                  </span>
+                ))}
+              </div>
+              <span>{data.crewMembers.length} people, one good night.</span>
+            </div>
+            <div className="eb-privacy-note">
+              <Shield size={20} />
+              <span>
+                <strong>Your location is private</strong>
+                <small>Demo crew · Live location is not connected</small>
+              </span>
+              <button
+                className="eb-round"
+                aria-label="About location privacy"
+                onClick={() => setSheet({ kind: "privacy" })}
+              >
+                <Info size={19} />
+              </button>
+            </div>
+            <div className="eb-section-heading eb-padded">
+              <h2>Who’s where</h2>
+              <button onClick={() => setSheet({ kind: "meeting" })}>
+                <Plus size={17} /> Make a plan
+              </button>
+            </div>
+            <div className="eb-members">
+              {data.crewMembers.map((member, index) => (
+                <button
+                  key={member.userId}
+                  onClick={() =>
+                    setSheet({ kind: "member", id: member.userId })
+                  }
+                >
+                  <span className={`eb-avatar eb-avatar-${index}`}>
+                    {initials(
+                      index === 0
+                        ? preferences.profile.name
+                        : member.displayName,
+                    )}
+                  </span>
+                  <span>
+                    <strong>
+                      {index === 0
+                        ? preferences.profile.name
+                        : member.displayName}
+                      {index === 0 && <small>you</small>}
+                    </strong>
+                    <small>
+                      {index === 0
+                        ? preferences.status
+                        : member.active
+                          ? member.zoneName
+                          : "Location paused"}
+                    </small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+            </div>
+            <section className="eb-meeting-card">
+              <span className="eb-small-label">YOUR MEETING PLAN</span>
+              <h2>
+                {meeting
+                  ? places.find((item) => item.id === meeting.pointId)?.name
+                  : "Same place. Same time."}
+              </h2>
+              {meeting ? (
+                <>
+                  <MeetingCountdown meeting={meeting} />
+                  <p>Saved on this device</p>
+                  <div className="eb-meeting-actions">
+                    <button onClick={() => openPlace(meeting.pointId)}>
+                      Show on map <ArrowUpRight size={18} />
+                    </button>
+                    <button onClick={() => setSheet({ kind: "meeting" })}>
+                      Edit plan
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p>Choose a landmark and a time to regroup.</p>
+                  <button onClick={() => setSheet({ kind: "meeting" })}>
+                    Make a meeting plan <ArrowUpRight size={18} />
+                  </button>
+                </>
+              )}
+            </section>
+            <p className="eb-demo-caption">
+              Crew profiles are demo fixtures. Meeting plans and your status are
+              saved on this device.
+            </p>
+          </>
+        )}
+      </main>
+      <nav className="eb-tabbar" aria-label="Main navigation">
+        {NAV.map(({ id, label, icon: Icon }) => (
+          <a
+            href={`#${id}`}
+            key={id}
+            aria-current={view === id ? "page" : undefined}
+          >
+            <Icon
+              size={23}
+              strokeWidth={view === id ? 2.4 : 1.8}
+              fill={view === id && id === "home" ? "currentColor" : "none"}
+            />
+            <span>{label}</span>
+            {id === "lineup" && savedCount > 0 && <i>{savedCount}</i>}
+          </a>
+        ))}
+      </nav>
+      {message && (
+        <div
+          className={`eb-toast ${message.error ? "eb-toast-error" : ""}`}
+          role={message.error ? "alert" : "status"}
+        >
+          {message.error ? <Info size={18} /> : <Check size={18} />}
+          <span>{message.text}</span>
+        </div>
+      )}
+      {sheet && (
+        <SheetDialog
+          returnFocus={() => sheetTrigger.current}
+          title={
+            sheet.kind === "places"
+              ? "Choose a place"
+              : sheet.kind === "artist"
+                ? sheet.artist.name
+                : sheet.kind === "performance"
+                  ? sheet.performance.artistName
+                  : sheet.kind === "roulette"
+                    ? "SET ROULETTE"
+                    : sheet.kind === "member"
+                      ? (data.crewMembers.find(
+                          (member) => member.userId === sheet.id,
+                        )?.displayName ?? "Crew member")
+                      : (
+                          {
+                            menu: "Your event",
+                            updates: "Event updates",
+                            meeting: "Make a plan",
+                            privacy: "Location & privacy",
+                            install: "Take us with you",
+                            event: data.event.name,
+                            profile: "My profile",
+                            events: "Coming up",
+                            rules: "Event rules",
+                            transport: "Getting there & home",
+                          } as const
+                        )[sheet.kind]
+          }
+          onClose={() => setSheet(null)}
+        >
+          {sheet.kind === "places" && (
+            <div className="eb-menu-links">
+              {places
+                .filter((place) => sheet.ids.includes(place.id))
+                .map((place) => (
+                  <button key={place.id} onClick={() => openPlace(place.id)}>
+                    {place.name}
+                    <ChevronRight size={18} />
+                  </button>
+                ))}
+            </div>
+          )}
+          {sheet.kind === "artist" && (
+            <>
+              <div className="eb-artist-art">
+                <Music2 size={50} strokeWidth={1} />
+                <span>{sheet.artist.role}</span>
+                <strong>{initials(sheet.artist.name)}</strong>
+              </div>
+              <div className="eb-artist-details">
+                <p>
+                  {sheet.artist.stageId
+                    ? "Announced for the Savanna Main Stage"
+                    : "Stage assignment awaiting publication"}
+                </p>
+                <p>Set time awaiting publication.</p>
+              </div>
+              <button
+                className="eb-button eb-button-pink"
+                disabled={disabled}
+                onClick={() => toggleArtist(sheet.artist.id)}
+              >
+                {preferences.savedArtists.includes(sheet.artist.id) ? (
+                  <Check size={19} />
+                ) : (
+                  <Heart size={19} />
+                )}
+                {preferences.savedArtists.includes(sheet.artist.id)
+                  ? "Remove saved artist"
+                  : "Save artist"}
+              </button>
+              {sheet.artist.stageId && (
+                <button
+                  className="eb-text-button"
+                  onClick={() => openPlace(sheet.artist.stageId!)}
+                >
+                  Find the stage <ArrowUpRight size={18} />
+                </button>
+              )}
+              <p className="eb-sheet-footnote">
+                Artist announced on{" "}
+                {sheet.artist.id === "shimza"
+                  ? "the organiser’s website and Howler"
+                  : "Howler"}
+                . Confirmed set times will enable reminders.
+              </p>
+            </>
+          )}
+          {sheet.kind === "profile" && (
+            <ProfileForm
+              initial={preferences.profile}
+              disabled={disabled}
+              savedCount={savedCount}
+              onSave={async (profile) => {
+                if (await attendee.update({ profile })) {
+                  notify("Profile saved on this device");
+                  setSheet(null);
+                }
+              }}
+            />
+          )}
+          {sheet.kind === "rules" && (
+            <>
+              <p className="eb-body-copy">
+                Published by the organiser and ticketing provider.
+              </p>
+              {data.festival?.rules.map((rule) => (
+                <p className="eb-rule" key={rule}>
+                  {rule}
+                </p>
+              ))}
+              <a
+                className="eb-text-button"
+                href={data.festival?.ticketUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Read official event information <ArrowUpRight size={17} />
+              </a>
+            </>
+          )}
+          {sheet.kind === "transport" && (
+            <>
+              <p className="eb-sheet-intro">
+                Tidal Pools & Jetty Beach
+                <br />
+                Langstrand
+              </p>
+              <p className="eb-body-copy">{data.festival?.transport}</p>
+              <a
+                className="eb-button eb-button-pink"
+                href="https://www.google.com/maps/search/?api=1&query=Tidal+Pools+Jetty+Beach+Langstrand+Namibia"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open venue in Maps <ArrowUpRight size={18} />
+              </a>
+              <p className="eb-sheet-footnote">
+                Plan a designated driver or shared transport home.
+              </p>
+            </>
+          )}
+          {sheet.kind === "events" && (
+            <div className="eb-discovery-list">
+              <button onClick={() => setSheet({ kind: "event" })}>
+                <strong>{data.event.name}</strong>
+                <span>
+                  {eventDate} · {data.event.city}
+                </span>
+                <small>{phase.label}</small>
+                <ChevronRight size={20} />
+              </button>
+              {data.festival && (
+                <a
+                  href={data.festival.relatedEvent.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <strong>{data.festival.relatedEvent.name}</strong>
+                  <span>{data.festival.relatedEvent.date}</span>
+                  <small>{data.festival.relatedEvent.venue}</small>
+                  <ArrowUpRight size={20} />
+                </a>
+              )}
+            </div>
+          )}
+          {sheet.kind === "performance" && (
+            <>
+              <div className="eb-artist-art">
+                <Music2 size={50} strokeWidth={1} />
+                <span>{sheet.performance.genre ?? "Live music"}</span>
+                <strong>{initials(sheet.performance.artistName)}</strong>
+              </div>
+              <div className="eb-performance-info">
+                <span>
+                  <CalendarDays size={19} />
+                  {dateLabel(
+                    sheet.performance.scheduledStart,
+                    data.event.timezone,
+                  )}
+                </span>
+                <span>
+                  <Waves size={19} />
+                  {sheet.performance.genre}
+                </span>
+                <span>
+                  <Music2 size={19} />
+                  {stageName(sheet.performance.stageId)}
+                </span>
+                <span>
+                  {eventTime(sheet.performance.scheduledStart)}–
+                  {eventTime(sheet.performance.scheduledEnd)} CAT
+                </span>
+              </div>
+              {sheet.performance.status === "cancelled" && (
+                <p className="eb-inline-notice">
+                  This performance is cancelled.
+                </p>
+              )}
+              <button
+                className="eb-button eb-button-pink"
+                disabled={disabled || sheet.performance.status === "cancelled"}
+                onClick={() => toggleSaved(sheet.performance.id)}
+              >
+                {preferences.saved.includes(sheet.performance.id) ? (
+                  <Check size={19} />
+                ) : (
+                  <Plus size={19} />
+                )}
+                {preferences.saved.includes(sheet.performance.id)
+                  ? "Remove from my lineup"
+                  : "Add to my lineup"}
+              </button>
+              <button
+                className="eb-text-button"
+                onClick={() => openPlace(sheet.performance.stageId)}
+              >
+                Find the stage <ArrowUpRight size={18} />
+              </button>
+            </>
+          )}
+          {sheet.kind === "roulette" && (
+            <>
+              <p className="eb-sheet-intro">
+                A little less planning.
+                <br />A little more discovery.
+              </p>
+              {sheet.performance ? (
+                <div className="eb-roulette-pick" key={sheet.performance.id}>
+                  <Shuffle size={27} />
+                  <span>{sheet.performance.genre}</span>
+                  <strong>{sheet.performance.artistName}</strong>
+                  <small>
+                    {stageName(sheet.performance.stageId)} ·{" "}
+                    {eventTime(sheet.performance.scheduledStart)}
+                  </small>
+                </div>
+              ) : (
+                <EmptyState
+                  title={
+                    data.festival
+                      ? "All announced artists saved"
+                      : "You’ve got it covered"
+                  }
+                  text={
+                    data.festival
+                      ? "New artist announcements will appear in the lineup."
+                      : "There are no unsaved upcoming sets left to pick from."
+                  }
+                />
+              )}{" "}
+              {sheet.performance && (
+                <button
+                  className="eb-button eb-button-pink"
+                  disabled={disabled}
+                  onClick={async () => {
+                    if (await toggleSaved(sheet.performance!.id))
+                      setSheet(null);
+                  }}
+                >
+                  <Plus size={19} /> Add to my lineup
+                </button>
+              )}
+              <button className="eb-text-button" onClick={spin}>
+                <Shuffle size={18} />
+                {sheet.performance ? "Try another set" : "Check again"}
+              </button>
+              <p className="eb-sheet-footnote">
+                Picks from unsaved sets that haven’t ended. Saved on this device
+                in demo mode.
+              </p>
+            </>
+          )}
+          {sheet.kind === "updates" && (
+            <div className="eb-announcements">
+              {data.announcements.length ? (
+                data.announcements.map((announcement) => (
+                  <article key={announcement.id}>
+                    <span>
+                      {eventTime(announcement.publishAt)} ·{" "}
+                      {announcement.category}
+                    </span>
+                    <h3>{announcement.title}</h3>
+                    <p>{announcement.body}</p>
+                  </article>
+                ))
+              ) : (
+                <EmptyState
+                  title="You’re up to date"
+                  text="Event announcements will appear here."
+                />
+              )}
+            </div>
+          )}
+          {sheet.kind === "menu" && (
+            <>
+              <div className="eb-menu-event">
+                <span>
+                  {dateLabel(
+                    data.event.startAt,
+                    data.event.timezone,
+                  ).toUpperCase()}{" "}
+                  · {data.event.city.toUpperCase()}
+                </span>
+                <strong>{data.event.name}</strong>
+                <small>Demo event · Preview mode</small>
+              </div>
+              <div className="eb-menu-links">
+                <button onClick={() => setSheet({ kind: "profile" })}>
+                  <Users size={20} /> My profile <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "updates" })}>
+                  <Bell size={20} /> Event updates <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "rules" })}>
+                  <Info size={20} /> Rules & entry <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "transport" })}>
+                  <Compass size={20} /> Transport & parking{" "}
+                  <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "event" })}>
+                  <Info size={20} /> Event details <ChevronRight size={19} />
+                </button>
+                <button
+                  onClick={() => {
+                    setSheet(null);
+                    navigate("lineup");
+                    setTimeout(() => searchRef.current?.focus(), 50);
+                  }}
+                >
+                  <Search size={20} /> Find an artist <ChevronRight size={19} />
+                </button>
+                <button
+                  onClick={() => {
+                    setMapFilter("safety");
+                    setSelectedPlace(null);
+                    setSheet(null);
+                    navigate("map");
+                  }}
+                >
+                  <Shield size={20} /> Safety points <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "privacy" })}>
+                  <MapPin size={20} /> Location & privacy{" "}
+                  <ChevronRight size={19} />
+                </button>
+                <button onClick={() => setSheet({ kind: "install" })}>
+                  <ArrowDownToLine size={20} /> Add to Home Screen{" "}
+                  <ChevronRight size={19} />
+                </button>
+              </div>
+            </>
+          )}
+          {sheet.kind === "event" && (
+            <>
+              <p className="eb-sheet-intro">
+                Sound, culture and summer
+                <br />
+                on the Atlantic coast.
+              </p>
+              <div className="eb-event-facts">
+                <p>
+                  <MapPin size={20} />
+                  <span>
+                    {data.event.venueName}
+                    <small>
+                      {data.event.city}, {data.event.country}
+                    </small>
+                  </span>
+                </p>
+                <p>
+                  <CalendarDays size={20} />
+                  <span>
+                    {eventDate}{" "}
+                    {dateLabel(data.event.startAt, data.event.timezone, {
+                      year: "numeric",
+                    })}
+                    <small>
+                      {eventTime(data.event.startAt)}–
+                      {eventTime(data.event.endAt)} CAT · 18+ only
+                    </small>
+                  </span>
+                </p>
+                <p>
+                  <Music2 size={20} />
+                  <span>
+                    {data.stages.length} stages ·{" "}
+                    {data.festival
+                      ? data.festival.artists.length
+                      : data.performances.length}{" "}
+                    announced artists
+                  </span>
+                </p>
+              </div>
+              <button
+                className="eb-button eb-button-pink"
+                onClick={() => {
+                  setSheet(null);
+                  navigate("lineup");
+                }}
+              >
+                Explore the lineup <ArrowRight size={19} />
+              </button>
+              <button className="eb-text-button" onClick={shareEvent}>
+                <Share2 size={18} />
+                Share event
+              </button>
+              {data.festival && (
+                <>
+                  <a
+                    className="eb-button"
+                    href={data.event.ticketUrl ?? data.festival.ticketUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Tickets on Howler <ArrowUpRight size={18} />
+                  </a>
+                  <p className="eb-body-copy eb-source-note">
+                    {data.festival.timingNotice}
+                  </p>
+                  <p className="eb-body-copy">{data.festival.mapNotice}</p>
+                  <p className="eb-sheet-footnote">
+                    Demo companion · Past-edition photo from Namib Rage’s
+                    official gallery. Information checked{" "}
+                    {data.festival.sourceCheckedAt}.
+                  </p>
+                  <a
+                    className="eb-text-button"
+                    href={data.festival.officialUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Official event page <ArrowUpRight size={17} />
+                  </a>
+                </>
+              )}
+            </>
+          )}
+          {sheet.kind === "privacy" && (
+            <>
+              <div className="eb-privacy-art">
+                <Shield size={45} />
+              </div>
+              <h3 className="eb-sheet-subtitle">You decide who sees you.</h3>
+              <p className="eb-body-copy">
+                This preview uses sample crew profiles and locations. Your
+                phone’s location stays private.
+              </p>
+              <p className="eb-body-copy">
+                Live crew sharing will need a connected account and your
+                explicit consent. Schedule choices, your status and meeting
+                plans are stored in this browser.
+              </p>
+            </>
+          )}
+          {sheet.kind === "install" && (
+            <>
+              <div className="eb-install-logo">eb</div>
+              <p className="eb-sheet-intro">
+                Your event.
+                <br />
+                One tap away.
+              </p>
+              <ol className="eb-install-steps">
+                <li>Open this app in Safari on your iPhone.</li>
+                <li>
+                  Tap the Share button <Share2 size={16} />.
+                </li>
+                <li>
+                  Choose <strong>Add to Home Screen</strong>, then Add.
+                </li>
+              </ol>
+              <p className="eb-body-copy">
+                On Android, use your browser’s Install app option. The demo
+                event is available offline after the app finishes its first
+                connected visit.
+              </p>
+            </>
+          )}
+          {sheet.kind === "meeting" && (
+            <MeetingForm
+              eventStart={data.event.startAt}
+              eventEnd={data.event.endAt}
+              timezone={data.event.timezone}
+              points={places}
+              initial={meeting}
+              selectedId={selectedPlace}
+              disabled={disabled}
+              onSave={async (next) => {
+                if (await attendee.update({ meeting: next })) {
+                  notify(
+                    next
+                      ? "Meeting plan saved on this device"
+                      : "Meeting plan removed",
+                  );
+                  setSheet(null);
+                }
+              }}
+            />
+          )}
+          {sheet.kind === "member" &&
+            (() => {
+              const member = data.crewMembers.find(
+                (item) => item.userId === sheet.id,
+              )!;
+              const isMe = member.userId === data.crewMembers[0]?.userId;
+              return (
+                <>
+                  <div className="eb-member-profile">
+                    <span className="eb-avatar">
+                      {initials(
+                        isMe ? preferences.profile.name : member.displayName,
+                      )}
+                    </span>
+                    <p>
+                      {isMe
+                        ? "Your status · Saved on this device"
+                        : "Demo crew member"}
+                    </p>
+                  </div>
+                  {isMe ? (
+                    <div className="eb-status-options">
+                      {[
+                        "Enjoying the music",
+                        "At the bar",
+                        "Getting food",
+                        "Taking a breather",
+                        "Ready to go",
+                      ].map((status) => (
+                        <button
+                          key={status}
+                          aria-pressed={preferences.status === status}
+                          disabled={disabled}
+                          onClick={async () => {
+                            if (await attendee.update({ status }))
+                              notify("Your status is saved on this device");
+                          }}
+                        >
+                          {status}
+                          {preferences.status === status && <Check size={17} />}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="eb-body-copy">
+                        {member.active
+                          ? `${member.displayName}’s sample location is ${member.zoneName}.`
+                          : `${member.displayName}’s location is paused.`}
+                      </p>
+                      {member.active && (
+                        <button
+                          className="eb-button"
+                          onClick={() => {
+                            const target = places.find(
+                              (item) => item.name === member.zoneName,
+                            );
+                            if (target) openPlace(target.id);
+                            else {
+                              setSheet(null);
+                              navigate("map");
+                            }
+                          }}
+                        >
+                          View place on map <ArrowUpRight size={18} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+        </SheetDialog>
+      )}
+    </div>
+  );
+}
+
+function PageTitle({
+  kicker,
+  title,
+  detail,
+}: {
+  kicker: string;
+  title: string;
+  detail?: string;
+}) {
+  return (
+    <div className="eb-page-title">
+      <span>{kicker}</span>
+      <h1>{title}</h1>
+      {detail && <p>{detail}</p>}
+    </div>
+  );
+}
+
+function SetRow({
+  performance,
+  stage,
+  saved,
+  disabled,
+  onOpen,
+  onSave,
+}: {
+  performance: Performance;
+  stage: string;
+  saved: boolean;
+  disabled: boolean;
+  onOpen: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <article className="eb-set-row">
+      <time>{eventTime(performance.scheduledStart)}</time>
+      <button className="eb-set-name" onClick={onOpen}>
+        <strong>{performance.artistName}</strong>
+        <small>
+          {stage} · {performance.genre}
+        </small>
+        {performance.status === "cancelled" && <em>Cancelled</em>}
+      </button>
+      <button
+        className={`eb-save-set ${saved ? "saved" : ""}`}
+        disabled={disabled}
+        aria-label={`${saved ? "Remove" : "Save"} ${performance.artistName} ${eventTime(performance.scheduledStart)}`}
+        aria-pressed={saved}
+        onClick={onSave}
+      >
+        {saved ? <Check size={19} /> : <Plus size={19} />}
+      </button>
+    </article>
+  );
+}
+
+function EmptyState({
+  title,
+  text,
+  action,
+  onAction,
+}: {
+  title: string;
+  text: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="eb-empty">
+      <Music2 size={28} />
+      <h2>{title}</h2>
+      <p>{text}</p>
+      {action && (
+        <button className="eb-text-button" onClick={onAction}>
+          {action}
+          <ArrowRight size={17} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SheetDialog({
+  title,
+  children,
+  onClose,
+  returnFocus,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  returnFocus: () => HTMLElement | null;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const restoreFocus = useRef(returnFocus);
+  useEffect(() => {
+    const element = dialog.current;
+    const trigger = restoreFocus.current();
+    element?.showModal();
+    return () => {
+      element?.close();
+      requestAnimationFrame(() => {
+        if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+      });
+    };
+  }, []);
+  return (
+    <dialog
+      ref={dialog}
+      className="eb-sheet"
+      aria-labelledby="eb-sheet-title"
+      onCancel={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="eb-sheet-inner">
+        <div className="eb-sheet-handle" />
+        <header>
+          <h2 id="eb-sheet-title">{title}</h2>
+          <button
+            className="eb-round"
+            aria-label="Close details"
+            onClick={onClose}
+          >
+            <X size={21} />
+          </button>
+        </header>
+        {children}
+      </div>
+    </dialog>
+  );
+}
+
+function MeetingForm({
+  eventStart,
+  eventEnd,
+  timezone,
+  points,
+  initial,
+  selectedId,
+  disabled,
+  onSave,
+}: {
+  eventStart: Date;
+  eventEnd: Date;
+  timezone: string;
+  points: Place[];
+  initial: LocalMeeting | null;
+  selectedId: string | null;
+  disabled: boolean;
+  onSave: (meeting: LocalMeeting | null) => Promise<void>;
+}) {
+  const [pointId, setPointId] = useState(
+    initial?.pointId ?? selectedId ?? points[0]?.id ?? "",
+  );
+  const [at, setAt] = useState(
+    initial ? initial.at.slice(0, 16) : localDateTime(eventStart, timezone),
+  );
+  return (
+    <form
+      className="eb-meeting-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSave({ pointId, at: `${at}:00+02:00` });
+      }}
+    >
+      <p>Pick a landmark and a time. Your plan is saved on this device.</p>
+      <label htmlFor="meeting-place">Meeting place</label>
+      <select
+        id="meeting-place"
+        value={pointId}
+        onChange={(event) => setPointId(event.target.value)}
+        required
+      >
+        {points.map((point) => (
+          <option key={point.id} value={point.id}>
+            {point.name}
+          </option>
+        ))}
+      </select>
+      <label htmlFor="meeting-at">Date & time (CAT)</label>
+      <input
+        id="meeting-at"
+        type="datetime-local"
+        value={at}
+        onChange={(event) => setAt(event.target.value)}
+        min={localDateTime(eventStart, timezone)}
+        max={localDateTime(eventEnd, timezone)}
+        required
+      />
+      <button
+        className="eb-button eb-button-pink"
+        type="submit"
+        disabled={disabled}
+      >
+        Save meeting plan <Check size={18} />
+      </button>
+      {initial && (
+        <button
+          className="eb-text-button"
+          type="button"
+          disabled={disabled}
+          onClick={() => onSave(null)}
+        >
+          Remove meeting plan
+        </button>
+      )}
+    </form>
+  );
+}
+
+function MeetingCountdown({ meeting }: { meeting: LocalMeeting }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const remaining =
+    now === null
+      ? null
+      : Math.max(0, Math.ceil((Date.parse(meeting.at) - now) / 60000));
+  return (
+    <>
+      <strong className="eb-meeting-time">
+        {eventTime(meeting.at)} <span>CAT</span>
+      </strong>
+      <span className="eb-meeting-countdown">
+        {remaining === null
+          ? "Meeting time"
+          : remaining === 0
+            ? "Your meeting time has arrived"
+            : remaining >= 1440
+              ? `${Math.floor(remaining / 1440)} days to go`
+              : `${Math.floor(remaining / 60)}h ${remaining % 60}m to go`}
+      </span>
+    </>
+  );
+}
+
+function sortedCurrent(performances: Performance[], now: number | null) {
+  if (now === null) return undefined;
+  return performances.find(
+    (performance) =>
+      performance.status !== "cancelled" &&
+      +new Date(performance.scheduledStart) <= now &&
+      now < +new Date(performance.scheduledEnd),
+  );
+}
+
+function matchesMapSearch(place: Place, query: string, data: DemoData) {
+  const term = query.trim().toLowerCase();
+  if (!term) return true;
+  const artists =
+    data.festival?.artists
+      .filter((artist) => artist.stageId === place.id)
+      .map((artist) => artist.name)
+      .join(" ") ?? "";
+  const aliases =
+    place.type === "toilet"
+      ? "bathroom restroom"
+      : place.type === "first-aid"
+        ? "medical medic help"
+        : "";
+  const stageAliases =
+    place.id === "sos-main" ? "Savanna Savannah Main Stage" : "";
+  return `${place.name} ${place.type} ${artists} ${aliases} ${stageAliases}`
+    .toLowerCase()
+    .includes(term);
+}
+
+function localDateTime(value: Date | string, timezone: string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(new Date(value))
+    .replace(" ", "T");
+}
+
+function ArtistRow({
+  artist,
+  saved,
+  disabled,
+  onOpen,
+  onSave,
+}: {
+  artist: FestivalArtist;
+  saved: boolean;
+  disabled: boolean;
+  onOpen: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <article className="eb-set-row eb-announced-artist">
+      <span className="eb-artist-initials" aria-hidden="true">
+        {initials(artist.name)}
+      </span>
+      <button className="eb-set-name" onClick={onOpen}>
+        <strong>{artist.name}</strong>
+        <small>
+          {artist.id === "shimza"
+            ? "Headliner · Savanna Main Stage"
+            : "Stage & set time to be announced"}
+        </small>
+      </button>
+      <button
+        className={`eb-save-set ${saved ? "saved" : ""}`}
+        disabled={disabled}
+        aria-label={`${saved ? "Unsave" : "Save"} artist ${artist.name}`}
+        aria-pressed={saved}
+        onClick={onSave}
+      >
+        {saved ? <Check size={18} /> : <Plus size={18} />}
+      </button>
+    </article>
+  );
+}
+
+function ProfileForm({
+  initial,
+  disabled,
+  savedCount,
+  onSave,
+}: {
+  initial: { name: string; handle: string };
+  disabled: boolean;
+  savedCount: number;
+  onSave: (profile: { name: string; handle: string }) => Promise<void>;
+}) {
+  const [name, setName] = useState(initial.name);
+  const [handle, setHandle] = useState(initial.handle);
+  return (
+    <form
+      className="eb-meeting-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSave({ name: name.trim(), handle: handle.trim() });
+      }}
+    >
+      <div className="eb-member-profile">
+        <span className="eb-avatar">{initials(name)}</span>
+        <p>{savedCount} saved artists & sets</p>
+      </div>
+      <p>Profile preferences are saved on this device.</p>
+      <label htmlFor="profile-name">Display name</label>
+      <input
+        id="profile-name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        required
+        minLength={1}
+        maxLength={50}
+        pattern=".*\S.*"
+        autoComplete="nickname"
+      />
+      <label htmlFor="profile-handle">Username</label>
+      <input
+        id="profile-handle"
+        value={handle}
+        onChange={(event) => setHandle(event.target.value)}
+        required
+        minLength={3}
+        maxLength={30}
+        pattern="[A-Za-z0-9_]+"
+        title="Use letters, numbers and underscores"
+        autoCapitalize="none"
+        autoComplete="username"
+      />
+      <button
+        type="submit"
+        className="eb-button eb-button-pink"
+        disabled={disabled}
+      >
+        Save profile <Check size={18} />
+      </button>
+    </form>
+  );
+}
+
+function clusterMapPlaces(places: Place[], zoom: number) {
+  const groups: { place: Place; ids: string[] }[] = [];
+  for (const place of places) {
+    const group = groups.find(
+      (item) =>
+        place.type !== "stage" &&
+        item.place.type === place.type &&
+        Math.hypot(item.place.x - place.x, item.place.y - place.y) < 14 / zoom,
+    );
+    if (group) group.ids.push(place.id);
+    else groups.push({ place, ids: [place.id] });
+  }
+  return groups;
+}

@@ -1,0 +1,32 @@
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import "./globals.css";
+import "./organiser.css";
+
+export const metadata: Metadata = {
+  title: "Event Buddies · Sound of Summer 2026",
+  description:
+    "Know where you are, where your people are, and what happens next.",
+  applicationName: "Event Buddies",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Event Buddies",
+  },
+  icons: { apple: "/icons/apple-touch-icon.png", icon: "/icons/icon-192.png" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f7f7f3",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}

@@ -1,0 +1,158 @@
+Attendee side
+- Event companion home screen
+- Map with filterable POIs (stages, food, bars, toilets, crew, safety, transport)
+- Schedule list of performances
+- Crew tab (placeholder UI)
+- Follow/unfollow event
+- Add/remove performance to personal schedule
+- Toggle location sharing (stub)
+Organiser side
+- Command centre dashboard
+- Overview workspace
+- Schedule workspace with performance status changes (scheduled / live / delayed / cancelled)
+- Site map workspace
+- Communications workspace (announcement stub)
+Infra
+- PostgreSQL + Drizzle schema (profiles, events, stages, artists, performances, schedule items, map points, announcements, crews, location shares, meeting points, audit logs)
+- Seeded demo data
+- Health check endpoint
+- Email/password sign-up & login
+- Magic-link (passwordless) login
+- Google SSO
+- Apple SSO
+- Session management & refresh
+- Forgot password / reset flow
+- Email verification
+- Guest mode (QR-scan join without signup)
+- Account upgrade from guest → full account
+- User profile (name, handle, avatar, bio)
+- Privacy settings page
+- Account deletion (GDPR)
+- Data export (GDPR)
+- Multi-device session list & revoke
+- Sign-out everywhere
+- PWA installability (manifest, icons, splash)
+- Service worker with app-shell caching
+- IndexedDB cache for schedule, map, crew, POIs
+- Offline map tile caching
+- Offline-first read of schedule & map
+- Action outbox (queue writes while offline)
+- Background sync on reconnect
+- Optimistic UI with rollback
+- Conflict resolution (server-wins vs client-wins per entity)
+- Idempotent mutations via client action IDs
+- "You're offline" banner
+- "N actions pending sync" indicator
+- Stale-while-revalidate for schedule
+- Low-bandwidth / lite mode
+- Adaptive image quality
+- Retry with exponential backoff
+- Delta sync via event revisions
+- Web Push subscription management
+- iOS / Android push (via native wrapper)
+- Push permission priming UX
+- Schedule-change push ("Main Stage delayed 15 min")
+- Reminder push ("Set starts in 15 min")
+- Crew ping push ("Alex is at the bar")
+- Meeting-point push
+- Emergency/SOS push (distinct sound + priority)
+- Organiser broadcast push
+- Geofenced push ("You're near Gate B — exit is left")
+- Live friend presence over WebSocket/SSE
+- Live schedule updates without refresh
+- Live announcement feed
+- Presence indicators (online / last-seen)
+- Notification preferences per category
+- Quiet hours / mute controls
+- Notification history / inbox
+- Real geolocation ("you are here")
+- Heading/bearing indicator
+- Follow-me mode (map recenters)
+- Indoor positioning (beacons / Wi-Fi)
+- Turn-by-turn walking directions
+- Walking-time estimates ("8 min to Main Stage")
+- "Leave now" reminders for far stages
+- Map search ("nearest toilet," "water point")
+- Nearest-X quick actions
+- POI clustering at zoom-out
+- Crowd-density heatmap
+- Live "how busy is this stage" signal
+- Accessible routing (step-free paths)
+- Accessible viewing platforms marked
+- Accessible toilets marked
+- Offline map tiles
+- Map legends & filter persistence
+- Deep link to a POI ("open map at Bar 3")
+- Organiser map editor (drag-drop POIs)
+- Custom venue layers (sponsor zones, VIP areas)
+- Lost & found pins
+- Medical/welfare point pins
+- Exit & emergency assembly points
+- Dark map style for night
+- High-contrast map mode
+- Friend requests (send / accept / decline)
+- Friend search by handle
+- QR-code friend add
+- Contact-book sync (native)
+- Friend list with presence
+- Block user
+- Report user
+- Create crew / group
+- Crew invite links
+- Crew roles (admin / member)
+- Crew chat (group messaging)
+- Direct messages
+- Message reactions
+- @mentions
+- Message media (photos, voice notes)
+- Read receipts (opt-in)
+- Crew activity feed
+- Shared crew photo album
+- Meeting-point creation & pinning
+- "I'm here" check-in at meeting point
+- ETA sharing to meeting point
+- "Who's at which stage" live view
+- Split-up / regroup pings
+- Crew-only map view
+- Group schedule (crew overlap view)
+- Crew voting on which stage to go to next
+- Crew leaderboard / stats (fun)
+- "Find me" request button (pings friends for location)
+- Explicit consent flow before any sharing
+- Revocable consent
+- Per-crew sharing scope
+- Per-friend sharing scope
+- Time-limited sharing ("share for 2 hours")
+- Ghost mode / pause sharing
+- Approximate location mode (~100 m)
+- Precise location mode
+- Hide from specific people
+- "Who can see me" transparency panel
+- Location history (opt-in, time-limited)
+- Auto-delete old location data
+- Consent versioning & re-prompt on changes
+- Personal schedule with add/remove
+- Clash/overlap detection
+- Clash resolution suggestions
+- "Add all from artist" bulk add
+- Calendar export (.ics)
+- Google Calendar sync
+- Apple Calendar sync
+- Calendar feed auto-refresh on schedule change
+- Reminders per set (configurable lead time)
+- "Now playing" view
+- "Next up" view
+- "Near me now" (what's on close by)
+- Artist profiles (bio, photo, genre)
+- Artist socials & streaming links
+- Spotify / Apple Music previews
+- Follow artist
+- Genre filters
+- Stage filters
+- Time filters
+- Search across schedule
+- Favorites/bookmarks
+- Recommendations ("you might like…")
+- Personal lineup poster generator
+- Post-event recap ("you saw 12 sets")
+- Share my schedule with crew
