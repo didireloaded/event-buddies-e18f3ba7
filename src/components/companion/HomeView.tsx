@@ -54,9 +54,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
     <>
       <div className="px-4">
         <p className="eyebrow pt-2">{phase.label}</p>
-        <h1 className="display-title mt-1 text-[44px]">
-          {data.event.name} 2026
-        </h1>
+        <h1 className="display-title mt-1 text-[44px]">{data.event.name} 2026</h1>
         <p className="mt-1 text-[17px] text-muted-foreground">
           {dateLabel(data.event.startAt, tz, { weekday: "short", day: "numeric", month: "short" })}{" "}
           · {data.event.venueName}, {data.event.city}
