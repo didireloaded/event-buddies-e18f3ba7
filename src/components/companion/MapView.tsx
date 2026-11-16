@@ -4,7 +4,7 @@ import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "
 import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
-import { Chevron, IconTile, PrimaryButton, RowText, SearchField, Section } from "./ui";
+import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
