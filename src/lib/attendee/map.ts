@@ -71,10 +71,8 @@ export function matchesFilter(place: Place, filter: MapFilter) {
   return place.type === filter;
 }
 
-/**
- * Pins drawn on the plan. "All" shows stages, medics and entrances only so the
- * image stays readable; a search or a specific filter reveals the rest.
- */
+/** Pins drawn on the plan. The map is the directory: every verified place is
+ * available in the default view, with clustering preserving legibility. */
 export function visiblePins(
   places: Place[],
   filter: MapFilter,
@@ -86,7 +84,7 @@ export function visiblePins(
     .filter((place) => matchesMapSearch(place, query, data))
     .filter((place) => {
       if (place.id === selectedId || query.trim()) return true;
-      if (filter === "all") return ["stage", "first-aid", "entrance"].includes(place.type);
+      if (filter === "all") return true;
       return matchesFilter(place, filter);
     });
 }

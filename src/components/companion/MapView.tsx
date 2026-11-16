@@ -4,7 +4,7 @@ import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "
 import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
-import { Chevron, IconTile, Notice, PrimaryButton, RowText, SearchField, Section } from "./ui";
+import { IconTile, PrimaryButton, SearchField, Section } from "./ui";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -145,9 +145,6 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           <Minus size={20} />
         </button>
       </div>
-      <p className="absolute bottom-2 left-2 rounded-md bg-popover/90 px-2 py-1 text-[12px] font-medium text-muted-foreground">
-        Plan image · not GPS · {Math.round(zoom * 100)}%
-      </p>
     </div>
   );
 }
@@ -305,40 +302,11 @@ export function MapView() {
             </section>
           ) : null}
 
-          <Section
-            title="Find a place"
-            action={
-              <span className="pb-2.5 text-[13px] text-muted-foreground">
-                {term
-                  ? `${listed.length} ${listed.length === 1 ? "result" : "results"}`
-                  : `${map.filter === "all" ? "All places" : MAP_FILTERS.find((f) => f.id === map.filter)?.label} · ${listed.length}`}
-              </span>
-            }
-            id="map-directory"
-            className="px-4 lg:mt-5"
-          >
-            {listed.length ? (
-              <div className="ios-group ios-group-indent">
-                {listed.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="ios-row"
-                    aria-current={p.id === map.selected ? "true" : undefined}
-                    onClick={() => map.setSelected(p.id)}
-                  >
-                    <IconTile icon={placeIcon(p.type)} tone={placeTone(p.type)} />
-                    <RowText title={p.name} subtitle={TYPE_LABELS[p.type] ?? p.type} />
-                    <Chevron />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <Notice icon={MapPinOff}>
-                No matching places. Try a stage, bar, toilet or medic point.
-              </Notice>
-            )}
-          </Section>
+          {term && listed.length === 0 && (
+            <p className="px-4 py-5 text-[15px] text-muted-foreground">
+              No matching places on this venue plan.
+            </p>
+          )}
         </div>
       </div>
       {map.expanded && <ExpandedMap />}
