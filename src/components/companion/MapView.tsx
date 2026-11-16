@@ -74,7 +74,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
         tabIndex={0}
         aria-label="Venue plan. Scroll to pan."
       >
-        <div className="relative aspect-square" style={{ width: `${zoom * 100}%`, minWidth: expanded ? `${zoom * 100}dvmin` : undefined }}>
+        <div className="relative aspect-square" style={{ width: `${zoom * 100}%` }}>
           <img
             src={data.event.mapImageUrl}
             alt="Supplied Sound of Summer 2026 venue plan showing three stages, bars, toilets, medics, entrances, the Experience and Platinum zones, and the jetty"
