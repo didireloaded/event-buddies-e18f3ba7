@@ -27,7 +27,7 @@ export function RideBookmark() {
         <button
           type="button"
           disabled={!attendee.ready}
-          className="min-h-11 px-2 font-semibold"
+          className="min-h-11 flex-none px-2 font-semibold"
           onClick={() => {
             setPointId(ride?.pointId ?? gates[0]?.id ?? "");
             setNote(ride?.note ?? "");

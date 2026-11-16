@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DemoData } from "@/lib/event/types";
+import { eventLifecycle } from "./lifecycle";
 
 export function countdownLabel(meetingAt: string, now: number | null) {
   if (now === null) return "Meeting time";
@@ -39,6 +40,8 @@ export function useEventClock(intervalMs = 60000) {
 }
 
 export function eventPhase(data: DemoData, now: number | null) {
+  const lifecycle = eventLifecycle(data, now);
+  if (lifecycle.phase === "cancelled") return { label: "Event cancelled", live: false };
   if (now === null) return { label: "Upcoming event", live: false };
   if (now < +new Date(data.event.startAt)) {
     const minutes = Math.ceil((+new Date(data.event.startAt) - now) / 60000);
@@ -52,7 +55,7 @@ export function eventPhase(data: DemoData, now: number | null) {
       live: false,
     };
   }
-  if (now >= +new Date(data.event.endAt)) return { label: "Event finished", live: false };
+  if (now >= lifecycle.endsAt) return { label: "Event finished", live: false };
   return { label: "Event is on", live: true };
 }
 

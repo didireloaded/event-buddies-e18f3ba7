@@ -141,6 +141,9 @@
     text-size-adjust: 100%;
   }
   body {
+    font-size: 17px;
+    line-height: 22px;
+    font-variant-numeric: tabular-nums;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -173,11 +176,9 @@
     background-color: var(--color-fill);
   }
   /* Inset grouped list (UITableView .insetGrouped) */
-  /* Flat full-width list with hairline separators (no card per row) */
   .ios-group {
-    background: transparent;
-    border-top: 0.5px solid var(--color-separator);
-    border-bottom: 0.5px solid var(--color-separator);
+    background: var(--color-popover);
+    border-radius: 12px;
     overflow: hidden;
   }
   .ios-group > * + * {
@@ -208,7 +209,7 @@
     gap: 0.75rem;
     min-height: 2.75rem;
     width: 100%;
-    padding: 0.75rem 0.25rem;
+    padding: 0.75rem 1rem;
     text-align: left;
     color: var(--color-foreground);
     transition: background-color 120ms;
@@ -241,6 +242,26 @@
     text-transform: uppercase;
     line-height: 0.95;
     letter-spacing: 0.005em;
+  }
+  .ios-large-title {
+    font-family: var(--font-sans);
+    font-size: 34px;
+    line-height: 41px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .ios-press {
+    transition:
+      transform 150ms ease-out,
+      opacity 150ms ease-out;
+  }
+  .ios-press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .companion-tabs {
+    background: color-mix(in oklch, var(--color-nav) 92%, transparent);
+    backdrop-filter: blur(20px);
+    border: 0.5px solid var(--color-separator);
   }
   .ios-footnote {
     padding: 0.5rem 1rem 0;
@@ -324,7 +345,7 @@
     max-height: min(92dvh, 52rem);
     padding: 0;
     border: 0;
-    border-radius: 0.875rem 0.875rem 0 0;
+    border-radius: 20px 20px 0 0;
     background: var(--color-background);
     color: var(--color-foreground);
     box-shadow: var(--shadow-sheet);
@@ -408,6 +429,36 @@
 }
 
 @media (min-width: 768px) {
+  body:has(.companion-shell) {
+    background: var(--color-fill);
+  }
+  .companion-shell {
+    width: 430px;
+    height: calc(100dvh - 48px);
+    min-height: 0;
+    margin: 24px auto;
+    overflow-y: auto;
+    overflow-x: clip;
+    border-radius: 36px;
+    background: var(--color-background);
+    outline: 8px solid var(--color-foreground);
+    scrollbar-width: none;
+  }
+  .companion-navigation {
+    width: 430px;
+    left: calc(50% - 215px);
+    bottom: 36px;
+  }
+  .companion-toast {
+    bottom: 116px;
+  }
+  .companion-shell .lg\:grid {
+    display: block;
+    padding: 0;
+  }
+  .companion-shell .lg\:sticky {
+    position: static;
+  }
   .ios-sheet {
     margin: auto;
     max-width: 32rem;
@@ -426,6 +477,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ios-press:active:not(:disabled) {
+    transform: none;
+  }
   .vibe-choice:active {
     transform: none;
   }

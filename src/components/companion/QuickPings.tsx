@@ -1,20 +1,22 @@
 import { useState } from "react";
+import { Hand, Beer, Footprints, HandHelping } from "lucide-react";
+import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { bumpLink, type BumpPlan } from "@/lib/attendee/festival-bump";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
 import { Section } from "./ui";
 
 const PINGS = [
-  { label: "👋 I’m here", message: "I’m at" },
-  { label: "🍺 Join me", message: "Come join me at" },
-  { label: "🚶 Walk with me", message: "Can someone walk with me from" },
-  { label: "🤝 Need a hand", message: "Could someone come and help me at" },
+  { label: "I’m here", icon: Hand, message: "I’m at" },
+  { label: "Join me", icon: Beer, message: "Come join me at" },
+  { label: "Walk with me", icon: Footprints, message: "Can someone walk with me from" },
+  { label: "Need a hand", icon: HandHelping, message: "Could someone come and help me at" },
 ];
 
 export function QuickPings() {
   const { data, attendee, places, now } = useCompanion();
   const here = attendee.preferences.here;
-  const activeHere = here && now !== null && here.expiresAt > now ? here.pointId : null;
+  const activeHere = activeLandmarkPin(data, here, now)?.pointId ?? null;
   const [chosen, setChosen] = useState(
     activeHere ?? attendee.preferences.meeting?.pointId ?? places[0]?.id ?? "",
   );
@@ -64,14 +66,15 @@ export function QuickPings() {
         </select>
       </label>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {PINGS.map(({ label, message }) => (
+        {PINGS.map(({ label, icon: Icon, message }) => (
           <button
             key={label}
             type="button"
             disabled={busy || !attendee.ready}
-            className="min-h-12 rounded-xl border border-border bg-popover px-3 text-[15px] font-semibold"
+            className="ios-press flex min-h-12 items-center justify-center gap-2 rounded-full bg-popover px-3 text-[15px] font-semibold"
             onClick={() => send(message)}
           >
+            <Icon size={18} strokeWidth={1.75} aria-hidden />
             {label}
           </button>
         ))}

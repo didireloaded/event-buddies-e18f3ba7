@@ -212,7 +212,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
 
   return (
     <>
-      <h1 className="display-title px-4 pt-2 text-[44px]">Lineup</h1>
+      <h1 className="ios-large-title px-4 pt-2">Lineup</h1>
       <div className="space-y-2 bg-background px-4 pb-2 pt-2">
         <SearchField
           id="lineup-search"

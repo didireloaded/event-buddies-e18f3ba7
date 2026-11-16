@@ -6,7 +6,7 @@ export function InfoView() {
   const { data, showOnMap } = useCompanion();
   return (
     <div className="px-4">
-      <h1 className="display-title pt-2 text-[44px]">Essentials</h1>
+      <h1 className="ios-large-title pt-2">Essentials</h1>
       <p className="mt-3 text-[17px]">
         {data.event.venueName} · {data.event.city}
       </p>

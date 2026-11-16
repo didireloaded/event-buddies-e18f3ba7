@@ -177,7 +177,7 @@ export function PrimaryButton({
       type="button"
       {...props}
       className={cn(
-        "inline-flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[17px] font-semibold text-primary-foreground active:opacity-80 disabled:opacity-40",
+        "ios-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-2 text-[17px] font-semibold text-primary-foreground active:opacity-80 disabled:opacity-40",
         className,
       )}
     >
@@ -196,7 +196,7 @@ export function SecondaryButton({
       type="button"
       {...props}
       className={cn(
-        "inline-flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-secondary px-5 text-[17px] font-semibold text-secondary-foreground active:opacity-80 disabled:opacity-40",
+        "ios-press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-secondary px-5 py-2 text-[17px] font-semibold text-secondary-foreground active:opacity-80 disabled:opacity-40",
         className,
       )}
     >

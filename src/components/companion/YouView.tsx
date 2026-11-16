@@ -3,12 +3,13 @@ import { ProfileForm } from "./forms";
 import { PrivacyPanel } from "./PrivacyPanel";
 import { PlanBackup } from "./PlanBackup";
 import { Section } from "./ui";
+import { AfterEventData } from "./AfterEventData";
 
 export function YouView() {
   const { attendee } = useCompanion();
   return (
     <div className="px-4">
-      <h1 className="display-title pt-2 text-[44px]">You</h1>
+      <h1 className="ios-large-title pt-2">You</h1>
       <Section title="Your festival name" id="you-name">
         <ProfileForm
           initial={attendee.preferences.profile}
@@ -45,6 +46,7 @@ export function YouView() {
         <PrivacyPanel />
       </details>
       <PlanBackup />
+      <AfterEventData />
     </div>
   );
 }

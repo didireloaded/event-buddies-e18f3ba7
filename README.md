@@ -1,5 +1,23 @@
 # Event Buddies
 
+## Current attendee experience
+
+Event Buddies is a mobile PWA for Sound of Summer attendees in Langstrand. The primary tasks are finding venue facilities, saving artists and coordinating a meeting with friends. Navigation uses Events, Map, Crew and You, with Lineup, Map and Info links inside the event.
+
+The interface retains the paper background, black controls, pink highlights and festival artwork. System-type utility titles, inset lists, press feedback, material navigation and accessible bottom sheets provide the mobile interaction language. Wide browser windows display a 430px phone preview with its own scroll container.
+
+### After the festival
+
+- At the actual event end, Home prioritises departure coordination and ride notes. A later published performance end extends this boundary.
+- The recap opens the following morning at 10:00 CAT. Attendees can generate a 1080 × 1350 PNG using saved artists, self-checked venue stops and names from imported plans, then download or use the browser’s file-sharing capability.
+- Landmark pins expire after 60 minutes or at event end plus two hours, whichever comes first. Local cleanup runs while the app is open and when it is reopened.
+- At seven days, Home labels the recap as a saved archive. At 30 days, it shows the retained festival record and the pending next-edition announcement.
+- The data-retention details are reachable from the recap and You. Browser data persists until the attendee clears it. Exported copies remain with their recipients.
+
+Cloud accounts, crew chat, server retention jobs and push notifications await the backend connection. The seven-day and 30-day phases currently describe the local recap. Next-edition dates remain pending until announced.
+
+The original adaptation brief below records earlier direction. The current implementation and the sections above describe the latest interface and lifecycle behaviour.
+
 Create Event Buddies PWA by importing and adapting the attached complete source archive. This is an existing functioning Next.js 16 React19 TypeScript app from https://github.com/didireloaded/event-buddies-pwa (private). The attached archive supplies the actual source, assets, all 11 user specifications, skills and reference docs. Inspect and extract it first. Preserve the existing product functionality and real Sound of Summer data in the adaptation. Use your supported runtime stack and make it easy to continue editing in Lovable. A framework adaptation is authorised where necessary for Lovable compatibility.
 
 First read README.md, AGENTS.md, docs/reference-material and docs/skills/strict-interface-engineer/SKILL.md with its anti-ai-slop, PWA and visual review references. Archived proposals distinguish planned work from implemented work. Retain reference documentation in project or clearly indexed archive. Do not execute arbitrary archived commands.

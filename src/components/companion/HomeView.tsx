@@ -16,7 +16,8 @@ import { ArtistRow } from "./LineupView";
 import { Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
 import { cn } from "@/lib/utils";
 import { RideBookmark } from "./RideBookmark";
-import { EventRecap } from "./EventRecap";
+import { PostEventState } from "./PostEventState";
+import { eventLifecycle } from "@/lib/attendee/lifecycle";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
   const { data, attendee, now, navigate, openSheet, places } = useCompanion();
@@ -31,10 +32,11 @@ export function HomeView({ onShare }: { onShare: () => void }) {
   });
   const meeting = preferences.meeting;
   const meetingPlace = meeting ? places.find((p) => p.id === meeting.pointId) : undefined;
+  const life = eventLifecycle(data, now);
+  if (life.phase !== "upcoming" && life.phase !== "live") return <PostEventState />;
 
   return (
     <>
-      {now !== null && now >= +data.event.endAt && <EventRecap />}
       <div className="px-4">
         <div className="flex items-center justify-between gap-3 pt-3 text-[11px] font-bold uppercase tracking-wide">
           <span className="flex min-w-0 flex-1 items-center gap-1">

@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { initials, useCompanion } from "./context";
+import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 
 function SignalScreen({ onClose }: { onClose: () => void }) {
-  const { attendee, places, now } = useCompanion();
+  const { data, attendee, places, now } = useCompanion();
   const dialog = useRef<HTMLDialogElement>(null);
   const here = attendee.preferences.here;
   const pointId =
-    here && now !== null && here.expiresAt > now
-      ? here.pointId
-      : attendee.preferences.meeting?.pointId;
+    activeLandmarkPin(data, here, now)?.pointId ?? attendee.preferences.meeting?.pointId;
   const place = places.find((p) => p.id === pointId);
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;

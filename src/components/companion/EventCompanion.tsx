@@ -97,6 +97,19 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const [expanded, setExpanded] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const update = () =>
+      setScrolled(Math.max(window.scrollY, shellRef.current?.scrollTop ?? 0) > 80);
+    window.addEventListener("scroll", update, { passive: true });
+    const shell = shellRef.current;
+    shell?.addEventListener("scroll", update, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", update);
+      shell?.removeEventListener("scroll", update);
+    };
+  }, []);
 
   useEffect(() => {
     void registerServiceWorker();
@@ -106,6 +119,8 @@ export function EventCompanion({ data }: { data: DemoData }) {
   useEffect(() => {
     if (view !== "map") setExpanded(false);
     window.scrollTo({ top: 0 });
+    shellRef.current?.scrollTo({ top: 0 });
+    setScrolled(false);
   }, [view]);
 
   const navigate = useCallback((target: View) => {
@@ -176,7 +191,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
   return (
     <Companion.Provider value={ctx}>
-      <div className="min-h-dvh">
+      <div ref={shellRef} className="companion-shell min-h-dvh">
         <a
           href="#main-content"
           onClick={(event) => {
@@ -204,7 +219,20 @@ export function EventCompanion({ data }: { data: DemoData }) {
                 className="justify-self-center text-[20px] font-bold lowercase tracking-tight"
                 aria-label="eventbuddies home"
               >
-                eventbuddies<span className="text-favorite">.</span>
+                {scrolled ? (
+                  {
+                    home: "Events",
+                    lineup: "Lineup",
+                    map: "The Grounds",
+                    crew: "Crew",
+                    you: "You",
+                    info: "Essentials",
+                  }[view]
+                ) : (
+                  <>
+                    eventbuddies<span className="text-favorite">.</span>
+                  </>
+                )}
               </a>
               <SafetyAccess />
               <button
@@ -267,9 +295,9 @@ export function EventCompanion({ data }: { data: DemoData }) {
         {!onboarding && (
           <nav
             aria-label="Main"
-            className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
+            className="companion-navigation fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
           >
-            <ul className="mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
+            <ul className="companion-tabs mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
               {NAV.map(({ id, label, icon: Icon }) => (
                 <li key={id} className="flex-1">
                   <a
@@ -296,7 +324,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
         {message && (
           <div
             role={message.error ? "alert" : "status"}
-            className="fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
+            className="companion-toast fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
           >
             {message.error ? <Info size={18} aria-hidden /> : <Check size={18} aria-hidden />}
             {message.text}

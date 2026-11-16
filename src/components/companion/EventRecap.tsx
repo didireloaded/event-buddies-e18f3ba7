@@ -1,21 +1,85 @@
 import { useCompanion } from "./context";
 import { PrimaryButton, SecondaryButton } from "./ui";
+import { useEffect, useState } from "react";
+import { eventLifecycle } from "@/lib/attendee/lifecycle";
+import { createRecapCard } from "@/lib/attendee/recap-card";
+import { AfterEventData } from "./AfterEventData";
 
 export function EventRecap() {
-  const { data, attendee, places, navigate, openPlace } = useCompanion();
+  const { data, attendee, places, navigate, openPlace, now } = useCompanion();
+  const [exporting, setExporting] = useState(false);
+  const [preview, setPreview] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  useEffect(() => {
+    if (!preview) return;
+    const url = URL.createObjectURL(preview);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [preview]);
+  const phase = eventLifecycle(data, now).phase;
+  const people = [...new Set(attendee.preferences.sharedPlans.map((entry) => entry.plan.name))];
+  const exportRecap = async (share: boolean) => {
+    setExporting(true);
+    try {
+      const blob = await createRecapCard(data, attendee.preferences);
+      setPreview(blob);
+      const file = new File([blob], "sound-of-summer-recap.png", { type: "image/png" });
+      if (share && navigator.canShare?.({ files: [file] }) && navigator.share)
+        await navigator.share({ files: [file], title: "My Sound of Summer recap" });
+      else {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = file.name;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (share) attendee.notify("Recap card downloaded. Share it from your photos or files.");
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError"))
+        attendee.notify("Couldn’t create the recap card. Try again.", true);
+    } finally {
+      setExporting(false);
+    }
+  };
   const stops = places.filter((p) => attendee.preferences.stamps.includes(p.id));
   const artists = data.festival.artists.filter((a) =>
     attendee.preferences.savedArtists.includes(a.id),
   );
   return (
     <section className="mx-4 mt-4 border-y border-border py-5" aria-labelledby="recap-title">
-      <p className="eyebrow">Until the next one</p>
-      <h2 id="recap-title" className="mt-2 text-[26px] font-bold">
-        Your Sound of Summer
-      </h2>
-      <p className="mt-2 text-[16px] text-muted-foreground">
-        Your saved moments stay here after the gates close.
+      <p className="eyebrow">
+        {phase === "dormant"
+          ? "Until the next one"
+          : phase === "archive"
+            ? "Your saved archive"
+            : "Your recap is ready"}
       </p>
+      <h1 id="recap-title" className="ios-large-title mt-2">
+        Your Sound of Summer
+      </h1>
+      <p className="mt-2 text-[16px] text-muted-foreground">
+        {phase === "dormant"
+          ? "The next Sound of Summer dates are awaiting announcement. Your saved festival record is here."
+          : "Keep the plan. Share the memory."}
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <PrimaryButton disabled={exporting} onClick={() => exportRecap(true)}>
+          {exporting ? "Creating…" : "Share recap card"}
+        </PrimaryButton>
+        <SecondaryButton disabled={exporting} onClick={() => exportRecap(false)}>
+          Save recap
+        </SecondaryButton>
+      </div>
+      {previewUrl && (
+        <img
+          src={previewUrl}
+          alt="Your generated Sound of Summer recap card with your saved artists and checked stops"
+          width={1080}
+          height={1350}
+          className="mt-4 w-full rounded-2xl"
+        />
+      )}
       <h3 className="mt-5 text-[17px] font-semibold">Artists you saved</h3>
       <p className="mt-1 text-[15px]">
         {artists.map((a) => a.name).join(" · ") || "No artists saved for this edition."}
@@ -43,6 +107,12 @@ export function EventRecap() {
         {attendee.preferences.sharedPlans.length} shared{" "}
         {attendee.preferences.sharedPlans.length === 1 ? "plan" : "plans"} kept on this phone.
       </p>
+      {people.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-[17px] font-semibold">People who shared a plan</h3>
+          <p className="mt-1 text-[15px]">{people.join(" · ")}</p>
+        </div>
+      )}
       <PrimaryButton onClick={() => navigate("you")}>Back up my festival plan</PrimaryButton>
       <SecondaryButton className="mt-2" onClick={() => navigate("crew")}>
         Open saved plans
@@ -55,6 +125,7 @@ export function EventRecap() {
       >
         More from the organiser ↗<span className="sr-only"> Opens in a new tab</span>
       </a>
+      <AfterEventData />
     </section>
   );
 }

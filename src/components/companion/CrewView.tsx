@@ -10,6 +10,7 @@ import { Regroup } from "./Regroup";
 import { SharedPlans } from "./SharedPlans";
 import { QuickPings } from "./QuickPings";
 import { FindMe } from "./FindMe";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
 export { countdownLabel } from "@/lib/attendee/event-clock";
@@ -31,7 +32,7 @@ export function CrewView() {
 
   return (
     <>
-      <h1 className="display-title px-4 pt-2 text-[44px]">Crew</h1>
+      <h1 className="ios-large-title px-4 pt-2">Crew</h1>
       <p className="px-4 text-[15px] text-muted-foreground">
         Pick a place. Agree on a time. Share the plan.
       </p>
@@ -120,11 +121,11 @@ export function CrewView() {
 
       <Section title="Privacy" id="crew-privacy" className="px-4">
         <label className="mb-4 flex min-h-12 items-center gap-3">
-          <input
-            type="checkbox"
-            className="size-6 accent-favorite"
+          <Switch
+            aria-label="Low-power mode"
+            className="h-8 w-14 [&>span]:size-7 [&>span[data-state=checked]]:translate-x-6"
             checked={preferences.batterySaver}
-            onChange={(e) => attendee.update({ batterySaver: e.target.checked })}
+            onCheckedChange={(checked) => attendee.update({ batterySaver: checked })}
           />
           <span>
             <strong className="block">Low-power mode</strong>

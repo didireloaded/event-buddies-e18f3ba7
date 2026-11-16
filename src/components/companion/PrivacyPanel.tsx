@@ -12,8 +12,9 @@ export function PrivacyPanel() {
     <div className="space-y-4 pt-1 text-[16px] leading-relaxed">
       <p>
         Your phone’s GPS location is never requested. Landmark check-ins are chosen by you and stay
-        on this device. New pins expire after 60 minutes. Clear your pin from the status bar at any
-        time.
+        on this device. Pins expire after 60 minutes or two hours after the event ends, whichever
+        comes first. Expired pins are cleared when the app is open. Clear your pin from the status
+        bar at any time.
       </p>
       <p>
         QR codes, meetup links and quick messages share only the details you choose. Anyone who

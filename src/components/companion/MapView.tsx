@@ -2,6 +2,7 @@ import { Maximize2, Minus, Plus, Shield, Users, X, MapPinOff } from "lucide-reac
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
+import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { useCompanion } from "./context";
 import { RideBookmark } from "./RideBookmark";
 import { NearbyPlaces } from "./NearbyPlaces";
@@ -17,10 +18,7 @@ const MAX_ZOOM = 4;
 
 function MapCanvas({ expanded }: { expanded: boolean }) {
   const { data, places, map, openSheet, attendee, now } = useCompanion();
-  const hereId =
-    now !== null && attendee.preferences.here && attendee.preferences.here.expiresAt > now
-      ? attendee.preferences.here.pointId
-      : null;
+  const hereId = activeLandmarkPin(data, attendee.preferences.here, now)?.pointId ?? null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
   const viewport = useRef<HTMLDivElement>(null);
   const anchor = useRef<{ x: number; y: number } | null>(null);
@@ -79,7 +77,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     >
       <div
         ref={viewport}
-        className="h-full w-full overflow-auto overscroll-contain"
+        className="scrollbar-none h-full w-full overflow-auto overscroll-contain"
         tabIndex={0}
         aria-label="Venue plan. Scroll to pan."
       >

@@ -14,6 +14,7 @@ export function Sheet({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const dragStart = useRef<number | null>(null);
   useEffect(() => {
     const element = dialog.current;
     const trigger = document.activeElement as HTMLElement | null;
@@ -40,9 +41,22 @@ export function Sheet({
     >
       <div className="flex max-h-[inherit] flex-col">
         <div
-          className="mx-auto mt-2 h-1.5 w-9 flex-none rounded-full bg-border md:hidden"
+          className="flex h-8 flex-none touch-none items-center justify-center"
           aria-hidden
-        />
+          onPointerDown={(event) => {
+            dragStart.current = event.clientY;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerUp={(event) => {
+            if (dragStart.current !== null && event.clientY - dragStart.current > 60) onClose();
+            dragStart.current = null;
+          }}
+          onPointerCancel={() => {
+            dragStart.current = null;
+          }}
+        >
+          <span className="h-1.5 w-9 rounded-full bg-border" />
+        </div>
         <header className="flex flex-none items-center gap-2 px-4 pb-2 pt-2">
           <h2 id="sheet-title" className="min-w-0 flex-1 truncate text-[20px] font-bold">
             {title}
