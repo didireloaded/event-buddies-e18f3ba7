@@ -4,7 +4,7 @@ import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "
 import { cn } from "@/lib/utils";
 import { useCompanion } from "./context";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
-import { IconTile, PrimaryButton, SearchField, Section } from "./ui";
+import { Chevron, IconTile, PrimaryButton, RowText, SearchField, Section } from "./ui";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -242,9 +242,44 @@ export function MapView() {
             }}
           >
             <Icon size={16} aria-hidden /> {label}
+            {id !== "all" && (
+              <span className="ml-0.5 text-[13px] text-muted-foreground">
+                {places.filter((p) => matchesFilter(p, id)).length}
+              </span>
+            )}
           </button>
         ))}
       </div>
+
+      {map.filter !== "all" && !term && (
+        <div className="mx-4 mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-sm" role="listbox" aria-label={`${MAP_FILTERS.find((f) => f.id === map.filter)?.label ?? "Places"} on the venue plan`}>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div>
+              <p className="text-[17px] font-semibold">{MAP_FILTERS.find((f) => f.id === map.filter)?.label}</p>
+              <p className="text-[14px] text-muted-foreground">{listed.length} on the venue plan</p>
+            </div>
+            <button type="button" className="text-[15px] font-semibold text-primary" onClick={() => map.setFilter("all")}>
+              Show all
+            </button>
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            {listed.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="option"
+                aria-selected={p.id === map.selected}
+                className="ios-row w-full border-b border-border last:border-b-0"
+                onClick={() => map.setSelected(p.id)}
+              >
+                <IconTile icon={placeIcon(p.type)} tone={placeTone(p.type)} />
+                <RowText title={p.name} subtitle={TYPE_LABELS[p.type] ?? p.type} />
+                <Chevron />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
         <div className="lg:sticky lg:top-20">
