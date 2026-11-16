@@ -3,7 +3,6 @@ import {
   CalendarDays,
   Heart,
   IdCard,
-  Map as MapIcon,
   MapPin,
   Share2,
   Ticket,
@@ -36,11 +35,14 @@ export function HomeView({ onShare }: { onShare: () => void }) {
     <>
       <div className="px-4">
         <div className="flex items-center justify-between gap-3 pt-3 text-[11px] font-bold uppercase tracking-wide">
-          <span className="flex items-center gap-1">
-            <MapPin size={13} aria-hidden />
-            {data.event.city}, {data.event.country}
+          <span className="flex min-w-0 flex-1 items-center gap-1">
+            <MapPin size={13} className="flex-none" aria-hidden />
+            <span>
+              {preferences.following ? "Your event · " : ""}
+              {data.event.city}, {data.event.country}
+            </span>
           </span>
-          <time>
+          <time className="flex-none">
             {dateLabel(data.event.startAt, tz, {
               day: "2-digit",
               month: "2-digit",
@@ -55,60 +57,12 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         </h1>
       </div>
 
-      {ready && !preferences.festivalMode && (
-        <section
-          aria-labelledby="first-visit-title"
-          className="mx-4 mt-5 border-y border-border py-4"
-        >
-          <h2 id="first-visit-title" className="text-[20px] font-bold">
-            Your music. Your people. One plan.
-          </h2>
-          <p className="mb-3 mt-1 text-[15px] text-muted-foreground">What’s your festival mode?</p>
-          <div className="space-y-2">
-            {(
-              [
-                {
-                  mode: "music",
-                  label: "Here for the music",
-                  detail: "Find the stages and save your artists",
-                  icon: CalendarDays,
-                },
-                {
-                  mode: "friends",
-                  label: "Here to meet people",
-                  detail: "Choose a meetup spot to share by QR",
-                  icon: Users,
-                },
-                {
-                  mode: "both",
-                  label: "A bit of both",
-                  detail: "Make room for your music and your people",
-                  icon: MapIcon,
-                },
-              ] as const
-            ).map(({ mode, label, detail, icon: Icon }) => (
-              <button
-                key={mode}
-                type="button"
-                className="vibe-choice flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3 text-left"
-                onClick={() => {
-                  if (attendee.update({ festivalMode: mode })) navigate("map");
-                }}
-              >
-                <Icon size={22} className="flex-none text-favorite" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[17px] font-semibold">{label}</span>
-                  <span className="block text-[14px] text-muted-foreground">{detail}</span>
-                </span>
-                <ArrowUpRight size={18} aria-hidden />
-              </button>
-            ))}
-          </div>
-          <a href="#map" className="mt-2 flex min-h-11 items-center font-semibold">
-            Explore the grounds ↗
-          </a>
-        </section>
-      )}
+      <div className="mt-4 px-4">
+        <PrimaryButton onClick={() => navigate("crew")}>
+          <Users size={20} /> Find your crew <ArrowUpRight size={20} className="ml-auto" />
+        </PrimaryButton>
+      </div>
+
       <figure className="relative mx-4 mt-4 overflow-hidden">
         <img
           src={data.event.heroImageUrl}
@@ -161,9 +115,6 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         <p className="my-4 border-t border-border pt-3 text-[12px] font-semibold text-favorite">
           {phase.label}
         </p>
-        <PrimaryButton onClick={() => navigate("map")}>
-          <MapIcon size={20} /> Open event <ArrowUpRight size={20} className="ml-auto" />
-        </PrimaryButton>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <a
             href="#lineup"

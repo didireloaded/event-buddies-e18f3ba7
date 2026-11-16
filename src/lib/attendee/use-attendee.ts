@@ -17,6 +17,7 @@ export type Preferences = {
   here: { pointId: string; expiresAt: number } | null;
   batterySaver: boolean;
   sharedPlans: { receivedAt: number; plan: BumpPlan }[];
+  onboardingDone: boolean;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -36,6 +37,7 @@ export function defaultPreferences(data: DemoData): Preferences {
     here: null,
     batterySaver: true,
     sharedPlans: [],
+    onboardingDone: false,
   };
 }
 
@@ -74,6 +76,10 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    onboardingDone:
+      typeof stored["onboardingDone"] === "boolean"
+        ? stored["onboardingDone"]
+        : Boolean(stored["festivalMode"] || stored["meeting"]),
     sharedPlans,
     here:
       here &&

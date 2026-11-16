@@ -80,6 +80,8 @@ export function FestivalBump() {
   const [scanning, setScanning] = useState(false);
   const [contact, setContact] = useState({ name: "", phone: "" });
   const [shareLink, setShareLink] = useState("");
+  const [receiverName, setReceiverName] = useState("");
+  const needsName = attendee.preferences.profile.name === "Guest";
   const payload = JSON.stringify({
     version: 1,
     event: data.event.id,
@@ -269,6 +271,19 @@ export function FestivalBump() {
               )}
               {incoming && (
                 <div className="mt-4 border-t border-border pt-4">
+                  {needsName && (
+                    <label className="mb-4 block text-[15px] font-semibold">
+                      Your name
+                      <input
+                        className="ios-field mt-2"
+                        autoComplete="nickname"
+                        maxLength={50}
+                        value={receiverName}
+                        placeholder="What should your friends call you?"
+                        onChange={(event) => setReceiverName(event.target.value)}
+                      />
+                    </label>
+                  )}
                   <h3 className="text-[20px] font-bold">{incoming.name}’s plan</h3>
                   <p>
                     {meetingPlace && incoming.meeting
@@ -290,9 +305,20 @@ export function FestivalBump() {
                     included.
                   </p>
                   <PrimaryButton
+                    disabled={needsName && receiverName.trim().length < 2}
                     onClick={() => {
                       if (
                         attendee.update({
+                          onboardingDone: true,
+                          following: true,
+                          ...(needsName
+                            ? {
+                                profile: {
+                                  ...attendee.preferences.profile,
+                                  name: receiverName.trim(),
+                                },
+                              }
+                            : {}),
                           sharedPlans: [
                             { receivedAt: Date.now(), plan: incoming },
                             ...attendee.preferences.sharedPlans.filter(

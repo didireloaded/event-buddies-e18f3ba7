@@ -1,5 +1,5 @@
 import {
-  CalendarDays,
+  UserRound,
   Menu,
   House,
   Compass,
@@ -26,6 +26,10 @@ import {
 import { CrewView } from "./CrewView";
 import { HomeView } from "./HomeView";
 import { SafetyAccess } from "./SafetyAccess";
+import { Onboarding } from "./Onboarding";
+import { YouView } from "./YouView";
+import { InfoView } from "./InfoView";
+import { EventSections } from "./EventSections";
 import { PinPrivacy } from "./PinPrivacy";
 import { LineupView } from "./LineupView";
 import { MapView } from "./MapView";
@@ -33,10 +37,10 @@ import { Sheet } from "./Sheet";
 import { SheetContent, sheetTitle } from "./SheetContent";
 
 const NAV: { id: View; label: string; icon: LucideIcon }[] = [
-  { id: "home", label: "Home", icon: House },
-  { id: "lineup", label: "Lineup", icon: CalendarDays },
+  { id: "home", label: "Events", icon: House },
   { id: "map", label: "Map", icon: Compass },
   { id: "crew", label: "Crew", icon: Users },
+  { id: "you", label: "You", icon: UserRound },
 ];
 
 // Tabs are hash routes (#home, #lineup, #map, #crew) so browser Back,
@@ -46,7 +50,9 @@ const subscribeToHash = (callback: () => void) => {
   return () => window.removeEventListener("hashchange", callback);
 };
 const readHash = (): View =>
-  NAV.find((item) => `#${item.id}` === window.location.hash.split("?")[0])?.id ?? "home";
+  (["home", "lineup", "map", "crew", "you", "info"] as View[]).find(
+    (id) => `#${id}` === window.location.hash.split("?")[0],
+  ) ?? "home";
 
 function useConnectivity() {
   const [online, setOnline] = useState(true);
@@ -89,6 +95,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [welcomeSkipped, setWelcomeSkipped] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -164,6 +171,9 @@ export function EventCompanion({ data }: { data: DemoData }) {
   };
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
+  const onboarding =
+    attendee.ready && view === "home" && !attendee.preferences.onboardingDone && !welcomeSkipped;
+  const activeTab = view === "lineup" || view === "info" ? "home" : view;
   const message = attendee.message;
 
   return (
@@ -202,7 +212,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
               <button
                 type="button"
                 aria-label="My profile"
-                onClick={() => setSheet({ kind: "profile" })}
+                onClick={() => navigate("you")}
                 className="grid size-11 place-items-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground"
               >
                 {initials(attendee.preferences.profile.name)}
@@ -228,6 +238,11 @@ export function EventCompanion({ data }: { data: DemoData }) {
               view === "map" && "lg:max-w-6xl",
             )}
           >
+            {onboarding && <Onboarding onSkip={() => setWelcomeSkipped(true)} />}
+            {!onboarding &&
+              (view === "home" || view === "lineup" || view === "map" || view === "info") && (
+                <EventSections />
+              )}
             {attendee.preferences.ride &&
               now !== null &&
               now >= +data.event.endAt - 30 * 60000 &&
@@ -242,39 +257,43 @@ export function EventCompanion({ data }: { data: DemoData }) {
                   ↗
                 </button>
               )}
-            {view === "home" && <HomeView onShare={shareEvent} />}
+            {view === "home" && !onboarding && <HomeView onShare={shareEvent} />}
             {view === "lineup" && <LineupView searchRef={searchRef} />}
             {view === "map" && <MapView />}
             {view === "crew" && <CrewView />}
+            {view === "you" && <YouView />}
+            {view === "info" && <InfoView />}
           </main>
         </div>
 
-        <nav
-          aria-label="Main"
-          className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
-        >
-          <ul className="mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
-            {NAV.map(({ id, label, icon: Icon }) => (
-              <li key={id} className="flex-1">
-                <a
-                  href={`#${id}`}
-                  aria-current={view === id ? "page" : undefined}
-                  className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
-                >
-                  <Icon size={22} strokeWidth={view === id ? 2.4 : 1.9} aria-hidden />
-                  {label}
-                  {id === "lineup" && savedCount > 0 && (
-                    <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
-                      <span className="sr-only">, </span>
-                      {savedCount}
-                      <span className="sr-only"> saved</span>
-                    </span>
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {!onboarding && (
+          <nav
+            aria-label="Main"
+            className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
+          >
+            <ul className="mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
+              {NAV.map(({ id, label, icon: Icon }) => (
+                <li key={id} className="flex-1">
+                  <a
+                    href={`#${id}`}
+                    aria-current={activeTab === id ? "page" : undefined}
+                    className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
+                  >
+                    <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
+                    {label}
+                    {id === "home" && savedCount > 0 && (
+                      <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
+                        <span className="sr-only">, </span>
+                        {savedCount}
+                        <span className="sr-only"> saved</span>
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         {message && (
           <div

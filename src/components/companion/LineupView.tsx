@@ -31,6 +31,17 @@ export function ArtistRow({
   onOpen: () => void;
   onSave: () => void;
 }) {
+  const { attendee, data } = useCompanion();
+  const sharedNames = [
+    ...new Set(
+      attendee.preferences.sharedPlans
+        .filter((entry) => entry.plan.artists.includes(artist.id))
+        .map((entry) => entry.plan.name),
+    ),
+  ];
+  const stageLabel = artist.stageId
+    ? data.stages.find((stage) => stage.id === artist.stageId)?.name
+    : null;
   return (
     <div className="ios-row gap-0 p-0 pl-4">
       <button
@@ -46,7 +57,30 @@ export function ArtistRow({
         </span>
         <RowText
           title={<span className="font-semibold">{artist.name}</span>}
-          subtitle={artist.stageId ? "Headliner · Main Stage" : "Stage & set time to be announced"}
+          subtitle={
+            <>
+              <span className="block">
+                {stageLabel ? `${artist.role} · ${stageLabel}` : "Stage & set time to be announced"}
+              </span>
+              {sharedNames.length > 0 && (
+                <span className="mt-1 flex flex-wrap items-center gap-1 text-[14px] text-favorite">
+                  {sharedNames.slice(0, 2).map((name) => (
+                    <span
+                      key={name}
+                      aria-hidden
+                      className="grid size-6 place-items-center rounded-full bg-favorite-soft font-semibold"
+                    >
+                      {initials(name)}
+                    </span>
+                  ))}
+                  <span>
+                    {sharedNames.slice(0, 2).join(" & ")}
+                    {sharedNames.length > 2 ? ` +${sharedNames.length - 2}` : ""} saved this artist
+                  </span>
+                </span>
+              )}
+            </>
+          }
         />
       </button>
       <a

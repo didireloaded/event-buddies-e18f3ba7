@@ -132,22 +132,26 @@ export function ProfileForm({
   onSave: (profile: { name: string; handle: string }) => void;
 }) {
   const [name, setName] = useState(initial.name);
-  const [handle, setHandle] = useState(initial.handle);
-  const [error, setError] = useState<ReturnType<typeof validateProfile>>(null);
+  const [error, setError] = useState<string | null>(null);
   return (
     <form
       noValidate
       className="space-y-4 pt-1"
       onSubmit={(event) => {
         event.preventDefault();
-        const problem = validateProfile(name, handle);
+        const problem =
+          name.trim().length < 2
+            ? "Use at least two characters for your name."
+            : name.trim().length > 50
+              ? "Use 50 characters or fewer."
+              : null;
         setError(problem);
-        if (!problem) onSave({ name: name.trim(), handle: handle.trim() });
+        if (!problem) onSave({ ...initial, name: name.trim() });
       }}
     >
       <p className="text-[15px] text-muted-foreground">
-        {savedCount} saved {savedCount === 1 ? "favourite" : "favourites"}. Your profile is stored
-        in this browser only. Accounts aren’t connected yet.
+        {savedCount} saved {savedCount === 1 ? "favourite" : "favourites"}. This is the name shown
+        on your shared plans.
       </p>
       <div>
         <label htmlFor="profile-name" className="mb-1.5 block text-[15px] font-semibold">
@@ -159,32 +163,14 @@ export function ProfileForm({
           value={name}
           maxLength={50}
           autoComplete="nickname"
-          aria-invalid={error?.field === "name"}
-          aria-describedby={error?.field === "name" ? "profile-error" : undefined}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "profile-error" : undefined}
           onChange={(event) => setName(event.target.value)}
-        />
-      </div>
-      <div>
-        <label htmlFor="profile-handle" className="mb-1.5 block text-[15px] font-semibold">
-          Username
-        </label>
-        <input
-          id="profile-handle"
-          className="ios-field"
-          value={handle}
-          maxLength={30}
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          autoComplete="username"
-          aria-invalid={error?.field === "handle"}
-          aria-describedby={error?.field === "handle" ? "profile-error" : undefined}
-          onChange={(event) => setHandle(event.target.value)}
         />
       </div>
       {error && (
         <p id="profile-error" role="alert" className="text-[15px] font-medium text-destructive">
-          {error.message}
+          {error}
         </p>
       )}
       <PrimaryButton type="submit" disabled={disabled}>

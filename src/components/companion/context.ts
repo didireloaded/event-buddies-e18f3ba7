@@ -4,7 +4,7 @@ import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { MapFilter, Place } from "@/lib/attendee/map";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
 
-export type View = "home" | "lineup" | "map" | "crew";
+export type View = "home" | "lineup" | "map" | "crew" | "you" | "info";
 
 export type Sheet =
   | { kind: "performance"; performance: PerformanceRecord }
