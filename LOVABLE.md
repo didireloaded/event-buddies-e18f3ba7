@@ -42,3 +42,11 @@ Ask Lovable in chat, or edit the files above. Change event data only in
 - Organiser editing/publishing and announcement delivery; push notifications
 - Set times/reminders (organiser hasn't published), GPS calibration, walking routes, vendor menus/prices
 - Ticket purchase (Howler link only), payments
+
+## Visual source of truth
+
+The Codex screenshot (`codex-event-buddies-map-reference.png`, supplied Nov 2026) is the
+authoritative UI reference: warm paper background, black ink, hot pink only for
+active/favourite/map highlights, black hamburger + centred lowercase `eventbuddies.` wordmark,
+condensed uppercase titles (Anton), flat hairline lists, and a floating black pill tab bar.
+It supersedes the earlier cool-grey iOS look.

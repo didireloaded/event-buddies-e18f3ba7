@@ -1,8 +1,8 @@
 import {
   CalendarDays,
-  Ellipsis,
+  Menu,
   House,
-  Map as MapIcon,
+  Compass,
   Users,
   WifiOff,
   Check,
@@ -33,7 +33,7 @@ import { SheetContent, sheetTitle } from "./SheetContent";
 const NAV: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "home", label: "Home", icon: House },
   { id: "lineup", label: "Lineup", icon: CalendarDays },
-  { id: "map", label: "Map", icon: MapIcon },
+  { id: "map", label: "Map", icon: Compass },
   { id: "crew", label: "Crew", icon: Users },
 ];
 
@@ -166,7 +166,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
   return (
     <Companion.Provider value={ctx}>
-      <div className="min-h-dvh md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
+      <div className="min-h-dvh">
         <a
           href="#main-content"
           onClick={(event) => {
@@ -178,53 +178,32 @@ export function EventCompanion({ data }: { data: DemoData }) {
           Skip to content
         </a>
 
-        {/* Larger screens: sidebar navigation instead of bottom tabs */}
-        <aside className="sticky top-0 hidden h-dvh flex-col border-r bg-sidebar px-3 pt-[max(1.25rem,env(safe-area-inset-top))] md:flex">
-          <p className="px-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Event Buddies
-          </p>
-          <p className="px-3 text-[20px] font-bold">{data.event.name}</p>
-          <nav aria-label="Main" className="mt-6 flex flex-col gap-1">
-            {NAV.map(({ id, label, icon: Icon }) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                aria-current={view === id ? "page" : undefined}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-[17px] font-medium aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground"
-              >
-                <Icon size={20} aria-hidden /> {label}
-                {id === "lineup" && savedCount > 0 && (
-                  <span className="ml-auto text-[13px]">{savedCount}</span>
-                )}
-              </a>
-            ))}
-          </nav>
-        </aside>
-
         <div className="min-w-0">
           <header className="ios-bar sticky top-0 z-20 pt-safe">
-            <div className="mx-auto flex h-11 max-w-3xl items-center justify-between px-safe">
-              <span className="text-[17px] font-semibold md:invisible">Event Buddies</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="More: profile, updates, rules and settings"
-                  onClick={() => setSheet({ kind: "menu" })}
-                  className="grid size-11 place-items-center rounded-full text-primary"
-                >
-                  <Ellipsis size={24} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="My profile"
-                  onClick={() => setSheet({ kind: "profile" })}
-                  className="grid size-11 place-items-center"
-                >
-                  <span className="grid size-8 place-items-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
-                    {initials(attendee.preferences.profile.name)}
-                  </span>
-                </button>
-              </div>
+            <div className="mx-auto grid h-16 max-w-3xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center px-safe">
+              <button
+                type="button"
+                aria-label="Menu: profile, updates, rules and settings"
+                onClick={() => setSheet({ kind: "menu" })}
+                className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground"
+              >
+                <Menu size={20} />
+              </button>
+              <a
+                href="#home"
+                className="justify-self-center text-[20px] font-bold lowercase tracking-tight"
+                aria-label="eventbuddies home"
+              >
+                eventbuddies<span className="text-favorite">.</span>
+              </a>
+              <button
+                type="button"
+                aria-label="My profile"
+                onClick={() => setSheet({ kind: "profile" })}
+                className="grid size-11 place-items-center rounded-full bg-popover text-[14px] font-semibold ring-1 ring-border"
+              >
+                {initials(attendee.preferences.profile.name)}
+              </button>
             </div>
             {!online && (
               <p
@@ -241,7 +220,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
             ref={mainRef}
             tabIndex={-1}
             className={cn(
-              "mx-auto max-w-3xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] pt-2 outline-none md:pb-10",
+              "mx-auto max-w-3xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] pt-1 outline-none",
               view === "map" && "lg:max-w-6xl",
             )}
           >
@@ -254,20 +233,20 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
         <nav
           aria-label="Main"
-          className="ios-bar fixed inset-x-0 bottom-0 z-30 border-t border-separator pb-safe md:hidden"
+          className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
         >
-          <ul className="mx-auto flex h-[var(--tabbar-h)] max-w-lg">
+          <ul className="mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
             {NAV.map(({ id, label, icon: Icon }) => (
               <li key={id} className="flex-1">
                 <a
                   href={`#${id}`}
                   aria-current={view === id ? "page" : undefined}
-                  className="relative flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground aria-[current=page]:text-primary"
+                  className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
                 >
-                  <Icon size={24} strokeWidth={view === id ? 2.3 : 1.8} aria-hidden />
+                  <Icon size={22} strokeWidth={view === id ? 2.4 : 1.9} aria-hidden />
                   {label}
                   {id === "lineup" && savedCount > 0 && (
-                    <span className="absolute left-1/2 top-1 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
+                    <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
                       <span className="sr-only">, </span>
                       {savedCount}
                       <span className="sr-only"> saved</span>
@@ -282,7 +261,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
         {message && (
           <div
             role={message.error ? "alert" : "status"}
-            className="fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float md:bottom-6"
+            className="fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
           >
             {message.error ? <Info size={18} aria-hidden /> : <Check size={18} aria-hidden />}
             {message.text}
