@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DemoData } from "@/lib/event/types";
 import type { LocalMeeting } from "./meeting";
+import { readBump, type BumpPlan } from "./festival-bump";
 
 export type { LocalMeeting };
 export type Preferences = {
@@ -15,6 +16,7 @@ export type Preferences = {
   festivalMode: "music" | "friends" | "both" | null;
   here: { pointId: string; expiresAt: number } | null;
   batterySaver: boolean;
+  sharedPlans: { receivedAt: number; plan: BumpPlan }[];
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -33,6 +35,7 @@ export function defaultPreferences(data: DemoData): Preferences {
     festivalMode: null,
     here: null,
     batterySaver: true,
+    sharedPlans: [],
   };
 }
 
@@ -50,7 +53,28 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const ride = stored["ride"] as Record<string, unknown> | undefined;
   const here = stored["here"] as Record<string, unknown> | undefined;
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
+  const sharedPlans: Preferences["sharedPlans"] = [];
+  if (Array.isArray(stored["sharedPlans"])) {
+    for (const entry of stored["sharedPlans"].slice(0, 10)) {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        typeof entry.receivedAt !== "number" ||
+        !Number.isFinite(entry.receivedAt)
+      )
+        continue;
+      try {
+        sharedPlans.push({
+          receivedAt: entry.receivedAt,
+          plan: readBump(JSON.stringify(entry.plan), data),
+        });
+      } catch {
+        /* Ignore invalid local records. */
+      }
+    }
+  }
   return {
+    sharedPlans,
     here:
       here &&
       typeof here["pointId"] === "string" &&

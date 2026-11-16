@@ -6,6 +6,8 @@ import { useCompanion } from "./context";
 import { RideBookmark } from "./RideBookmark";
 import { NearbyPlaces } from "./NearbyPlaces";
 import { LandmarkCheckin } from "./LandmarkCheckin";
+import { Regroup } from "./Regroup";
+import { RightNow } from "./RightNow";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
@@ -230,6 +232,10 @@ export function MapView() {
           <Shield size={20} />
         </button>
       </div>
+      <div className="mt-3 px-4">
+        <Regroup />
+      </div>
+      <RightNow />
       <LandmarkCheckin />
       <div className="mt-4 px-4">
         <SearchField

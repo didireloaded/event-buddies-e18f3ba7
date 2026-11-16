@@ -1,22 +1,16 @@
 import { CalendarClock, Info, Map as MapIcon, Pencil, ShieldCheck } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
+import { countdownLabel } from "@/lib/attendee/event-clock";
 import type { LocalMeeting } from "@/lib/attendee/meeting";
 import { initials, useCompanion } from "./context";
 import { FestivalBump } from "./FestivalBump";
 import { FestivalPassport } from "./FestivalPassport";
 import { PlanBackup } from "./PlanBackup";
+import { Regroup } from "./Regroup";
+import { SharedPlans } from "./SharedPlans";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
-export function countdownLabel(meetingAt: string, now: number | null) {
-  if (now === null) return "Meeting time";
-  const remaining = Math.ceil((Date.parse(meetingAt) - now) / 60000);
-  if (remaining <= 0) return "Your meeting time has arrived";
-  if (remaining >= 1440) {
-    const days = Math.floor(remaining / 1440);
-    return `${days} ${days === 1 ? "day" : "days"} to go`;
-  }
-  return `${Math.floor(remaining / 60)}h ${remaining % 60}m to go`;
-}
+export { countdownLabel } from "@/lib/attendee/event-clock";
 
 function MeetingCountdown({ meeting }: { meeting: LocalMeeting }) {
   const { now } = useCompanion();
@@ -40,6 +34,9 @@ export function CrewView() {
         Pick a place. Agree on a time. Share the plan.
       </p>
 
+      <div className="mt-4 px-4">
+        <Regroup />
+      </div>
       <Section title="Meeting plan" id="crew-meeting" className="px-4">
         <div className="ios-card p-4">
           {meeting && meetingPlace ? (
@@ -83,6 +80,7 @@ export function CrewView() {
       </Section>
 
       <FestivalBump />
+      <SharedPlans />
 
       <Section title="Your festival profile" id="crew-people" className="px-4">
         <div className="ios-group ios-group-indent">

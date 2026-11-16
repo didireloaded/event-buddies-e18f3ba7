@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import jsQR from "jsqr";
-import { readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
+import { bumpLink, readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
 import { Sheet } from "./Sheet";
@@ -124,7 +124,7 @@ export function FestivalBump() {
     return () => window.removeEventListener("hashchange", reviewLink);
   }, [receive]);
   const sharePlan = async () => {
-    const url = `${window.location.origin}${window.location.pathname}#crew?plan=${encodeURIComponent(payload)}`;
+    const url = bumpLink(window.location.href, JSON.parse(payload));
     setShareLink(url);
     try {
       if (navigator.share)
@@ -293,6 +293,12 @@ export function FestivalBump() {
                     onClick={() => {
                       if (
                         attendee.update({
+                          sharedPlans: [
+                            { receivedAt: Date.now(), plan: incoming },
+                            ...attendee.preferences.sharedPlans.filter(
+                              (entry) => JSON.stringify(entry.plan) !== JSON.stringify(incoming),
+                            ),
+                          ].slice(0, 10),
                           savedArtists: [
                             ...new Set([...attendee.preferences.savedArtists, ...incoming.artists]),
                           ],

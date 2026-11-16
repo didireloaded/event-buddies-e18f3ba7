@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import type { DemoData } from "@/lib/event/types";
 
+export function countdownLabel(meetingAt: string, now: number | null) {
+  if (now === null) return "Meeting time";
+  const remaining = Math.ceil((Date.parse(meetingAt) - now) / 60000);
+  if (remaining <= 0) return "Your meeting time has arrived";
+  if (remaining >= 1440) {
+    const days = Math.floor(remaining / 1440);
+    return `${days} ${days === 1 ? "day" : "days"} to go`;
+  }
+  return `${Math.floor(remaining / 60)}h ${remaining % 60}m to go`;
+}
+
 export function useEventClock(intervalMs = 60000) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {

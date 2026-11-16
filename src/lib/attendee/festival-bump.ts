@@ -11,6 +11,13 @@ const payloadSchema = z.object({
 });
 export type BumpPlan = z.infer<typeof payloadSchema>;
 
+export function bumpLink(baseUrl: string, plan: BumpPlan) {
+  const url = new URL(baseUrl);
+  url.search = "";
+  url.hash = `crew?plan=${encodeURIComponent(JSON.stringify(plan))}`;
+  return url.href;
+}
+
 export function readBump(raw: string, data: DemoData): BumpPlan {
   if (raw.length > 3000) throw new Error("This sharing code is too large.");
   const parsed = payloadSchema.safeParse(JSON.parse(raw));

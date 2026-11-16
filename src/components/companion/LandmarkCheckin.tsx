@@ -11,11 +11,11 @@ export function LandmarkCheckin() {
   const active = here && now !== null && here.expiresAt > now;
   const current = active ? places.find((p) => p.id === here.pointId) : null;
   return (
-    <section className="mx-4 mt-4 border-y border-border py-3" aria-label="Your landmark check-in">
+    <details className="mx-4 mt-2 border-y border-border py-1" aria-label="Your landmark check-in">
+      <summary className="min-h-11 cursor-pointer content-center text-[15px] font-semibold">
+        {current ? `You’re at ${current.name} · update` : "Mark where I am"}
+      </summary>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[17px] font-bold">
-          {current ? `You’re at ${current.name}` : "Where are you?"}
-        </h2>
         {current && (
           <button
             type="button"
@@ -40,7 +40,7 @@ export function LandmarkCheckin() {
         <PrimaryButton
           className="w-auto flex-none"
           disabled={!attendee.ready}
-          onClick={() => {
+          onClick={(event) => {
             if (
               attendee.update({ here: { pointId: chosen, expiresAt: Date.now() + 2 * 3600000 } })
             ) {
@@ -48,6 +48,7 @@ export function LandmarkCheckin() {
               map.setFilter("all");
               map.setSelected(chosen);
               attendee.notify("Landmark saved privately for two hours");
+              event.currentTarget.closest("details")?.removeAttribute("open");
             }
           }}
         >
@@ -59,6 +60,6 @@ export function LandmarkCheckin() {
           ? `Private on this phone · expires at ${eventTime(new Date(here.expiresAt))} CAT`
           : "Choose a landmark. Private on this phone, cleared from view after two hours."}
       </p>
-    </section>
+    </details>
   );
 }
