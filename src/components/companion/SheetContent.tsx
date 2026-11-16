@@ -23,6 +23,7 @@ import { eventTime } from "@/lib/attendee/schedule";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion, type Sheet as SheetState } from "./context";
 import { MeetingForm, ProfileForm } from "./forms";
+import { PrivacyPanel } from "./PrivacyPanel";
 import { TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Avatar, Chevron, IconTile, Notice, PrimaryButton, RowText, SecondaryButton } from "./ui";
 
@@ -480,27 +481,7 @@ export function SheetContent({
       );
 
     case "privacy":
-      return (
-        <div className="space-y-4 pt-1">
-          <Paragraph>
-            This demo uses sample crew profiles. Your phone’s location is never requested or read.
-          </Paragraph>
-          <Paragraph>
-            Live crew sharing will need a connected account and your explicit, revocable consent.
-            Favourites, your status, profile and meeting plans are stored in this browser only and
-            are not synced to other devices.
-          </Paragraph>
-          <SecondaryButton
-            onClick={() => {
-              localStorage.removeItem(`event-buddies:${data.event.id}:attendee`);
-              notify("Local data cleared. Reloading…");
-              window.setTimeout(() => window.location.reload(), 600);
-            }}
-          >
-            Clear my data on this device
-          </SecondaryButton>
-        </div>
-      );
+      return <PrivacyPanel />;
 
     case "install":
       return (

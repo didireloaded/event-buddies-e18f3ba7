@@ -41,13 +41,11 @@ export function LandmarkCheckin() {
           className="w-auto flex-none"
           disabled={!attendee.ready}
           onClick={(event) => {
-            if (
-              attendee.update({ here: { pointId: chosen, expiresAt: Date.now() + 2 * 3600000 } })
-            ) {
+            if (attendee.update({ here: { pointId: chosen, expiresAt: Date.now() + 3600000 } })) {
               map.setQuery("");
               map.setFilter("all");
               map.setSelected(chosen);
-              attendee.notify("Landmark saved privately for two hours");
+              attendee.notify("Landmark saved privately for one hour");
               event.currentTarget.closest("details")?.removeAttribute("open");
             }
           }}
@@ -58,7 +56,7 @@ export function LandmarkCheckin() {
       <p className="mt-2 text-[14px] text-muted-foreground">
         {current && here
           ? `Private on this phone · expires at ${eventTime(new Date(here.expiresAt))} CAT`
-          : "Choose a landmark. Private on this phone, cleared from view after two hours."}
+          : "Choose a landmark. Private on this phone, cleared after one hour."}
       </p>
     </details>
   );

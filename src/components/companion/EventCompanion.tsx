@@ -26,6 +26,7 @@ import {
 import { CrewView } from "./CrewView";
 import { HomeView } from "./HomeView";
 import { SafetyAccess } from "./SafetyAccess";
+import { PinPrivacy } from "./PinPrivacy";
 import { LineupView } from "./LineupView";
 import { MapView } from "./MapView";
 import { Sheet } from "./Sheet";
@@ -207,6 +208,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
                 {initials(attendee.preferences.profile.name)}
               </button>
             </div>
+            <PinPrivacy />
             {!online && (
               <p
                 role="status"

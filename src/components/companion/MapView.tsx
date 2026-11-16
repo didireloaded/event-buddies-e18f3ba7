@@ -8,6 +8,7 @@ import { NearbyPlaces } from "./NearbyPlaces";
 import { LandmarkCheckin } from "./LandmarkCheckin";
 import { Regroup } from "./Regroup";
 import { RightNow } from "./RightNow";
+import { FindMe } from "./FindMe";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
@@ -232,8 +233,9 @@ export function MapView() {
           <Shield size={20} />
         </button>
       </div>
-      <div className="mt-3 px-4">
+      <div className="mt-3 flex flex-wrap gap-2 px-4">
         <Regroup />
+        <FindMe />
       </div>
       <RightNow />
       <LandmarkCheckin />

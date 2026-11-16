@@ -8,6 +8,8 @@ import { FestivalPassport } from "./FestivalPassport";
 import { PlanBackup } from "./PlanBackup";
 import { Regroup } from "./Regroup";
 import { SharedPlans } from "./SharedPlans";
+import { QuickPings } from "./QuickPings";
+import { FindMe } from "./FindMe";
 import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section, SecondaryButton } from "./ui";
 
 export { countdownLabel } from "@/lib/attendee/event-clock";
@@ -34,8 +36,9 @@ export function CrewView() {
         Pick a place. Agree on a time. Share the plan.
       </p>
 
-      <div className="mt-4 px-4">
+      <div className="mt-4 flex flex-wrap gap-2 px-4">
         <Regroup />
+        <FindMe />
       </div>
       <Section title="Meeting plan" id="crew-meeting" className="px-4">
         <div className="ios-card p-4">
@@ -81,6 +84,7 @@ export function CrewView() {
 
       <FestivalBump />
       <SharedPlans />
+      <QuickPings />
 
       <Section title="Your festival profile" id="crew-people" className="px-4">
         <div className="ios-group ios-group-indent">

@@ -81,7 +81,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
       placeIds.includes(here["pointId"]) &&
       typeof here["expiresAt"] === "number" &&
       Number.isFinite(here["expiresAt"])
-        ? { pointId: here["pointId"], expiresAt: here["expiresAt"] }
+        ? { pointId: here["pointId"], expiresAt: Math.min(here["expiresAt"], Date.now() + 3600000) }
         : null,
     batterySaver: typeof stored["batterySaver"] === "boolean" ? stored["batterySaver"] : true,
     festivalMode:
