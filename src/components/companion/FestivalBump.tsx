@@ -157,8 +157,7 @@ export function FestivalBump() {
   return (
     <Section title="Festival Bump" id="crew-bump" className="px-4">
       <p className="mb-3 text-[15px] text-muted-foreground">
-        Share a meeting and your top three favourites phone-to-phone. Works without a connection
-        once the app is loaded.
+        Share your meeting and top three artists. Works offline once the app is loaded.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <PrimaryButton disabled={!attendee.ready} onClick={() => setMode("show")}>
@@ -318,6 +317,7 @@ export function FestivalBump() {
                     onClick={() => {
                       if (
                         attendee.update({
+                          selectedEventId: data.event.id,
                           onboardingDone: true,
                           hasName: true,
                           following: true,

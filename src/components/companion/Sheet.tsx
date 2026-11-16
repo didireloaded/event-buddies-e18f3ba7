@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
  * Accessible bottom sheet built on native <dialog>.showModal(): focus is
@@ -15,6 +15,7 @@ export function Sheet({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const dragStart = useRef<number | null>(null);
+  const [drag, setDrag] = useState(0);
   useEffect(() => {
     const element = dialog.current;
     const trigger = document.activeElement as HTMLElement | null;
@@ -30,6 +31,7 @@ export function Sheet({
     <dialog
       ref={dialog}
       className="ios-sheet"
+      style={drag ? { transform: `translateY(${drag}px)` } : undefined}
       aria-labelledby="sheet-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -50,21 +52,29 @@ export function Sheet({
           onPointerUp={(event) => {
             if (dragStart.current !== null && event.clientY - dragStart.current > 60) onClose();
             dragStart.current = null;
+            setDrag(0);
+          }}
+          onPointerMove={(event) => {
+            if (dragStart.current !== null) setDrag(Math.max(0, event.clientY - dragStart.current));
           }}
           onPointerCancel={() => {
             dragStart.current = null;
+            setDrag(0);
           }}
         >
           <span className="h-1.5 w-9 rounded-full bg-border" />
         </div>
         <header className="flex flex-none items-center gap-2 px-4 pb-2 pt-2">
-          <h2 id="sheet-title" className="min-w-0 flex-1 truncate text-[20px] font-bold">
+          <h2
+            id="sheet-title"
+            className="min-w-0 flex-1 break-words text-[22px] leading-7 font-bold tracking-tight"
+          >
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-2 text-[17px] font-semibold text-primary"
+            className="min-h-11 rounded-lg px-2 text-[17px] font-semibold text-favorite"
           >
             Done
           </button>

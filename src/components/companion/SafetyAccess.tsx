@@ -12,7 +12,7 @@ export function SafetyAccess() {
       <button
         type="button"
         aria-label="Emergency and first aid"
-        className="grid size-11 place-items-center rounded-full text-favorite ring-1 ring-border"
+        className="ios-press grid size-11 place-items-center rounded-full text-favorite"
         onClick={() => setOpen(true)}
       >
         <Cross size={21} />

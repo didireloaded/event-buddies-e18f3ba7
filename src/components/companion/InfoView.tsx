@@ -1,12 +1,16 @@
 import { useCompanion } from "./context";
 import { eventTime } from "@/lib/attendee/schedule";
 import { Section } from "./ui";
+import { EventSections } from "./EventSections";
 
 export function InfoView() {
-  const { data, showOnMap } = useCompanion();
+  const { data, showOnMap, openSheet } = useCompanion();
   return (
     <div className="px-4">
       <h1 className="ios-large-title pt-2">Essentials</h1>
+      <div className="-mx-4">
+        <EventSections />
+      </div>
       <p className="mt-3 text-[17px]">
         {data.event.venueName} · {data.event.city}
       </p>
@@ -16,6 +20,13 @@ export function InfoView() {
       <Section title="Transport" id="info-transport">
         <p className="text-[16px] leading-relaxed">{data.festival.transport}</p>
       </Section>
+      <button
+        type="button"
+        className="ios-row mt-4 w-full rounded-2xl bg-popover text-favorite"
+        onClick={() => openSheet({ kind: "assistant" })}
+      >
+        Ask about the festival
+      </button>
       <Section title="Entry & venue rules" id="info-rules">
         <ul className="list-disc space-y-3 pl-5 text-[16px] leading-relaxed">
           {data.festival.rules.map((rule) => (

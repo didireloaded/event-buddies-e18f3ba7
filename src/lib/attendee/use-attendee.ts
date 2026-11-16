@@ -5,6 +5,7 @@ import { readBump, type BumpPlan } from "./festival-bump";
 
 export type { LocalMeeting };
 export type Preferences = {
+  selectedEventId: string | null;
   saved: string[];
   savedArtists: string[];
   profile: { name: string; handle: string };
@@ -27,6 +28,7 @@ export const storageKey = (eventId: string) => `event-buddies:${eventId}:attende
 
 export function defaultPreferences(data: DemoData): Preferences {
   return {
+    selectedEventId: null,
     saved: data.savedPerformanceIds,
     savedArtists: [],
     profile: { name: "Guest", handle: "guest" },
@@ -80,6 +82,11 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    selectedEventId:
+      stored["selectedEventId"] === data.event.id ||
+      (!("selectedEventId" in stored) && stored["hasName"] === true)
+        ? data.event.id
+        : null,
     installHintDismissed: stored["installHintDismissed"] === true,
     hasName:
       typeof stored["hasName"] === "boolean"

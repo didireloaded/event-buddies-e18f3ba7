@@ -1,15 +1,10 @@
-import { Maximize2, Minus, Plus, Shield, Users, X, MapPinOff } from "lucide-react";
+import { Maximize2, Minus, Plus, Shield, Users, X, EyeOff } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { useCompanion } from "./context";
-import { RideBookmark } from "./RideBookmark";
-import { NearbyPlaces } from "./NearbyPlaces";
-import { LandmarkCheckin } from "./LandmarkCheckin";
-import { Regroup } from "./Regroup";
-import { RightNow } from "./RightNow";
-import { FindMe } from "./FindMe";
+import { Sheet } from "./Sheet";
 import { useMapGestures } from "./use-map-gestures";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
@@ -199,30 +194,29 @@ function ExpandedMap() {
 
 export function MapView() {
   const { data, places, map, openSheet } = useCompanion();
-  const detailRef = useRef<HTMLElement>(null);
   const place = places.find((p) => p.id === map.selected);
   const term = map.query.trim();
   const listed = places
     .filter((p) => matchesMapSearch(p, map.query, data))
     .filter((p) => Boolean(term) || matchesFilter(p, map.filter));
 
-  useEffect(() => {
-    if (place && window.matchMedia("(max-width: 1023px)").matches)
-      detailRef.current?.scrollIntoView({
-        block: "nearest",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      });
-  }, [place]);
-
-  const stageArtist = place && data.festival.artists.find((a) => a.stageId === place.id);
+  const stageArtists = place ? data.festival.artists.filter((a) => a.stageId === place.id) : [];
 
   return (
     <>
       <div className="flex items-end justify-between gap-3 px-4 pt-2">
         <div className="min-w-0">
-          <p className="eyebrow">{data.event.venueName}</p>
-          <h1 className="display-title mt-1 text-[44px]">The Grounds</h1>
+          <h1 className="ios-large-title">Map</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">{data.event.venueName}</p>
         </div>
+        <button
+          type="button"
+          aria-label="Location privacy"
+          onClick={() => openSheet({ kind: "privacy" })}
+          className="mb-1 grid size-12 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+        >
+          <EyeOff size={20} />
+        </button>
         <button
           type="button"
           aria-label="Show medics, security and exits"
@@ -236,12 +230,6 @@ export function MapView() {
           <Shield size={20} />
         </button>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2 px-4">
-        <Regroup />
-        <FindMe />
-      </div>
-      <RightNow />
-      <LandmarkCheckin />
       <div className="mt-4 px-4">
         <SearchField
           id="venue-search"
@@ -327,58 +315,49 @@ export function MapView() {
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
         <div className="lg:sticky lg:top-20">
           <MapCanvas expanded={false} />
-          <NearbyPlaces />
-          <p className="ios-footnote text-center">{data.festival.mapNotice}</p>
         </div>
 
         <div>
           {place ? (
-            <section
-              ref={detailRef}
-              aria-live="polite"
-              aria-labelledby="place-title"
-              className="mt-5 scroll-mt-24 px-4 lg:mt-0"
-            >
-              <div className="border-y border-separator py-4">
-                <div className="flex items-start gap-3">
-                  <IconTile icon={placeIcon(place.type)} tone={placeTone(place.type)} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {TYPE_LABELS[place.type] ?? place.type}
-                    </p>
-                    <h2 id="place-title" className="text-[22px] font-bold leading-tight">
-                      {place.name}
-                    </h2>
+            <Sheet title={place.name} onClose={() => map.setSelected(null)}>
+              <section aria-live="polite" aria-labelledby="place-title" className="px-4">
+                <div className="py-2">
+                  <div className="flex items-start gap-3">
+                    <IconTile icon={placeIcon(place.type)} tone={placeTone(place.type)} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {TYPE_LABELS[place.type] ?? place.type}
+                      </p>
+                      <h2 id="place-title" className="sr-only">
+                        {place.name}
+                      </h2>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Close place details"
-                    onClick={() => map.setSelected(null)}
-                    className="-mr-2 -mt-2 grid size-11 place-items-center rounded-full text-muted-foreground"
+                  <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
+                  {place.type === "stage" && (
+                    <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-[15px]">
+                      <strong className="font-semibold">
+                        {stageArtists.length
+                          ? stageArtists.map((artist) => artist.name).join(" · ")
+                          : "Artists to be confirmed"}
+                      </strong>
+                      <span className="block text-muted-foreground">
+                        Set times awaiting publication.
+                      </span>
+                    </p>
+                  )}
+                  <PrimaryButton
+                    className="mt-4"
+                    onClick={() => {
+                      map.setSelected(null);
+                      openSheet({ kind: "meeting", pointId: place.id });
+                    }}
                   >
-                    <X size={20} />
-                  </button>
+                    <Users size={19} /> Plan a meeting here
+                  </PrimaryButton>
                 </div>
-                <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
-                {place.type === "stage" && (
-                  <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-[15px]">
-                    <strong className="font-semibold">
-                      {stageArtist?.name ?? "Artists to be confirmed"}
-                    </strong>
-                    <span className="block text-muted-foreground">
-                      Set times awaiting publication.
-                    </span>
-                  </p>
-                )}
-                <p className="mt-3 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                  <MapPinOff size={14} aria-hidden /> Position from the plan image. No GPS or
-                  walking route yet.
-                </p>
-                <PrimaryButton className="mt-4" onClick={() => openSheet({ kind: "meeting" })}>
-                  <Users size={19} /> Plan a meeting here
-                </PrimaryButton>
-              </div>
-            </section>
+              </section>
+            </Sheet>
           ) : null}
 
           {term && listed.length === 0 && (
@@ -389,7 +368,6 @@ export function MapView() {
         </div>
       </div>
       {map.expanded && <ExpandedMap />}
-      <RideBookmark />
     </>
   );
 }

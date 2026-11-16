@@ -1,6 +1,7 @@
 import {
   UserRound,
-  Menu,
+  Ellipsis,
+  ChevronLeft,
   House,
   Compass,
   Users,
@@ -16,20 +17,15 @@ import { useAttendee } from "@/lib/attendee/use-attendee";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
-import {
-  Companion,
-  initials,
-  type CompanionContext,
-  type Sheet as SheetState,
-  type View,
-} from "./context";
+import { KonstaProvider } from "konsta/react";
+import { Companion, type CompanionContext, type Sheet as SheetState, type View } from "./context";
 import { CrewView } from "./CrewView";
 import { HomeView } from "./HomeView";
+import { EventSelection } from "./EventSelection";
 import { SafetyAccess } from "./SafetyAccess";
 import { Onboarding } from "./Onboarding";
 import { YouView } from "./YouView";
 import { InfoView } from "./InfoView";
-import { EventSections } from "./EventSections";
 import { PinPrivacy } from "./PinPrivacy";
 import { LineupView } from "./LineupView";
 import { MapView } from "./MapView";
@@ -50,7 +46,7 @@ const subscribeToHash = (callback: () => void) => {
   return () => window.removeEventListener("hashchange", callback);
 };
 const readHash = (): View =>
-  (["home", "lineup", "map", "crew", "you", "info"] as View[]).find(
+  (["home", "lineup", "map", "crew", "you", "info", "events"] as View[]).find(
     (id) => `#${id}` === window.location.hash.split("?")[0],
   ) ?? "home";
 
@@ -194,165 +190,158 @@ export function EventCompanion({ data }: { data: DemoData }) {
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
   const onboarding = attendee.ready && view === "home" && !attendee.preferences.hasName;
+  const selecting =
+    !onboarding &&
+    (view === "events" ||
+      (attendee.ready && !attendee.preferences.selectedEventId && view === "home"));
   const activeTab = view === "lineup" || view === "info" ? "home" : view;
   const message = attendee.message;
 
   return (
-    <Companion.Provider value={ctx}>
-      <div ref={shellRef} className="companion-shell min-h-dvh">
-        <a
-          href="#main-content"
-          onClick={(event) => {
-            event.preventDefault();
-            mainRef.current?.focus();
-          }}
-          className="sr-only z-50 rounded-lg bg-card px-4 py-3 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
-        >
-          Skip to content
-        </a>
-
-        <div className="min-w-0">
-          <header className="ios-bar sticky top-0 z-20 pt-safe">
-            <div className="mx-auto grid h-16 max-w-3xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem_2.75rem] items-center gap-1 px-safe">
-              <button
-                type="button"
-                aria-label="Menu: profile, updates, rules and settings"
-                onClick={() => setSheet({ kind: "menu" })}
-                className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground"
-              >
-                <Menu size={20} />
-              </button>
-              <a
-                href="#home"
-                className="justify-self-center text-[20px] font-bold lowercase tracking-tight"
-                aria-label="eventbuddies home"
-              >
-                {scrolled ? (
-                  {
-                    home: "Events",
-                    lineup: "Lineup",
-                    map: "The Grounds",
-                    crew: "Crew",
-                    you: "You",
-                    info: "Essentials",
-                  }[view]
-                ) : (
-                  <>
-                    eventbuddies<span className="text-favorite">.</span>
-                  </>
-                )}
-              </a>
-              <SafetyAccess />
-              <button
-                type="button"
-                aria-label="My profile"
-                onClick={() => navigate("you")}
-                className="grid size-11 place-items-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground"
-              >
-                {initials(attendee.preferences.profile.name)}
-              </button>
-            </div>
-            <PinPrivacy />
-            {!online && (
-              <p
-                role="status"
-                className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium"
-              >
-                <WifiOff size={14} aria-hidden /> Offline · showing the saved event
-              </p>
-            )}
-          </header>
-
-          <main
-            id="main-content"
-            ref={mainRef}
-            tabIndex={-1}
-            className={cn(
-              "mx-auto max-w-3xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] pt-1 outline-none",
-              view === "map" && "lg:max-w-6xl",
-            )}
+    <KonstaProvider theme="ios" dark materialTouchRipple={false} iosHoverHighlight={false}>
+      <Companion.Provider value={ctx}>
+        <div ref={shellRef} className="companion-shell min-h-dvh">
+          <a
+            href="#main-content"
+            onClick={(event) => {
+              event.preventDefault();
+              mainRef.current?.focus();
+            }}
+            className="sr-only z-50 rounded-lg bg-card px-4 py-3 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
           >
-            {onboarding && <Onboarding />}
-            {!onboarding &&
-              (view === "home" || view === "lineup" || view === "map" || view === "info") && (
-                <EventSections />
-              )}
-            {attendee.preferences.ride &&
-              now !== null &&
-              now >= +data.event.endAt - 30 * 60000 &&
-              now <= +data.event.endAt && (
+            Skip to content
+          </a>
+
+          <div className="min-w-0">
+            <header hidden={onboarding} className="ios-bar sticky top-0 z-20 pt-safe">
+              <div className="mx-auto flex h-11 max-w-3xl items-center gap-1 px-safe">
+                <a
+                  href="#home"
+                  className="mr-auto flex min-h-11 items-center gap-1 text-[17px] font-semibold tracking-tight"
+                  aria-label="eventbuddies home"
+                >
+                  {view === "lineup" || view === "info" ? (
+                    <>
+                      <ChevronLeft size={24} strokeWidth={2} />
+                      <span>Events</span>
+                    </>
+                  ) : scrolled ? (
+                    { home: "Events", map: "Map", crew: "Crew", you: "You", events: "Events" }[view]
+                  ) : (
+                    <>
+                      eventbuddies<span className="text-favorite">.</span>
+                    </>
+                  )}
+                </a>
+                <SafetyAccess />
                 <button
                   type="button"
-                  className="mx-4 mb-4 block min-h-11 rounded-xl bg-warning-soft p-3 text-left text-[15px]"
-                  onClick={() => ctx.openPlace(attendee.preferences.ride!.pointId)}
+                  aria-label="Menu: profile, updates, rules and settings"
+                  onClick={() => setSheet({ kind: "menu" })}
+                  className="ios-press grid size-11 place-items-center rounded-full text-foreground"
                 >
-                  Heading home soon? Your {attendee.preferences.ride.kind} is bookmarked at{" "}
-                  {places.find((p) => p.id === attendee.preferences.ride?.pointId)?.name}. Show gate
-                  ↗
+                  <Ellipsis size={23} />
                 </button>
+              </div>
+              <PinPrivacy />
+              {!online && (
+                <p
+                  role="status"
+                  className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium"
+                >
+                  <WifiOff size={14} aria-hidden /> Offline · showing the saved event
+                </p>
               )}
-            {view === "home" && !onboarding && <HomeView onShare={shareEvent} />}
-            {view === "lineup" && <LineupView searchRef={searchRef} />}
-            {view === "map" && <MapView />}
-            {view === "crew" && <CrewView />}
-            {view === "you" && <YouView />}
-            {view === "info" && <InfoView />}
-          </main>
-        </div>
+            </header>
 
-        {!onboarding && (
-          <nav
-            aria-label="Main"
-            className="companion-navigation fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
-          >
-            <ul className="companion-tabs mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
-              {NAV.map(({ id, label, icon: Icon }) => (
-                <li key={id} className="flex-1">
-                  <a
-                    href={`#${id}`}
-                    aria-current={activeTab === id ? "page" : undefined}
-                    className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
+            <main
+              id="main-content"
+              ref={mainRef}
+              tabIndex={-1}
+              className={cn(
+                "mx-auto max-w-3xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] pt-1 outline-none",
+                view === "map" && "lg:max-w-6xl",
+              )}
+            >
+              {onboarding && <Onboarding />}
+              {selecting && <EventSelection />}
+              {attendee.preferences.ride &&
+                now !== null &&
+                now >= +data.event.endAt - 30 * 60000 &&
+                now <= +data.event.endAt && (
+                  <button
+                    type="button"
+                    className="mx-4 mb-4 block min-h-11 rounded-xl bg-warning-soft p-3 text-left text-[15px]"
+                    onClick={() => ctx.openPlace(attendee.preferences.ride!.pointId)}
                   >
-                    <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
-                    {label}
-                    {id === "home" && savedCount > 0 && (
-                      <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
-                        <span className="sr-only">, </span>
-                        {savedCount}
-                        <span className="sr-only"> saved</span>
-                      </span>
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-
-        {message && (
-          <div
-            role={message.error ? "alert" : "status"}
-            className="companion-toast fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
-          >
-            {message.error ? <Info size={18} aria-hidden /> : <Check size={18} aria-hidden />}
-            {message.text}
+                    Heading home soon? Your {attendee.preferences.ride.kind} is bookmarked at{" "}
+                    {places.find((p) => p.id === attendee.preferences.ride?.pointId)?.name}. Show
+                    gate ↗
+                  </button>
+                )}
+              {view === "home" && !onboarding && !selecting && <HomeView onShare={shareEvent} />}
+              {view === "lineup" && <LineupView searchRef={searchRef} />}
+              {view === "map" && <MapView />}
+              {view === "crew" && <CrewView />}
+              {view === "you" && <YouView />}
+              {view === "info" && <InfoView />}
+            </main>
           </div>
-        )}
 
-        {sheet && (
-          <Sheet
-            title={sheetTitle(sheet, ctx)}
-            onClose={() => setSheet(null)}
-            key={
-              sheet.kind +
-              ("id" in sheet ? sheet.id : "") +
-              ("artist" in sheet ? sheet.artist.id : "")
-            }
-          >
-            <SheetContent sheet={sheet} onShare={shareEvent} />
-          </Sheet>
-        )}
-      </div>
-    </Companion.Provider>
+          {!onboarding && !selecting && (
+            <nav
+              aria-label="Main"
+              className="companion-navigation fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 px-4"
+            >
+              <ul className="companion-tabs mx-auto flex h-16 max-w-md rounded-full bg-nav px-2 shadow-float">
+                {NAV.map(({ id, label, icon: Icon }) => (
+                  <li key={id} className="flex-1">
+                    <a
+                      href={`#${id}`}
+                      aria-current={activeTab === id ? "page" : undefined}
+                      className="relative flex h-full flex-col items-center justify-center gap-0.5 rounded-full text-[12px] font-semibold text-nav-foreground aria-[current=page]:text-favorite"
+                    >
+                      <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
+                      {label}
+                      {id === "home" && savedCount > 0 && (
+                        <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
+                          <span className="sr-only">, </span>
+                          {savedCount}
+                          <span className="sr-only"> saved</span>
+                        </span>
+                      )}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+
+          {message && (
+            <div
+              role={message.error ? "alert" : "status"}
+              className="companion-toast fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
+            >
+              {message.error ? <Info size={18} aria-hidden /> : <Check size={18} aria-hidden />}
+              {message.text}
+            </div>
+          )}
+
+          {sheet && (
+            <Sheet
+              title={sheetTitle(sheet, ctx)}
+              onClose={() => setSheet(null)}
+              key={
+                sheet.kind +
+                ("id" in sheet ? sheet.id : "") +
+                ("artist" in sheet ? sheet.artist.id : "")
+              }
+            >
+              <SheetContent sheet={sheet} onShare={shareEvent} />
+            </Sheet>
+          )}
+        </div>
+      </Companion.Provider>
+    </KonstaProvider>
   );
 }

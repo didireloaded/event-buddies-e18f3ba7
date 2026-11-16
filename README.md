@@ -2,6 +2,8 @@
 
 ## Current attendee experience
 
+The latest interface refinement uses compact 44px toolbars, system screen titles, a photo-led event pass and inset settings rows. Map place details, profile editing, ticket storage and longer utility tasks open in accessible sheets. The established paper/black/pink palette and four-destination navigation remain the product identity. See [the interface review](docs/design/ios-interface-refinement.md) for the design decisions and verification limits.
+
 ### Latest feature pass
 
 - The venue map supports two-finger pinch zoom and drag panning alongside the accessible zoom buttons. Browser and keyboard navigation remain available outside the map gesture surface.

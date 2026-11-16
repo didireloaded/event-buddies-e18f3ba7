@@ -40,7 +40,7 @@ export function Section({
 export function IconTile({ icon: Icon, tone = "bg-primary" }: { icon: LucideIcon; tone?: string }) {
   return (
     <span className={cn("ios-icon-tile", tone)} aria-hidden="true">
-      <Icon size={18} strokeWidth={2.2} />
+      <Icon size={18} strokeWidth={1.75} />
     </span>
   );
 }
@@ -54,7 +54,7 @@ export function RowText({
 }) {
   return (
     <span className="min-w-0 flex-1">
-      <span className="block text-[17px] leading-snug">{title}</span>
+      <span className="block break-words text-[17px] leading-snug">{title}</span>
       {subtitle && (
         <span className="mt-0.5 block text-[15px] leading-snug text-muted-foreground">
           {subtitle}
@@ -132,7 +132,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className="min-h-11 flex-1 rounded-lg px-3 text-[15px] font-medium text-foreground aria-pressed:bg-popover aria-pressed:font-semibold aria-pressed:shadow-float"
+          className="min-h-11 flex-1 rounded-[10px] px-3 text-[15px] font-medium text-foreground aria-pressed:bg-popover aria-pressed:font-semibold aria-pressed:shadow-sm"
         >
           {option.label}
         </button>

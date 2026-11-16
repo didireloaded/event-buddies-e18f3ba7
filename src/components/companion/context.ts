@@ -5,7 +5,7 @@ import type { MapFilter, Place } from "@/lib/attendee/map";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
 import type { OfflineStatus } from "@/lib/pwa";
 
-export type View = "home" | "lineup" | "map" | "crew" | "you" | "info";
+export type View = "home" | "lineup" | "map" | "crew" | "you" | "info" | "events";
 
 export type Sheet =
   | { kind: "performance"; performance: PerformanceRecord }
@@ -13,12 +13,18 @@ export type Sheet =
   | { kind: "member"; id: string }
   | { kind: "artist"; artist: FestivalArtist }
   | { kind: "places"; ids: string[] }
+  | { kind: "meeting"; pointId?: string }
   | {
       kind:
         | "menu"
         | "updates"
-        | "meeting"
         | "privacy"
+        | "assistant"
+        | "ticket"
+        | "backup"
+        | "offline"
+        | "pings"
+        | "passport"
         | "install"
         | "event"
         | "profile"
