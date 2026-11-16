@@ -102,7 +102,7 @@ function SetRow({
         onClick={onSave}
         className={cn(
           "grid size-12 flex-none place-items-center",
-          saved ? "text-primary" : "text-tertiary-foreground",
+          saved ? "text-favorite" : "text-tertiary-foreground",
         )}
       >
         {saved ? <Check size={22} /> : <Plus size={22} />}

@@ -175,8 +175,9 @@
     box-shadow: inset 0 0.5px 0 var(--color-separator);
   }
   .ios-card {
-    background: var(--color-card);
+    background: var(--color-popover);
     border-radius: var(--radius-xl);
+    box-shadow: inset 0 0 0 1px var(--color-border);
   }
   .ios-group-indent > * + * {
     box-shadow: none;

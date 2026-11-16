@@ -146,7 +146,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             aria-pressed={preferences.following}
             onClick={toggleFollow}
             className={cn(
-              "flex min-h-11 items-center justify-center gap-2 rounded-xl bg-card text-[15px] font-semibold",
+              "flex min-h-11 items-center justify-center gap-2 rounded-xl bg-popover ring-1 ring-border text-[15px] font-semibold",
               preferences.following ? "text-favorite" : "text-primary",
             )}
           >
@@ -156,7 +156,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
           <button
             type="button"
             onClick={onShare}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-card text-[15px] font-semibold text-primary"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-popover ring-1 ring-border text-[15px] font-semibold text-primary"
           >
             <Share2 size={18} aria-hidden /> Share
           </button>
