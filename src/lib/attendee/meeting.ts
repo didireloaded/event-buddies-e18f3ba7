@@ -30,7 +30,7 @@ export function validateMeeting(
   const time = Date.parse(`${input.at}:00+02:00`);
   if (!Number.isFinite(time)) return "Choose a valid date and time.";
   if (time < +options.start || time > +options.end)
-    return "Pick a time during event hours (12:00–23:00 CAT).";
+    return "Pick a time during event hours.";
   return null;
 }
 
