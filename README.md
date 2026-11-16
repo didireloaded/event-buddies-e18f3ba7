@@ -2,6 +2,16 @@
 
 ## Current attendee experience
 
+### Latest feature pass
+
+- The venue map supports two-finger pinch zoom and drag panning alongside the accessible zoom buttons. Browser and keyboard navigation remain available outside the map gesture surface.
+- Home includes an event assistant using the server-only Lovable AI Gateway. The model selects verified fact IDs, and the app displays the saved source facts. Missing information is marked pending. Saved answers remain readable offline. Live Gateway responses require the platform’s configured service and credits.
+- You includes an offline ticket vault for JPG, PNG, WebP and PDF copies up to 8 MB. Files stay in IndexedDB on the device. Removal and Clear my data include the ticket copy.
+- `npm run preview` serves the built Cloudflare-target app locally at `http://127.0.0.1:4173`. Run `npm run build` first.
+- `npm run test:e2e` runs Playwright against the production preview with an iPhone 13 viewport in Chromium. Install its browser with `bunx playwright install chromium`, or supply `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for an existing Chromium-compatible browser. Physical Safari and Android verification are separate launch gates.
+
+Verification for this pass includes 41 unit tests, three credential-scanner tests, six Playwright journeys and the production build. The browser journeys cover onboarding/name persistence, artist favourites, meeting validation, category counts, actual two-touch zoom and drag, ticket persistence through offline reload, removal and offline event/assistant access.
+
 Event Buddies is a mobile PWA for Sound of Summer attendees in Langstrand. The primary tasks are finding venue facilities, saving artists and coordinating a meeting with friends. Navigation uses Events, Map, Crew and You, with Lineup, Map and Info links inside the event.
 
 The interface retains the paper background, black controls, pink highlights and festival artwork. System-type utility titles, inset lists, press feedback, material navigation and accessible bottom sheets provide the mobile interaction language. Wide browser windows display a 430px phone preview with its own scroll container.

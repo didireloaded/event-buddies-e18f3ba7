@@ -2,6 +2,10 @@
 
 ## Current system
 
+The subsequent feature pass adds a local ticket vault, fact-selected AI Gateway attendee assistant and pinch/drag map gestures. The production preview command now uses `scripts/preview-production.mjs`. Playwright covers six mobile Chromium journeys and is included in the GitHub Actions workflow. Local checks pass 41 unit tests and three credential-scanner tests. Live AI delivery, physical devices and connected Cloud crew behaviour remain separate verification gates.
+
+Lovable’s read-only Cloud inspection was retried after the owner resumed work. The builder returned an out-of-credits error. The enabled database status does not expose the client connection configuration. Backend integration remains pending this workspace dependency. GitHub source sync is independent of builder credits.
+
 Event Buddies uses React 19, TanStack Start, Vite 8 and a static supplied venue plan. Event facts live in `src/lib/event/sound-of-summer.ts`. Plans, preferences and landmark check-ins use browser storage. Landmark photos use IndexedDB. Cloud settings are deferred by the owner. There are currently no connected crew tables, account sessions, realtime messages or push subscriptions.
 
 The supplied engineering brief is preserved in [product-ops-source.md](product-ops-source.md). Its future architecture proposals must be checked against this implementation before use.

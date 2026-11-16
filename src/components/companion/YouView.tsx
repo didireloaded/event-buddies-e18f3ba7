@@ -5,6 +5,7 @@ import { PlanBackup } from "./PlanBackup";
 import { Section } from "./ui";
 import { AfterEventData } from "./AfterEventData";
 import { OfflineReadiness } from "./OfflineReadiness";
+import { TicketVault } from "./TicketVault";
 
 export function YouView() {
   const { attendee } = useCompanion();
@@ -47,6 +48,7 @@ export function YouView() {
         <PrivacyPanel />
       </details>
       <PlanBackup />
+      <TicketVault />
       <OfflineReadiness />
       <AfterEventData />
     </div>

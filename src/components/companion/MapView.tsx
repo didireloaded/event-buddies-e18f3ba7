@@ -10,6 +10,7 @@ import { LandmarkCheckin } from "./LandmarkCheckin";
 import { Regroup } from "./Regroup";
 import { RightNow } from "./RightNow";
 import { FindMe } from "./FindMe";
+import { useMapGestures } from "./use-map-gestures";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Chevron, IconTile, PrimaryButton, RowText, SearchField } from "./ui";
 
@@ -21,26 +22,29 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
   const hereId = activeLandmarkPin(data, attendee.preferences.here, now)?.pointId ?? null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
   const viewport = useRef<HTMLDivElement>(null);
-  const anchor = useRef<{ x: number; y: number } | null>(null);
+  const anchor = useRef<{ x: number; y: number; screenX: number; screenY: number } | null>(null);
 
   // Keep the centre of the view stationary while zooming with the buttons.
-  const setZoom = (next: number) => {
+  const setZoom = (next: number, screenX?: number, screenY?: number) => {
     const el = viewport.current;
     if (el) {
       anchor.current = {
-        x: (el.scrollLeft + el.clientWidth / 2) / el.scrollWidth,
-        y: (el.scrollTop + el.clientHeight / 2) / el.scrollHeight,
+        x: (el.scrollLeft + (screenX ?? el.clientWidth / 2)) / el.scrollWidth,
+        y: (el.scrollTop + (screenY ?? el.clientHeight / 2)) / el.scrollHeight,
+        screenX: screenX ?? el.clientWidth / 2,
+        screenY: screenY ?? el.clientHeight / 2,
       };
     }
     setZoomState(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)));
   };
+  const gestures = useMapGestures(viewport, zoom, setZoom);
   useLayoutEffect(() => {
     const el = viewport.current;
     const a = anchor.current;
     if (!el || !a) return;
     el.scrollTo({
-      left: a.x * el.scrollWidth - el.clientWidth / 2,
-      top: a.y * el.scrollHeight - el.clientHeight / 2,
+      left: a.x * el.scrollWidth - a.screenX,
+      top: a.y * el.scrollHeight - a.screenY,
     });
     anchor.current = null;
   }, [zoom]);
@@ -57,7 +61,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
       }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [target, zoom]);
+  }, [target]);
 
   const pins = visiblePins(places, map.filter, map.query, map.selected, data);
   const groups = [
@@ -77,9 +81,10 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     >
       <div
         ref={viewport}
-        className="scrollbar-none h-full w-full overflow-auto overscroll-contain"
+        {...gestures}
+        className="scrollbar-none h-full w-full touch-none overflow-auto overscroll-contain"
         tabIndex={0}
-        aria-label="Venue plan. Scroll to pan."
+        aria-label="Venue plan. Drag to pan or pinch with two fingers to zoom. Zoom buttons are also available."
       >
         <div className="relative aspect-square" style={{ width: `${zoom * 100}%` }}>
           <img

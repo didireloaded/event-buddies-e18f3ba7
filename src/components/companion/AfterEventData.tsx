@@ -19,8 +19,8 @@ export function AfterEventData() {
             "Your saved record stays on this device. Files you download remain wherever you save or share them.",
           ],
           [
-            "Landmark photo",
-            "Stored on this device until you remove it or use Clear my plans, profile and photo.",
+            "Landmark photo & ticket copy",
+            "Stored on this device until you remove them or use Clear my plans, profile, ticket and photo.",
           ],
           [
             "Cloud crew chat & photos",

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { RideBookmark } from "./RideBookmark";
 import { PostEventState } from "./PostEventState";
 import { eventLifecycle } from "@/lib/attendee/lifecycle";
+import { EventAssistant } from "./EventAssistant";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
   const { data, attendee, now, navigate, openSheet, places } = useCompanion();
@@ -253,6 +254,17 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         </div>
       </Section>
 
+      <EventAssistant />
+      <div className="px-4 mt-4">
+        <a href="#you" className="ios-row">
+          <IconTile icon={Ticket} />
+          <RowText
+            title="Save your ticket offline"
+            subtitle="Keep a screenshot or PDF on this phone"
+          />
+          <Chevron />
+        </a>
+      </div>
       <Section title="Your crew" id="home-crew" className="px-4">
         <div className="ios-group">
           <a href="#crew" className="ios-row py-3">
