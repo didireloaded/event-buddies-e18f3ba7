@@ -12,6 +12,7 @@ export type Preferences = {
   meeting: LocalMeeting | null;
   ride: { pointId: string; note: string; kind: "car" | "shuttle" } | null;
   stamps: string[];
+  festivalMode: "music" | "friends" | null;
 };
 
 /** Browser storage key. Preferences are scoped per event and never leave this device. */
@@ -21,12 +22,13 @@ export function defaultPreferences(data: DemoData): Preferences {
   return {
     saved: data.savedPerformanceIds,
     savedArtists: [],
-    profile: { name: data.crewMembers[0]?.displayName ?? "Guest", handle: "didi" },
+    profile: { name: "Guest", handle: "guest" },
     following: data.following,
     status: "Enjoying the music",
     meeting: null,
     ride: null,
     stamps: [],
+    festivalMode: null,
   };
 }
 
@@ -44,6 +46,10 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const ride = stored["ride"] as Record<string, unknown> | undefined;
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
   return {
+    festivalMode:
+      stored["festivalMode"] === "music" || stored["festivalMode"] === "friends"
+        ? stored["festivalMode"]
+        : null,
     ride:
       ride &&
       typeof ride["pointId"] === "string" &&

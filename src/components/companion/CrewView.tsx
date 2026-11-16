@@ -1,4 +1,4 @@
-import { CalendarClock, Info, Map as MapIcon, Pencil, ShieldCheck, UserPlus } from "lucide-react";
+import { CalendarClock, Info, Map as MapIcon, Pencil, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { eventTime } from "@/lib/attendee/schedule";
 import type { LocalMeeting } from "@/lib/attendee/meeting";
@@ -33,7 +33,7 @@ function MeetingCountdown({ meeting }: { meeting: LocalMeeting }) {
 }
 
 export function CrewView() {
-  const { data, attendee, places, openSheet, openPlace } = useCompanion();
+  const { attendee, places, openSheet, openPlace } = useCompanion();
   const { preferences } = attendee;
   const meeting = preferences.meeting;
   const meetingPlace = meeting ? places.find((p) => p.id === meeting.pointId) : undefined;
@@ -41,9 +41,9 @@ export function CrewView() {
   return (
     <>
       <h1 className="display-title px-4 pt-2 text-[44px]">Crew</h1>
-      <p className="px-4 text-[15px] text-muted-foreground">{data.crew.name} · demo crew</p>
-      <FestivalBump />
-      <FestivalPassport />
+      <p className="px-4 text-[15px] text-muted-foreground">
+        Pick a place. Agree on a time. Share the plan.
+      </p>
 
       <Section title="Meeting plan" id="crew-meeting" className="px-4">
         <div className="ios-card p-4">
@@ -72,8 +72,8 @@ export function CrewView() {
               <div className="flex items-center gap-3">
                 <IconTile icon={CalendarClock} tone="bg-pin-amenity" />
                 <RowText
-                  title="Same place. Same time."
-                  subtitle="Pick a landmark on the plan and a time to regroup."
+                  title="Where are we meeting?"
+                  subtitle="Choose a stage, gate or landmark. Your friends can scan the plan into their phones."
                 />
               </div>
               <PrimaryButton className="mt-4" onClick={() => openSheet({ kind: "meeting" })}>
@@ -87,51 +87,50 @@ export function CrewView() {
         </p>
       </Section>
 
-      <Section title="People" id="crew-people" className="px-4">
+      <FestivalBump />
+
+      <Section title="Your festival profile" id="crew-people" className="px-4">
         <div className="ios-group ios-group-indent">
-          {data.crewMembers.map((member, index) => {
-            const isMe = index === 0;
-            const name = isMe ? preferences.profile.name : member.displayName;
-            return (
-              <button
-                key={member.userId}
-                type="button"
-                className="ios-row"
-                onClick={() => openSheet({ kind: "member", id: member.userId })}
-              >
-                <Avatar index={index} label={initials(name)} />
-                <RowText
-                  title={
-                    <>
-                      {name}
-                      {isMe && (
-                        <span className="ml-1.5 text-[15px] text-muted-foreground">(you)</span>
-                      )}
-                    </>
-                  }
-                  subtitle={isMe ? preferences.status : "Demo profile · location off"}
-                />
-                <Chevron />
-              </button>
-            );
-          })}
-          <div className="ios-row" aria-disabled="true">
-            <IconTile icon={UserPlus} tone="bg-pin-other" />
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "profile" })}>
+            <Avatar index={0} label={initials(preferences.profile.name)} />
             <RowText
-              title={<span className="text-muted-foreground">Invite friends</span>}
-              subtitle="Unavailable · needs accounts (not connected)"
+              title={
+                preferences.profile.name === "Guest" ? "Add your name" : preferences.profile.name
+              }
+              subtitle="The name friends see when you share your plan"
             />
-          </div>
+            <Chevron />
+          </button>
         </div>
+        <label className="mt-4 block text-[15px] font-semibold">
+          Festival mode
+          <select
+            className="ios-field mt-2"
+            value={preferences.festivalMode ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "music" || value === "friends")
+                attendee.update({ festivalMode: value });
+            }}
+          >
+            <option value="" disabled>
+              Choose your mode
+            </option>
+            <option value="music">Here for the music</option>
+            <option value="friends">Planning with friends</option>
+          </select>
+        </label>
       </Section>
+
+      <FestivalPassport />
 
       <Section title="Privacy" id="crew-privacy" className="px-4">
         <div className="ios-group">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "privacy" })}>
             <IconTile icon={ShieldCheck} tone="bg-pin-entrance" />
             <RowText
-              title="Live location isn’t connected"
-              subtitle="Your phone’s location is never read in this demo."
+              title="You control what you share"
+              subtitle="QR sharing sends the details you choose. Live location and accounts are pending."
             />
             <Info size={18} className="text-primary" aria-hidden />
           </button>

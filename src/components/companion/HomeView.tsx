@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
-import { initials, useCompanion } from "./context";
+import { useCompanion } from "./context";
 import { ArtistRow } from "./LineupView";
-import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
+import { Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
 import { cn } from "@/lib/utils";
 import { RideBookmark } from "./RideBookmark";
 
@@ -55,6 +55,38 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         </h1>
       </div>
 
+      {ready && !preferences.festivalMode && (
+        <section
+          aria-labelledby="first-visit-title"
+          className="mx-4 mt-5 border-y border-border py-4"
+        >
+          <h2 id="first-visit-title" className="text-[20px] font-bold">
+            How are you spending the festival?
+          </h2>
+          <p className="mb-3 mt-1 text-[15px] text-muted-foreground">
+            Save your artists, choose a meeting point and share the plan with your friends.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <PrimaryButton
+              onClick={() => {
+                if (attendee.update({ festivalMode: "music" })) navigate("lineup");
+              }}
+            >
+              Here for music
+            </PrimaryButton>
+            <PrimaryButton
+              onClick={() => {
+                if (attendee.update({ festivalMode: "friends" })) navigate("crew");
+              }}
+            >
+              Plan with friends
+            </PrimaryButton>
+          </div>
+          <a href="#map" className="mt-2 flex min-h-11 items-center font-semibold">
+            Explore the grounds ↗
+          </a>
+        </section>
+      )}
       <figure className="relative mx-4 mt-4 overflow-hidden">
         <img
           src={data.event.heroImageUrl}
@@ -135,7 +167,9 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               <br />
               together.
             </span>
-            <span className="text-[13px]">{data.crew.name} ↗</span>
+            <span className="text-[13px]">
+              {meeting ? "Your meeting plan" : "Plan with friends"} ↗
+            </span>
           </a>
         </div>
       </div>
@@ -245,22 +279,15 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       <Section title="Your crew" id="home-crew" className="px-4">
         <div className="ios-group">
           <a href="#crew" className="ios-row py-3">
-            <span className="flex -space-x-2">
-              {data.crewMembers.slice(0, 3).map((member, index) => (
-                <span key={member.userId} className="rounded-full ring-2 ring-card">
-                  <Avatar
-                    index={index}
-                    label={initials(index === 0 ? preferences.profile.name : member.displayName)}
-                  />
-                </span>
-              ))}
-            </span>
+            <IconTile icon={Users} />
             <RowText
-              title={meetingPlace ? `Meet at ${meetingPlace.name}` : data.crew.name}
+              title={
+                meetingPlace ? `Meet at ${meetingPlace.name}` : "Make a plan with your friends"
+              }
               subtitle={
                 meeting
                   ? `${eventTime(meeting.at)} CAT · saved on this device`
-                  : "Plan where to regroup"
+                  : "Choose a meeting point, then share it by QR"
               }
             />
             <Chevron />
@@ -288,8 +315,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       </Section>
 
       <p className="ios-footnote mt-6 px-8 pb-4 text-center">
-        Demo companion. Your saved choices stay in this browser on this device. Information checked{" "}
-        {data.festival.sourceCheckedAt}.
+        Event information checked {data.festival.sourceCheckedAt}.
       </p>
     </>
   );
