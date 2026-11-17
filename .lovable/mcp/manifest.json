@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "sdk_version": "3.5.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ynxkniraobmlvbtaaptk.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "festival-map-meetup-buddies",
+      "version": "0.1.0",
+      "title": "Festival Map Meetup Buddies"
+    },
+    "tools": [
+      {
+        "name": "get_event_info",
+        "title": "Get event info",
+        "description": "Get Sound of Summer 2026 facts: date, hours, venue, organiser, ticket link and what is still unpublished.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_lineup",
+        "title": "List lineup",
+        "description": "List announced Sound of Summer artists with their billing and stage where announced. Set times are not published.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_venue_places",
+        "title": "Search venue places",
+        "description": "Find places on the Sound of Summer venue plan (stages, toilets, bars, water, medical, gates). Leave query empty to list all.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "e.g. 'toilets', 'medical', 'Main Stage'.",
+              "type": "string",
+              "maxLength": 80
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
