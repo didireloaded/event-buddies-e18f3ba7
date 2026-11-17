@@ -1,3 +1,5 @@
+import { clearAccountCache, queuedActions } from "@/lib/account/outbox";
+import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { photoStore } from "@/lib/attendee/ride-photo";
 import { clearMemories } from "@/lib/attendee/memories";
@@ -25,14 +27,16 @@ export function PrivacyPanel() {
         or device data leaves previously shared copies with their recipients.
       </p>
       <p>
-        Your profile, favourites, meetings, imported plans and ride notes use this browser’s
-        storage. Landmark photos and ticket copies use local photo storage. Clearing browser data
+        Guest favourites and meetings, your local profile, imported plans and ride notes use this
+        browser’s storage. Signed-in favourites and your private meeting plan also sync to your
+        account. Landmark photos and ticket copies use local photo storage. Clearing browser data
         removes those records. Your photo diary also stays on this device. Download photos you want
         to keep.
       </p>
       <p>
-        Accounts, live crew location, attendee discovery and in-app message delivery are awaiting a
-        Cloud connection.
+        Live crew location, attendee discovery and in-app message delivery are pending. Clearing
+        this phone signs you out. Synced favourites and meetings remain in your account. Sync queued
+        changes before clearing.
       </p>
       <SecondaryButton
         disabled={clearing}
@@ -40,6 +44,13 @@ export function PrivacyPanel() {
           setClearing(true);
           setError("");
           try {
+            if (attendee.auth.user) {
+              if (queuedActions(attendee.scope).length)
+                throw new Error("Sync queued changes first.");
+              const result = await supabase.auth.signOut({ scope: "local" });
+              if (result.error) throw result.error;
+              clearAccountCache(attendee.scope);
+            }
             if ("indexedDB" in window) {
               await photoStore(data.event.id, "remove");
               await photoStore(`ticket:${data.event.id}`, "remove");

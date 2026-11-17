@@ -26,7 +26,7 @@ The interface retains the paper background, black controls, pink highlights and 
 - At seven days, Home labels the recap as a saved archive. At 30 days, it shows the retained festival record and the pending next-edition announcement.
 - The data-retention details are reachable from the recap and You. Browser data persists until the attendee clears it. Exported copies remain with their recipients.
 
-Cloud accounts, crew chat, server retention jobs and push notifications await the backend connection. The seven-day and 30-day phases currently describe the local recap. Next-edition dates remain pending until announced.
+Attendee accounts now sync favourites and the current private meeting plan. Crew chat, server retention jobs and push notifications remain pending. The seven-day and 30-day phases currently describe the local recap. Next-edition dates remain pending until announced.
 
 The original adaptation brief below records earlier direction. The current implementation and the sections above describe the latest interface and lifecycle behaviour.
 
@@ -63,3 +63,7 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Attendee Cloud sync
+
+The connected Lovable Cloud backend stores signed-in attendees’ favourite artists and current private meeting plan. The Lineup day-plan suggestion stays on the current device. See [the implementation and verification notes](docs/engineering/attendee-cloud-sync.md) for schema source, configuration, retry behavior and remaining backend work.

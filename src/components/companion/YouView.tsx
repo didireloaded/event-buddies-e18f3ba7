@@ -8,6 +8,7 @@ import {
   Stamp,
 } from "lucide-react";
 import { initials, useCompanion } from "./context";
+import { AccountPanel } from "./AccountPanel";
 import { AfterEventData } from "./AfterEventData";
 import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
 
@@ -17,6 +18,7 @@ export function YouView() {
   return (
     <div className="px-4">
       <h1 className="ios-large-title pt-2">You</h1>
+      <AccountPanel />
       <button
         type="button"
         className="ios-row mt-4 gap-4 rounded-2xl bg-popover py-5"
