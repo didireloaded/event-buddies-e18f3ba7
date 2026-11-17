@@ -48,6 +48,21 @@ test("event calendar filters dates and exports the verified event hours", async 
     .getByRole("button", { name: "Calendar" })
     .click();
   await expect(page.getByText("December 2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("Published event date", { exact: true })).toHaveCount(0);
+  const dateButtons = page.locator(".event-calendar button[data-day]");
+  const dateSizes = await dateButtons.evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const { width, height } = button.getBoundingClientRect();
+      return { width, height };
+    }),
+  );
+  expect(dateSizes.length).toBeGreaterThan(27);
+  expect(dateSizes.every(({ height }) => height === 44)).toBe(true);
+  expect(
+    Math.max(...dateSizes.map(({ width }) => width)) -
+      Math.min(...dateSizes.map(({ width }) => width)),
+  ).toBeLessThan(1);
+
   await page.getByRole("button", { name: /Sunday, December 27th, 2026/ }).click();
   await expect(page.getByText("No published events on this date.")).toBeVisible();
   await page.getByRole("button", { name: "Show Sound of Summer", exact: true }).click();
