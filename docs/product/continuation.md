@@ -2,7 +2,7 @@
 
 ## Owner direction
 
-Continue autonomously with the supplied references and account for every pasted proposal. Use black, white and neutral grey. Keep backend work deferred. The owner requested stopping at 5% remaining usage and continuing after a natural reset. Account usage can be read through the Codex desktop usage-limits tool. A reset purchase is not authorised.
+Continue autonomously with the supplied references and account for every pasted proposal. The latest palette refinement uses restrained coastal teal and muted amber over neutral surfaces. Keep backend work deferred. The owner requested stopping at 5% remaining usage and continuing after a natural reset. Account usage can be read through the Codex desktop usage-limits tool. A reset purchase is not authorised.
 
 ## Source and scope
 

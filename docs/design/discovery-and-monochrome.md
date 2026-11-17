@@ -2,7 +2,7 @@
 
 ## Brief and reference lock
 
-Build the attendee PWA for choosing a real event, navigating its venue and coordinating saved plans. The owner’s latest visual direction is black, white and neutral grey. Preserve the real event photography and site-plan coordinates.
+Build the attendee PWA for choosing a real event, navigating its venue and coordinating saved plans. The owner’s latest visual direction adds restrained coastal colour to the neutral base. Deep teal owns actions, favourites, active navigation and focus. Muted amber distinguishes stage pins on the charcoal map. Preserve the real event photography and site-plan coordinates.
 
 The supplied glass-card reference’s centre phone owns event selection composition. The supplied calendar owns the month grid. The map reference owns the charcoal surface, search/filter hierarchy and marker treatment. Existing iOS typography, accessible dialogs, hash history and safe areas remain the interaction foundation.
 
@@ -36,3 +36,11 @@ Physical iPhone Safari, installed standalone mode, VoiceOver, camera permission 
 All backend work is deferred by the owner. Accounts, connected memberships, live GPS sharing, delivered requests, voting, live polls, announcements, moderation, organiser publishing, official ticket validation and additional verified event content remain separate dependencies. No schema migrations, provider settings or new gateway endpoints were changed.
 
 Final responsive geometry checks covered Events, Home, Lineup, Map, Crew, Profile, Essentials and Calendar at 320, 390, 768 and 1440 CSS pixels with no horizontal overflow. Rendered event-card, calendar, Home, charcoal map, bingo and short-screen signal screenshots were inspected. These are Chromium web checks. Hosted CI and Lovable sync are checked separately during publication.
+
+## Restrained colour refinement
+
+17 November 2026. The owner asked for more colour after reviewing the monochrome pass. This remains a mobile attendee PWA for finding venue facilities, saving artists and meeting friends. Primary navigation, touch sizes, safe areas and truthful local states retain the existing structure.
+
+Use deep coastal teal for actionable controls and saved state, pale teal for selected filters, and muted amber outlines for actual stage markers. White grouped surfaces and neutral text keep reading light. Event photography supplies the broad colour range. This avoids colouring every row or card and keeps pink out of the interaction palette. The dark-map selection tint has a lighter token for legibility. Icons and labels accompany colour states.
+
+Palette verification passed npm run check and all 18 production-preview browser tests. Eight screen states at 320, 390, 768 and 1440px had no horizontal overflow. Home and Map screenshots were visually inspected at 390px. Browser-rendered sRGB contrast measured 6.78:1 for teal/white controls, 7.01:1 for selected-map-filter text, and 9.57:1 for stage icons against the dark pin surface. Physical-device checks remain outstanding.
