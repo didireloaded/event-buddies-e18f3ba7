@@ -46,3 +46,5 @@ use the editor.
 - Keep bottom navigation hidden through onboarding and event selection. It appears only after the attendee confirms an event. Preserve reduced-motion behavior and crew-plan import deep links.
 - All backend work is deferred by the owner. Preserve the current integration boundaries. `docs/product/source-register.md` indexes all supplied text attachments and `docs/product/requirements-ledger.md` tracks the 220 numbered feature ideas, including partial and deferred work.
 - `docs/` contains supplied references and archived proposals. The skills explicitly linked above are active project guidance. Verify proposals against current code before describing them as implemented.
+
+- Agent integrations (MCP): tools live in src/lib/mcp/ and are mounted by mcpPlugin at /mcp; OAuth via managed auth, consent at /.lovable/oauth/consent, sign-in at /login (honours ?next). Why: lets external assistants read public event facts as a signed-in user.
