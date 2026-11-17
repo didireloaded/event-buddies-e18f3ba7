@@ -20,7 +20,7 @@ Earlier supplied documents remain in docs/engineering/references and the project
 
 - Explicit latest requests govern. Keep onboarding and event selection without bottom navigation, then reveal navigation after event confirmation. Earlier browse-before-name proposals remain recorded.
 - The glass photo-card event picker follows the supplied composite event-discovery reference. The calendar follows the supplied month-grid reference.
-- Use black, white and neutral grey across the interface. Original photography retains its authentic colours.
+- The latest palette uses restrained coastal teal actions and muted amber stage markers over neutral surfaces. Original photography retains its authentic colours.
 - Keep the supplied venue-plan coordinates. Road-map styling does not authorize invented roads, walking routes or GPS positions.
 - Follow the current journey audit’s direct Lineup access. Tabs are Events, Lineup, Map and Crew, with Profile in the header. Keep Map as a primary destination. The contrary scroll-only Map proposal remains archived.
 - Backend, accounts, live crew membership, location delivery, organiser publishing, moderation and live participation remain deferred. No local database migrations or gateway changes are part of this work.

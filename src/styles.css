@@ -78,26 +78,26 @@
 
 :root {
   --radius: 0.75rem;
-  /* iOS grouped canvas, white surfaces and monochrome interaction tint. */
+  /* Coastal teal interaction tint over quiet iOS grouped surfaces. */
   --background: oklch(0.96 0.003 265);
   --card: oklch(0.96 0.003 265);
   --foreground: oklch(0.16 0 0);
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.16 0 0);
+  --primary: oklch(0.46 0.085 195);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.925 0.005 265);
   --secondary-foreground: var(--foreground);
   --muted: oklch(0.925 0.005 265);
   --muted-foreground: oklch(0.47 0.005 265);
   --tertiary-foreground: oklch(0.52 0.005 265);
-  --accent: oklch(0.925 0.005 265);
+  --accent: var(--favorite-soft);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.21 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --favorite: oklch(0.16 0 0);
-  --favorite-soft: oklch(0.91 0 0);
+  --favorite: var(--primary);
+  --favorite-soft: oklch(0.93 0.025 190);
   --success: oklch(0.55 0.13 165);
   --warning: oklch(0.5 0.12 65);
   --warning-soft: oklch(0.95 0.04 85);
@@ -106,8 +106,8 @@
   --border: oklch(0.86 0.004 265);
   --separator: oklch(0.86 0.004 265);
   --input: oklch(0.86 0.004 265);
-  --ring: oklch(0.35 0 0);
-  --pin-stage: oklch(0.16 0 0);
+  --ring: var(--primary);
+  --pin-stage: oklch(0.8 0.12 80);
   --pin-safety: oklch(0.15 0.005 60);
   --pin-entrance: oklch(0.15 0.005 60);
   --pin-amenity: oklch(0.3 0.005 60);
@@ -234,8 +234,8 @@
     --muted-foreground: oklch(0.8 0.005 285);
     --fill: oklch(0.32 0.008 285);
     --border: oklch(0.4 0.008 285);
-    --favorite: oklch(0.98 0 0);
-    --favorite-soft: oklch(0.36 0 0);
+    --favorite: oklch(0.83 0.07 190);
+    --favorite-soft: oklch(0.34 0.035 190);
     color: var(--foreground);
     background: var(--background);
     min-height: calc(100dvh - 7rem);
@@ -263,11 +263,11 @@
     box-shadow: inset 0 0 0 0.5px var(--border);
   }
   .venue-map-page .ios-chip[aria-pressed="true"] {
-    background: white;
-    color: black;
+    background: var(--favorite-soft);
+    color: var(--favorite);
   }
   .venue-map-page .ios-chip[aria-pressed="true"] span {
-    color: black;
+    color: var(--favorite);
   }
   dialog .venue-map-canvas {
     height: 100%;
@@ -286,9 +286,14 @@
     background: oklch(0.2 0.008 285);
     font-size: 14px;
   }
-  .venue-map-canvas .map-pin-here {
-    background: white;
-    color: black;
+  .venue-map-canvas .map-pin[data-type="stage"] .map-pin-dot {
+    border-color: var(--color-pin-stage);
+    color: var(--color-pin-stage);
+  }
+  .venue-map-canvas .map-pin .map-pin-dot.map-pin-here {
+    background: var(--favorite);
+    border-color: var(--favorite);
+    color: var(--background);
   }
   .venue-map-canvas .map-pin-label {
     font-size: 14px;

@@ -121,6 +121,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                 type="button"
                 className="map-pin"
                 data-selected={selected}
+                data-type={place.type}
                 style={{ left: `${place.x}%`, top: `${place.y}%` }}
                 aria-label={
                   many
