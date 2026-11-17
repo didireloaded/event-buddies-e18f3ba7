@@ -1,6 +1,6 @@
 # Pasted requirements reconciliation
 
-Updated 17 November 2026. The owner requested all pasted material be accounted for, a monochrome visual direction and all backend work deferred. This is a requirements ledger. A saved proposal is not an implemented feature. Each item below retains its source number. Existing features are qualified by their actual local behavior.
+Updated 17 November 2026. The owner requested all pasted material be accounted for and has now authorised backend implementation. The latest palette uses restrained coastal teal. See `docs/engineering/attendee-verification-2026-11-17.md` for the current verification pass. This is a requirements ledger. A saved proposal is not an implemented feature. Each item below retains its source number. Existing features are qualified by their actual local behavior.
 
 ## Source preservation
 
@@ -23,7 +23,7 @@ Earlier supplied documents remain in docs/engineering/references and the project
 - The latest palette uses restrained coastal teal actions and muted amber stage markers over neutral surfaces. Original photography retains its authentic colours.
 - Keep the supplied venue-plan coordinates. Road-map styling does not authorize invented roads, walking routes or GPS positions.
 - Follow the current journey audit’s direct Lineup access. Tabs are Events, Lineup, Map and Crew, with Profile in the header. Keep Map as a primary destination. The contrary scroll-only Map proposal remains archived.
-- Backend, accounts, live crew membership, location delivery, organiser publishing, moderation and live participation remain deferred. No local database migrations or gateway changes are part of this work.
+- Accounts and private shared crews now have Cloud implementations. Public discovery, messaging, organiser publishing and moderation remain unfinished. Historical table dispositions below must be read alongside the latest verification report.
 
 ## Exact current build scope
 

@@ -8,7 +8,7 @@ import { Sheet } from "./Sheet";
 import { PrimaryButton } from "./ui";
 
 export function AccountPanel() {
-  const { attendee, data } = useCompanion();
+  const { attendee, data, crew } = useCompanion();
   const { auth, sync } = attendee;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,7 +83,7 @@ export function AccountPanel() {
             disabled={busy}
             className="flex min-h-11 items-center gap-2 text-favorite disabled:opacity-50"
             onClick={() => {
-              if (queuedActions(attendee.scope).length) setConfirmLeave(true);
+              if (queuedActions(attendee.scope).length || crew.pending) setConfirmLeave(true);
               else void signOut();
             }}
           >
@@ -159,8 +159,8 @@ export function AccountPanel() {
       {confirmLeave && (
         <Sheet title="Sign out with queued changes?" onClose={() => setConfirmLeave(false)}>
           <p className="mb-4 text-[17px]">
-            {sync.pending} changes have not reached your account. Signing out removes this account’s
-            local cache and queued changes from this phone.
+            {sync.pending + (crew.pending ? 1 : 0)} changes have not reached your account. Signing
+            out removes this account’s local cache and queued changes from this phone.
           </p>
           <PrimaryButton
             disabled={busy}

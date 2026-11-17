@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { DemoData, PerformanceRecord } from "@/lib/event/types";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { MapFilter, Place } from "@/lib/attendee/map";
+import type { useCrew } from "@/lib/crew/use-crew";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
 import type { OfflineStatus } from "@/lib/pwa";
 
@@ -41,6 +42,7 @@ export type CompanionContext = {
   data: DemoData;
   places: Place[];
   attendee: ReturnType<typeof useAttendee>;
+  crew: ReturnType<typeof useCrew>;
   now: number | null;
   offlineStatus: OfflineStatus;
   view: View;

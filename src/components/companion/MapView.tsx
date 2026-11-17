@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
-import { useCompanion } from "./context";
+import { initials, useCompanion } from "./context";
 import { Sheet } from "./Sheet";
 import { useMapGestures } from "./use-map-gestures";
 import { MAP_FILTERS, TYPE_LABELS, placeIcon, placeTone } from "./places";
@@ -13,7 +13,7 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
 function MapCanvas({ expanded }: { expanded: boolean }) {
-  const { data, places, map, openSheet, attendee, now } = useCompanion();
+  const { data, places, map, openSheet, attendee, now, crew } = useCompanion();
   const hereId = activeLandmarkPin(data, attendee.preferences.here, now)?.pointId ?? null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
   const [baseSize, setBaseSize] = useState(0);
@@ -110,6 +110,31 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             className="venue-map-image absolute inset-0 h-full w-full select-none"
             draggable={false}
           />
+          {places.map((place) => {
+            const members =
+              crew.crew?.members.filter(
+                (member) =>
+                  member.pointId === place.id &&
+                  member.expiresAt &&
+                  Date.parse(member.expiresAt) > (now ?? Date.now()),
+              ) ?? [];
+            if (!members.length) return null;
+            return (
+              <button
+                key={`crew-${place.id}`}
+                type="button"
+                className="absolute z-20 grid min-h-11 min-w-11 -translate-x-1/2 -translate-y-full place-items-center rounded-full border-2 border-background bg-primary px-2 text-[14px] font-semibold text-primary-foreground"
+                style={{ left: `${place.x}%`, top: `${place.y}%` }}
+                aria-label={`${members.map((m) => m.name).join(", ")} shared ${place.name}`}
+                onClick={() => {
+                  map.setSelected(place.id);
+                  if (expanded) map.setExpanded(false);
+                }}
+              >
+                {members.length > 1 ? `${members.length} crew` : initials(members[0]!.name)}
+              </button>
+            );
+          })}
           {groups.map(({ place, ids }) => {
             const Icon = placeIcon(place.type);
             const many = ids.length > 1;
@@ -223,7 +248,7 @@ function ExpandedMap() {
 }
 
 export function MapView() {
-  const { data, places, map, openSheet } = useCompanion();
+  const { data, places, map, openSheet, crew, now } = useCompanion();
   const place = places.find((p) => p.id === map.selected);
   const term = map.query.trim();
   const listed = places
@@ -371,6 +396,23 @@ export function MapView() {
                     </div>
                   </div>
                   <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
+                  {crew.crew?.members
+                    .filter(
+                      (m) =>
+                        m.pointId === place.id &&
+                        m.expiresAt &&
+                        Date.parse(m.expiresAt) > (now ?? Date.now()),
+                    )
+                    .map((m) => (
+                      <p key={m.id} className="mt-2 text-[15px] text-primary">
+                        {m.name} shared this landmark until{" "}
+                        {new Date(m.expiresAt!).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        .
+                      </p>
+                    ))}
                   {place.type === "stage" && (
                     <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-[15px]">
                       <strong className="font-semibold">

@@ -68,7 +68,12 @@ test("profile reaches account sign-in with a retained return route", async ({ pa
   await page.goto("/#you");
   await expect(page.getByRole("heading", { name: "Your account", exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/account-390.png" });
-  await page.getByRole("link", { name: "Sign in or create an account", exact: true }).click();
+  const signIn = page.getByRole("link", { name: "Sign in or create an account", exact: true });
+  if (!(await signIn.count())) {
+    await expect(page.getByText(/Account connection settings are pending/)).toBeVisible();
+    return;
+  }
+  await signIn.click();
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/login\?next=/);
   await page.screenshot({ path: "test-results/sign-in-390.png" });

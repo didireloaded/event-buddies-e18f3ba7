@@ -1,6 +1,7 @@
 import { MessageCircle, MapPin, Dices } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
+import { ConnectedCrew } from "./ConnectedCrew";
 import { CrewPeople } from "./CrewPeople";
 import { FestivalBump } from "./FestivalBump";
 import { FindMe } from "./FindMe";
@@ -16,6 +17,7 @@ export function CrewView() {
   return (
     <>
       <h1 className="ios-large-title px-4 pt-2">Crew</h1>
+      <ConnectedCrew />
       <CrewPeople />
       <div className="mx-4 mt-5">
         <h2 className="ios-section-title">Find each other</h2>
