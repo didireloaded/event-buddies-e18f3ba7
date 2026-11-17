@@ -1,22 +1,12 @@
-import {
-  CalendarPlus,
-  Check,
-  Heart,
-  Info,
-  Music2,
-  Plus,
-  Shuffle,
-  TriangleAlert,
-} from "lucide-react";
+import { CalendarPlus, Check, Heart, Music2, Plus, Shuffle, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { suggestDayPlan } from "@/lib/day-plan/day-plan.functions";
-import type { DayPlan } from "@/lib/day-plan/schema";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { PerformanceRecord } from "@/lib/event/types";
 import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/schedule";
 import { createLineupPoster } from "@/lib/attendee/recap-card";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
+import { DayPlanPanel } from "./DayPlanPanel";
 import { ArtistAvatar } from "./ArtistAvatar";
 import { EventSections } from "./EventSections";
 import { Chevron, IconTile, Notice, RowText, SearchField, Section, Segmented } from "./ui";
@@ -152,9 +142,6 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState<"all" | "saved">("all");
   const [stage, setStage] = useState("all");
-  const [plan, setPlan] = useState<DayPlan | null>(null);
-  const [planState, setPlanState] = useState<"idle" | "loading" | "error">("idle");
-  const [planError, setPlanError] = useState<string | null>(null);
   const [exportingPoster, setExportingPoster] = useState(false);
   const term = query.trim().toLowerCase();
   const stageName = (id: string) => data.stages.find((s) => s.id === id)?.name ?? "Stage";
@@ -178,30 +165,6 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
   );
   const savedCount = preferences.savedArtists.length + mine.length;
   const hasTimetable = data.performances.length > 0;
-  const suggestPlan = async () => {
-    setPlanState("loading");
-    setPlanError(null);
-    try {
-      const result = await suggestDayPlan({
-        signal: AbortSignal.timeout(8000),
-        data: {
-          savedArtistIds: preferences.savedArtists,
-          meeting: preferences.meeting,
-        },
-      });
-      if (!result.ok) {
-        setPlanState("error");
-        setPlanError(result.error);
-        return;
-      }
-      setPlan(result.plan);
-      setPlanState("idle");
-    } catch {
-      setPlanState("error");
-      setPlanError("Couldn’t reach the planning service. Try again.");
-    }
-  };
-
   return (
     <>
       <h1 className="ios-large-title px-4 pt-2">Lineup</h1>
@@ -265,6 +228,8 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           </Notice>
         </div>
       )}
+
+      <DayPlanPanel key={attendee.scope} />
 
       <Section
         title={`${artists.length} announced ${artists.length === 1 ? "artist" : "artists"}`}
@@ -335,23 +300,6 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
 
       <Section title="Plan" id="lineup-tools" className="px-4">
         <div className="ios-group ios-group-indent">
-          <button
-            type="button"
-            className="ios-row"
-            onClick={suggestPlan}
-            disabled={planState === "loading"}
-          >
-            <IconTile icon={CalendarPlus} tone="bg-favorite" />
-            <RowText
-              title="Suggest my day plan"
-              subtitle={
-                planState === "loading"
-                  ? "Building a plan from your saved artists…"
-                  : "Use favourites and your saved meeting time"
-              }
-            />
-            <Chevron />
-          </button>
           <button type="button" className="ios-row" onClick={spin}>
             <IconTile icon={Shuffle} tone="bg-favorite" />
             <RowText
@@ -415,54 +363,6 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             />
           </button>
         </div>
-        {planError && (
-          <Notice icon={Info} tone="warning">
-            <strong className="font-semibold">Couldn’t build a plan.</strong> {planError}
-            <button type="button" className="ml-2 font-semibold underline" onClick={suggestPlan}>
-              Try again
-            </button>
-          </Notice>
-        )}
-        {plan && (
-          <div className="mt-3 ios-group ios-group-indent" aria-live="polite">
-            <div className="px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-[20px] font-bold">Your suggested day</h2>
-                  <p className="mt-1 text-[15px] text-muted-foreground">{plan.summary}</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-[15px] font-semibold text-primary"
-                  onClick={() => setPlan(null)}
-                >
-                  Clear
-                </button>
-              </div>
-              <ol className="mt-4 divide-y divide-border">
-                {plan.items.map((item, index) => (
-                  <li key={`${item.kind}-${index}`} className="py-3 first:pt-0 last:pb-0">
-                    <div className="flex gap-3">
-                      <time className="w-20 flex-none text-[15px] font-semibold tabular-nums">
-                        {item.time}
-                      </time>
-                      <div className="min-w-0">
-                        <p className="font-semibold">{item.title}</p>
-                        {item.place && (
-                          <p className="text-[15px] text-muted-foreground">{item.place}</p>
-                        )}
-                        <p className="mt-0.5 text-[15px] text-muted-foreground">{item.detail}</p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-4 text-[14px] text-muted-foreground">
-                {plan.note} This plan is saved on this device only.
-              </p>
-            </div>
-          </div>
-        )}
       </Section>
     </>
   );

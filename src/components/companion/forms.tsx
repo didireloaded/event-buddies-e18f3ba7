@@ -18,6 +18,7 @@ export function MeetingForm({
   selectedId,
   disabled,
   onSave,
+  account = false,
 }: {
   eventStart: Date;
   eventEnd: Date;
@@ -27,6 +28,7 @@ export function MeetingForm({
   selectedId: string | null;
   disabled: boolean;
   onSave: (meeting: LocalMeeting | null) => void;
+  account?: boolean;
 }) {
   const [pointId, setPointId] = useState(initial?.pointId ?? selectedId ?? places[0]?.id ?? "");
   const [at, setAt] = useState(
@@ -52,7 +54,9 @@ export function MeetingForm({
     >
       <p className="text-[15px] text-muted-foreground">
         Pick a landmark and a time between {eventTime(eventStart)} and {eventTime(eventEnd)} CAT.
-        Your plan is saved on this device.
+        {account
+          ? "Your private plan will sync to your account when connected."
+          : "Your plan is saved on this device."}
       </p>
       <div>
         <label htmlFor="meeting-place" className="mb-1.5 block text-[15px] font-semibold">

@@ -48,7 +48,7 @@ export function OfflineReadiness() {
   const description = {
     checking: "Saving the venue map, lineup and app files. Keep this page open while connected.",
     registered:
-      "The app files and public event page are saved in this browser. Your plans stay on this device. Your browser can clear stored data, so check again before leaving.",
+      "The app files and public event page are saved in this browser. Device saves remain available offline. Account changes sync when connected. Your browser can clear stored data, so check again before leaving.",
     blocked:
       "Offline caching is inactive in development and editor previews. Open the published app directly while connected to save the event.",
     unsupported:

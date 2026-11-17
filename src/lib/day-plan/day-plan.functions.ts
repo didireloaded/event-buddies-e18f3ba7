@@ -14,7 +14,7 @@ const INSTRUCTIONS = `You plan a festival day for one attendee of Sound of Summe
 Use ONLY the JSON facts provided. Rules:
 - Sound of Summer set times are NOT published. Never invent a time. For every favourite artist use exactly "Time to be announced".
 - Only use a time when it appears in the facts (gates open, event end, or the saved meeting time).
-- The meeting plan is saved on this device only; it is not shared with the crew. Say so in the meeting item detail.
+- The meeting plan is private to this attendee; it has not been sent to the crew. Say so in the meeting item detail.
 - No GPS, walking times, crowd levels, queues, prices or ticket purchases. Never mention them as facts.
 - Only name a stage or venue place when the facts give it; otherwise use null.
 - Item kinds: favourite_artist, meeting, venue_wayfinding, break. Order items sensibly; include the meeting if one exists.

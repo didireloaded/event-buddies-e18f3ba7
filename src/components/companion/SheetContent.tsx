@@ -551,6 +551,7 @@ export function SheetContent({
     case "meeting":
       return (
         <MeetingForm
+          account={Boolean(attendee.auth.user)}
           eventStart={data.event.startAt}
           eventEnd={data.event.endAt}
           timezone={tz}
@@ -564,7 +565,13 @@ export function SheetContent({
           disabled={!ready}
           onSave={(next) => {
             if (update({ meeting: next })) {
-              notify(next ? "Meeting plan saved on this device" : "Meeting plan removed");
+              notify(
+                next
+                  ? attendee.auth.user
+                    ? "Meeting plan queued for account sync"
+                    : "Meeting plan saved on this device"
+                  : "Meeting plan removed",
+              );
               closeSheet();
               if (next) navigate("crew");
             }

@@ -40,13 +40,17 @@ export function CrewView() {
           <IconTile icon={MapPin} />
           <RowText
             title={place ? `Meet at ${place.name}` : "Choose a meetup spot"}
-            subtitle={meeting ? `${eventTime(meeting.at)} CAT · saved on this phone` : undefined}
+            subtitle={
+              meeting
+                ? `${eventTime(meeting.at)} CAT · ${attendee.auth.user ? "private account plan" : "saved on this phone"}`
+                : undefined
+            }
           />
           <Chevron />
         </button>
       </div>
       <p className="px-4 pt-4 text-[14px] text-muted-foreground">
-        QR and link sharing work with saved plans. Live crew locations need the Cloud connection.
+        QR and link sharing work with saved plans. Live crew location sharing is pending.
       </p>
     </>
   );

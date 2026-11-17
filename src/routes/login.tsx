@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { accountConfigured } from "@/lib/account/use-auth";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/login")({
@@ -31,41 +32,66 @@ function Login() {
   const [msg, setMsg] = useState<string | null>(null);
   const returnUrl = () => new URL(next, window.location.origin).href;
 
+  useEffect(() => {
+    if (!accountConfigured) return;
+    let active = true;
+    void supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error && active) setMsg("Couldn’t check your sign-in. Try again.");
+        if (data.session && active) window.location.replace(next);
+      })
+      .catch(() => {
+        if (active) setMsg("Couldn’t check your sign-in. Try again.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [next]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (busy || !accountConfigured) return;
     setBusy(true);
     setMsg(null);
-    if (mode === "in") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      if (mode === "in") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) setMsg("Couldn’t sign in. Check your email and password, then try again.");
+        else window.location.assign(next);
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: returnUrl() },
+        });
+        if (error) setMsg("Couldn’t create the account. Check your details and try again shortly.");
+        else if (data.session) window.location.assign(next);
+        else setMsg("Check your email to confirm your account.");
+      }
+    } catch {
+      setMsg("Couldn’t reach sign-in. Check your connection and retry.");
+    } finally {
       setBusy(false);
-      if (error) return setMsg(error.message);
-      window.location.assign(next);
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: returnUrl() },
-      });
-      setBusy(false);
-      setMsg(error ? error.message : "Check your email to confirm your account.");
     }
   }
 
   async function social(provider: "google" | "lovable") {
-    sessionStorage.setItem("eb-auth-next", next);
-    const result = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin + "/login?next=" + encodeURIComponent(next),
-    });
-    if (result.error) return setMsg(result.error.message ?? "Sign-in failed.");
-    if (result.redirected) return;
-    void navigate({ href: next });
-  }
-
-  // Returning from a social sign-in with an existing session: continue.
-  if (typeof window !== "undefined") {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !busy && mode === "in" && !email) window.location.replace(next);
-    });
+    if (busy || !accountConfigured) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      sessionStorage.setItem("eb-auth-next", next);
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin + "/login?next=" + encodeURIComponent(next),
+      });
+      if (result.error) setMsg("Couldn’t sign in. Try again.");
+      else if (!result.redirected) void navigate({ href: next });
+    } catch {
+      setMsg("Couldn’t reach sign-in. Check your connection and retry.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -73,34 +99,72 @@ function Login() {
       <h1 className="text-3xl font-bold text-foreground">
         {mode === "in" ? "Sign in" : "Create account"}
       </h1>
+      {!accountConfigured && <p role="status">Account connection settings are pending.</p>}
+      <a href={next} className="min-h-11 text-primary">
+        Back to Event Buddies
+      </a>
+      {!accountConfigured && (
+        <p role="status" className="text-[15px] text-muted-foreground">
+          Account connection settings are pending. Your device saves remain available.
+        </p>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Email
-          <input className="ios-field" type="email" required autoComplete="email"
-            value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            className="ios-field"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
           Password
-          <input className="ios-field" type="password" required minLength={6}
+          <input
+            className="ios-field"
+            type="password"
+            required
+            minLength={6}
             autoComplete={mode === "in" ? "current-password" : "new-password"}
-            value={password} onChange={(e) => setPassword(e.target.value)} />
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </label>
-        {msg && <p role="alert" className="text-sm text-muted-foreground">{msg}</p>}
-        <button disabled={busy}
-          className="min-h-11 rounded-full bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-50">
+        {msg && (
+          <p role="alert" className="text-sm text-muted-foreground">
+            {msg}
+          </p>
+        )}
+        <button
+          disabled={busy || !accountConfigured}
+          className="min-h-11 rounded-full bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-50"
+        >
           {mode === "in" ? "Sign in" : "Sign up"}
         </button>
       </form>
-      <button type="button" onClick={() => social("google")}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground">
+      <button
+        type="button"
+        disabled={busy || !accountConfigured}
+        onClick={() => social("google")}
+        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
+      >
         Continue with Google
       </button>
-      <button type="button" onClick={() => social("lovable")}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground">
+      <button
+        type="button"
+        disabled={busy || !accountConfigured}
+        onClick={() => social("lovable")}
+        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
+      >
         Continue with Lovable
       </button>
-      <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")}
-        className="min-h-11 text-sm font-medium text-foreground underline">
+      <button
+        type="button"
+        onClick={() => setMode(mode === "in" ? "up" : "in")}
+        className="min-h-11 text-sm font-medium text-foreground underline"
+      >
         {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
       </button>
     </main>

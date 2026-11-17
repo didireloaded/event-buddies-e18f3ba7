@@ -5,9 +5,15 @@ import { readBump, type BumpPlan } from "./festival-bump";
 import { PREPARATION_ITEMS } from "./preparation";
 import { BINGO_ITEMS } from "./play";
 import { hapticTap } from "./haptics";
+import { useAccountAuth } from "@/lib/account/use-auth";
+import { useAccountSync } from "@/lib/account/use-account-sync";
+import { enqueue, queuedActions, acknowledge, clearAccountCache } from "@/lib/account/outbox";
+import { replayActions, selectionPatch, type AccountSnapshot } from "@/lib/account/schema";
+import { dayPlanSchema, type DayPlan } from "@/lib/day-plan/schema";
 
 export type { LocalMeeting };
 export type Preferences = {
+  dayPlan: DayPlan | null;
   bingo: string[];
   preparation: string[];
   selectedEventId: string | null;
@@ -28,11 +34,12 @@ export type Preferences = {
   installHintDismissed: boolean;
 };
 
-/** Browser storage key. Preferences are scoped per event and never leave this device. */
+/** Browser storage key. Guest preferences are scoped per event. Account selections sync through Cloud. */
 export const storageKey = (eventId: string) => `event-buddies:${eventId}:attendee`;
 
 export function defaultPreferences(data: DemoData): Preferences {
   return {
+    dayPlan: null,
     bingo: [],
     preparation: [],
     selectedEventId: null,
@@ -59,6 +66,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const fallback = defaultPreferences(data);
   if (!raw || typeof raw !== "object") return fallback;
   const stored = raw as Record<string, unknown>;
+  const plan = dayPlanSchema.safeParse(stored["dayPlan"]);
   const strings = (value: unknown) =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : null;
   const saved = strings(stored["saved"]);
@@ -89,6 +97,7 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    dayPlan: plan.success ? plan.data : null,
     bingo: [
       ...new Set(
         (strings(stored["bingo"]) ?? []).filter((id) => BINGO_ITEMS.some((item) => item.id === id)),
@@ -171,10 +180,15 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
 }
 
 export function useAttendee(data: DemoData) {
-  const key = storageKey(data.event.id);
+  const auth = useAccountAuth();
+  const userId = auth.user?.id ?? null;
+  const key = storageKey(data.event.id) + (userId ? `:account:${userId}` : "");
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const currentScope = useRef<string | null>(null);
+  const [syncVersion, setSyncVersion] = useState(0);
   const [preferences, setPreferences] = useState(() => defaultPreferences(data));
   const current = useRef(preferences);
-  const [ready, setReady] = useState(false);
+  const ready = !auth.loading && loadedScope === key;
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -185,35 +199,94 @@ export function useAttendee(data: DemoData) {
   };
 
   useEffect(() => {
+    if (auth.loading) return;
+    if (
+      currentScope.current &&
+      currentScope.current !== key &&
+      currentScope.current.includes(":account:")
+    ) {
+      try {
+        clearAccountCache(currentScope.current);
+      } catch {
+        notify("Couldn’t clear the previous account’s local cache", true);
+      }
+    }
+    let next = defaultPreferences(data);
     try {
       const raw = localStorage.getItem(key);
-      if (raw) {
-        const next = parseStoredPreferences(JSON.parse(raw), data);
-        current.current = next;
-        setPreferences(next);
+      if (raw) next = parseStoredPreferences(JSON.parse(raw), data);
+      else if (userId) {
+        // Public event choice can carry over. Personal guest records need explicit import.
+        const guestRaw = localStorage.getItem(storageKey(data.event.id));
+        const guest = guestRaw ? parseStoredPreferences(JSON.parse(guestRaw), data) : null;
+        next = {
+          ...next,
+          hasName: true,
+          onboardingDone: true,
+          selectedEventId: guest?.selectedEventId ?? null,
+          profile: { name: "Attendee", handle: "attendee" },
+        };
       }
+      if (userId) next = { ...next, ...replayActions(next, queuedActions(key)) };
     } catch {
       notify("Your saved preferences couldn’t be loaded", true);
     }
-    setReady(true);
+    currentScope.current = key;
+    current.current = next;
+    setPreferences(next);
+    setLoadedScope(key);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [data, key]);
+  }, [auth.loading, data, key, userId]);
 
-  const update = (patch: Partial<Preferences>) => {
-    if (!ready) return false;
-    const previous = current.current;
-    const next = { ...previous, ...patch };
+  const persist = (next: Preferences) => {
+    if (currentScope.current !== key) return false;
     try {
       localStorage.setItem(key, JSON.stringify(next));
     } catch {
-      notify("Couldn’t save on this device. Storage may be full or blocked.", true);
       return false;
     }
     current.current = next;
     setPreferences(next);
     return true;
+  };
+  const accept = (snapshot: AccountSnapshot, actionId?: string) => {
+    if (currentScope.current !== key || !userId) return;
+    const pending = queuedActions(key).filter((action) => action.id !== actionId);
+    const selection = replayActions(snapshot, pending);
+    if (!persist({ ...current.current, ...selection }))
+      throw new Error(
+        "Account data arrived, but this phone couldn’t save its offline copy. Free storage and retry.",
+      );
+    if (actionId) {
+      acknowledge(key, actionId);
+      setSyncVersion((version) => version + 1);
+    }
+  };
+  const sync = useAccountSync({ data, userId, scope: key, ready, version: syncVersion, accept });
+
+  const update = (patch: Partial<Preferences>) => {
+    if (!ready || currentScope.current !== key) return false;
+    const previous = current.current;
+    const next = { ...previous, ...patch };
+    const actionPatch = userId ? selectionPatch(previous, next) : null;
+    try {
+      if (actionPatch) enqueue(key, actionPatch);
+    } catch {
+      notify("Couldn’t queue this account change. Free device storage and try again.", true);
+      return false;
+    }
+    const saved = persist(next);
+    if (!saved)
+      notify(
+        actionPatch
+          ? "The account change is queued, but this phone couldn’t update its offline copy."
+          : "Couldn’t save on this device. Storage may be full or blocked.",
+        true,
+      );
+    if (actionPatch) setSyncVersion((version) => version + 1);
+    return saved;
   };
 
   const toggleSaved = (id: string) => {
@@ -236,7 +309,13 @@ export function useAttendee(data: DemoData) {
       : current.current.savedArtists.filter((item) => item !== id);
     if (update({ savedArtists })) {
       hapticTap();
-      notify(enabled ? "Artist saved on this device" : "Artist removed from saved");
+      notify(
+        enabled
+          ? userId
+            ? "Artist queued for account sync"
+            : "Artist saved on this device"
+          : "Artist removed from saved",
+      );
     }
   };
 
@@ -248,5 +327,17 @@ export function useAttendee(data: DemoData) {
     }
   };
 
-  return { preferences, ready, message, notify, update, toggleSaved, toggleArtist, toggleFollow };
+  return {
+    preferences: ready ? preferences : defaultPreferences(data),
+    ready,
+    message,
+    notify,
+    update,
+    toggleSaved,
+    toggleArtist,
+    toggleFollow,
+    auth,
+    sync,
+    scope: key,
+  };
 }
