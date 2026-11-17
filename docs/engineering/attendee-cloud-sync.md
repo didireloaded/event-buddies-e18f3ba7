@@ -4,7 +4,7 @@
 
 The existing Lovable Cloud project is enabled. Its reference is `ynxkniraobmlvbtaaptk`. Schema setup was applied through the project's Cloud SQL editor on 17 November 2026. Lovable's builder rejected the provisioning message because its workspace had no credits, so the existing Cloud SQL editor was used.
 
-`backend/cloud/attendee-sync.sql` is the additive, rerunnable schema source. It preserves the managed integration files and migration directories. Apply schema updates using Lovable Cloud. The public catalogue contains the source event's 25 artist IDs, 41 place IDs and published event hours. Extend this catalogue from verified event data when another event is added.
+`backend/cloud/attendee-sync.sql` is the additive, rerunnable schema source. It preserves the managed integration files and migration directories. Apply schema updates using Lovable Cloud. The internal validation catalogue contains the source event's 25 artist IDs, 41 place IDs and published event hours. Extend this catalogue from verified event data when another event is added.
 
 ## Data ownership and sync
 
@@ -26,7 +26,7 @@ Use the public variables documented in `.env.example`. Lovable already supplies 
 
 - Deployed database checks passed for catalogue counts, valid meeting, unknown artists/places and outside-hours rejection.
 - `backend/cloud/verify-attendee-sync.sql` passed in Cloud. Its transaction rolled back fixture identities and records. It asserts cross-account read/insert/update/delete denial, per-account action IDs, idempotent replay and independent artist edits.
-- Anonymous REST access can read the public catalogue and is denied access to private preferences and action records.
+- Direct catalogue reads are denied to anonymous and authenticated clients. The validation function uses a fixed-search-path SECURITY DEFINER and returns a boolean. Preference writes remain SECURITY INVOKER with owner-scoped RLS.
 - Local hook tests exercise account restoration in a second simulated session, sign-out cache separation and offline/reconnect replay with mocked transport.
 - Real email confirmation, Google OAuth and two physical phones have not been exercised. Database RLS tests and simulated sessions provide separate evidence for their respective layers.
 - AI completion against the hosted gateway remains dependent on workspace AI credits. Loading, error/retry, local result persistence and clearing are tested with controlled responses. Test fixtures are labelled.
@@ -34,3 +34,7 @@ Use the public variables documented in `.env.example`. Lovable already supplies 
 ## Remaining backend work
 
 Shared crew groups, invite authorisation, member roles, realtime crew updates, location sharing, emergency alert delivery, organiser tenancy and publication workflows remain separate backend slices. The current account meeting is private to its owner. The local promoter workspace is outside this branch.
+
+## Catalogue access correction
+
+The original `catalogue_read` policy allowed every client to read the internal event validation records. The fix in `backend/cloud/private-event-catalogue.sql` removes that policy and all client table privileges. The browser already uses bundled event data. Preference operations now validate through the boolean helper, preserving authenticated saves without a catalogue SELECT grant. `verify-private-catalogue.sql` tests denied reads for both client roles and successful favourite/meeting operations.
