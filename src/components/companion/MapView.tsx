@@ -1,4 +1,4 @@
-import { Maximize2, Minus, Plus, Shield, Users, X, EyeOff } from "lucide-react";
+import { Maximize2, Minus, Plus, Shield, Users, X, EyeOff, Compass } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { clusterMapPlaces, matchesFilter, matchesMapSearch, visiblePins } from "@/lib/attendee/map";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,19 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
   const { data, places, map, openSheet, attendee, now } = useCompanion();
   const hereId = activeLandmarkPin(data, attendee.preferences.here, now)?.pointId ?? null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
+  const [baseSize, setBaseSize] = useState(0);
+  const [original, setOriginal] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   const anchor = useRef<{ x: number; y: number; screenX: number; screenY: number } | null>(null);
+  useLayoutEffect(() => {
+    const element = viewport.current;
+    if (!element) return;
+    const measure = () => setBaseSize(Math.max(element.clientWidth, element.clientHeight));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   // Keep the centre of the view stationary while zooming with the buttons.
   const setZoom = (next: number, screenX?: number, screenY?: number) => {
@@ -56,7 +67,12 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
       }),
     );
     return () => cancelAnimationFrame(frame);
-  }, [target]);
+  }, [target, baseSize]);
+  useLayoutEffect(() => {
+    if (viewport.current && !target)
+      viewport.current.scrollLeft =
+        (viewport.current.scrollWidth - viewport.current.clientWidth) / 2;
+  }, [baseSize, target]);
 
   const pins = visiblePins(places, map.filter, map.query, map.selected, data);
   const groups = [
@@ -69,9 +85,10 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
 
   return (
     <div
+      data-original={original}
       className={cn(
-        "relative overflow-hidden bg-muted",
-        expanded ? "h-full w-full" : "aspect-square w-full lg:rounded-2xl",
+        "venue-map-canvas relative overflow-hidden",
+        expanded ? "h-full w-full" : "w-full",
       )}
     >
       <div
@@ -81,13 +98,16 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
         tabIndex={0}
         aria-label="Venue plan. Drag to pan or pinch with two fingers to zoom. Zoom buttons are also available."
       >
-        <div className="relative aspect-square" style={{ width: `${zoom * 100}%` }}>
+        <div
+          className="relative aspect-square"
+          style={{ width: baseSize ? `${zoom * baseSize}px` : `${zoom * 100}%` }}
+        >
           <img
             src={data.event.mapImageUrl}
             alt="Supplied Sound of Summer 2026 venue plan showing three stages, bars, toilets, medics, entrances, the Experience and Platinum zones, and the jetty"
             width={1238}
             height={1238}
-            className="absolute inset-0 h-full w-full select-none"
+            className="venue-map-image absolute inset-0 h-full w-full select-none"
             draggable={false}
           />
           {groups.map(({ place, ids }) => {
@@ -115,10 +135,10 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                   }
                 }}
               >
-                <span className={cn("map-pin-dot", isHere ? "bg-favorite" : placeTone(place.type))}>
+                <span className={cn("map-pin-dot", isHere && "map-pin-here")}>
                   {many ? ids.length : <Icon size={15} strokeWidth={2.4} aria-hidden />}
                 </span>
-                {(place.type === "stage" || selected || isHere || zoom >= 2.5) && !many && (
+                {(selected || isHere || zoom >= 2.5) && !many && (
                   <span className="map-pin-label">
                     {isHere ? `You · ${place.name}` : place.name}
                   </span>
@@ -139,6 +159,15 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           {expanded ? <X size={20} /> : <Maximize2 size={18} />}
         </button>
       </div>
+      <button
+        type="button"
+        aria-pressed={original}
+        aria-label="Use original plan colours"
+        onClick={() => setOriginal(!original)}
+        className="absolute left-2 top-2 min-h-11 rounded-full bg-popover px-4 text-[15px] font-medium text-foreground"
+      >
+        {original ? "Monochrome" : "Original plan"}
+      </button>
       <div className="absolute bottom-2 right-2 flex bg-popover flex-col overflow-hidden rounded-xl shadow-float">
         <button
           type="button"
@@ -203,12 +232,19 @@ export function MapView() {
   const stageArtists = place ? data.festival.artists.filter((a) => a.stageId === place.id) : [];
 
   return (
-    <>
+    <div className="venue-map-page pb-4">
       <div className="flex items-end justify-between gap-3 px-4 pt-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="ios-large-title">Map</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">{data.event.venueName}</p>
         </div>
+        <button
+          type="button"
+          aria-label="Find nearby facilities"
+          onClick={() => openSheet({ kind: "nearby" })}
+          className="mb-1 grid size-12 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+        >
+          <Compass size={20} />
+        </button>
         <button
           type="button"
           aria-label="Location privacy"
@@ -368,6 +404,6 @@ export function MapView() {
         </div>
       </div>
       {map.expanded && <ExpandedMap />}
-    </>
+    </div>
   );
 }

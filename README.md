@@ -2,7 +2,7 @@
 
 ## Current attendee experience
 
-The latest interface refinement uses compact 44px toolbars, system screen titles, a compact event thumbnail and Konsta iOS task rows. Neutral grouped-grey and white surfaces use the festival pink for actions and the light tab bar. Map place details, profile editing, ticket storage and longer utility tasks open in accessible sheets. See [the interface review](docs/design/ios-interface-refinement.md) for the design decisions and verification limits.
+The current interface uses monochrome controls, system typography, a glass photo-card event picker, an upcoming-events calendar and a charcoal venue plan. Bottom navigation stays hidden through onboarding and event selection, then appears after confirmation. The attendee experience includes local preparation checklists, photo diaries, story-card and lineup-poster downloads, large-screen signals, stage picks, photo challenges and self-reported bingo. These run on the existing mobile PWA foundation. See [the current design report](docs/design/discovery-and-monochrome.md), [all supplied text sources](docs/product/source-register.md) and [the 220-item requirements ledger](docs/product/requirements-ledger.md) for exact implementation scope and deferred dependencies.
 
 ### Latest feature pass
 

@@ -3,7 +3,7 @@ import { useCompanion } from "./context";
 import { SecondaryButton } from "./ui";
 
 export function NearbyPlaces() {
-  const { places, map } = useCompanion();
+  const { places, map, openPlace } = useCompanion();
   const [originId, setOriginId] = useState(places.find((p) => p.type === "stage")?.id ?? "");
   const [category, setCategory] = useState("");
   const origin = places.find((p) => p.id === originId);
@@ -66,7 +66,7 @@ export function NearbyPlaces() {
           </p>
           {nearest.length ? (
             nearest.map((p) => (
-              <SecondaryButton key={p.id} className="mb-2" onClick={() => map.setSelected(p.id)}>
+              <SecondaryButton key={p.id} className="mb-2" onClick={() => openPlace(p.id)}>
                 {p.name} ↗
               </SecondaryButton>
             ))

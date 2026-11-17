@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 async function guest(page: Page) {
   await page.addInitScript(() => {
@@ -38,6 +39,106 @@ test("first visit can skip to a name and retain it after refresh", async ({ page
   await expect(page.getByRole("button", { name: "Go to my event" })).toHaveCount(0);
 });
 
+test("event calendar filters dates and exports the verified event hours", async ({ page }) => {
+  await guest(page);
+  await page.goto("/#events");
+  await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0);
+  await page
+    .getByRole("group", { name: "Event discovery view" })
+    .getByRole("button", { name: "Calendar" })
+    .click();
+  await expect(page.getByText("December 2026", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Sunday, December 27th, 2026/ }).click();
+  await expect(page.getByText("No published events on this date.")).toBeVisible();
+  await page.getByRole("button", { name: "Show Sound of Summer", exact: true }).click();
+  await page.getByRole("button", { name: "Preview Sound of Summer", exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Add event to my calendar", exact: true }).click();
+  const file = await download;
+  const content = await readFile((await file.path())!, "utf8");
+  expect(content).toContain("DTSTART:20261228T100000Z");
+  expect(content).toContain("DTEND:20261228T210000Z");
+  await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0);
+  await page.getByRole("button", { name: "I’m going", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
+});
+
+test("fresh deep links cannot reveal attendee navigation before event selection", async ({
+  page,
+}) => {
+  await page.goto("/#map");
+  await expect(page.getByRole("navigation", { name: "Main" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Skip", exact: true })).toBeVisible();
+});
+
+test("preparation checklist persists and the big-message signal stays local", async ({ page }) => {
+  await guest(page);
+  await page.goto("/#info");
+  await page.getByRole("checkbox", { name: "Pack my physical ID", exact: true }).check();
+  await page.reload();
+  await expect(
+    page.getByRole("checkbox", { name: "Pack my physical ID", exact: true }),
+  ).toBeChecked();
+  await page.goto("/#crew");
+  await page.getByRole("button", { name: "Find me screen", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Signal display" })
+    .getByRole("button", { name: "Message", exact: true })
+    .click();
+  await page.getByRole("textbox", { name: "Big screen message", exact: true }).fill("MEET AT GATE");
+  await expect(page.getByText("MEET AT GATE", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Use white screen", exact: true }).click();
+  await expect(page.locator(".signal-screen")).toHaveAttribute("data-light", "true");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+});
+
+test("private photo diary saves offline, exports a card and removes the photo", async ({
+  page,
+  context,
+}) => {
+  await guest(page);
+  await page.goto("/#you");
+  await offlineReady(page);
+  await page.getByRole("button", { name: /Photo diary/ }).click();
+  await page.getByLabel("Add a photo", { exact: true }).setInputFiles({
+    name: "unsupported.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from("<svg/>"),
+  });
+  await page.getByRole("button", { name: "Save memory on this phone", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("JPG, PNG or WebP");
+  await page
+    .getByLabel("Add a photo", { exact: true })
+    .setInputFiles({
+      name: "broken.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("damaged image"),
+    });
+  await page.getByRole("button", { name: "Save memory on this phone", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("couldn’t be read");
+  await page.getByLabel("Add a photo", { exact: true }).setInputFiles({
+    name: "memory.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jxGkAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await page.getByLabel("Caption", { exact: true }).fill("QA memory");
+  await page.getByRole("button", { name: "Save memory on this phone", exact: true }).click();
+  await expect(page.getByText("QA memory", { exact: true })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download story card", exact: true }).click();
+  expect((await download).suggestedFilename()).toMatch(/-story\.png$/);
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole("button", { name: /Photo diary/ }).click();
+  await expect(page.getByText("QA memory", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.getByText("QA memory", { exact: true })).toHaveCount(0);
+});
+
 test("favourites retain artist identity after refresh", async ({ page }) => {
   await guest(page);
   await page.goto("/#lineup");
@@ -46,6 +147,67 @@ test("favourites retain artist identity after refresh", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Remove Shimza from favourites", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+  const poster = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download my lineup poster/ }).click();
+  expect((await poster).suggestedFilename()).toMatch(/-my-lineup\.png$/);
+});
+
+test("festival bingo persists and the random stage opens a real venue point", async ({ page }) => {
+  await guest(page);
+  await page.goto("/#crew");
+  await page.getByRole("button", { name: /Festival extras/ }).click();
+  await page.getByRole("button", { name: "Pick a stage", exact: true }).click();
+  await page.getByRole("button", { name: /^Show .*Stage/ }).click();
+  await expect(page).toHaveURL(/#map$/);
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.goto("/#crew");
+  await page.getByRole("button", { name: /Festival extras/ }).click();
+  await page
+    .getByRole("group", { name: "Festival extras" })
+    .getByRole("button", { name: "Bingo", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Take a water break", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Take a water break", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await page.getByRole("button", { name: /Festival extras/ }).click();
+  await page
+    .getByRole("group", { name: "Festival extras" })
+    .getByRole("button", { name: "Bingo", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Take a water break", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("nearby facilities use a landmark and open one place sheet", async ({ page }) => {
+  await guest(page);
+  await page.goto("/#map");
+  await page.getByRole("button", { name: "Find nearby facilities", exact: true }).click();
+  await page.getByRole("button", { name: "Toilets", exact: true }).click();
+  await expect(
+    page.getByText("Ordered by proximity on the supplied image.", { exact: false }),
+  ).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Toilet.*↗/ })
+    .first()
+    .click();
+  await expect(page.locator("dialog[open]")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Plan a meeting here", exact: true }),
+  ).toBeVisible();
+});
+
+test("PWA manifest declares standalone entry and existing app icons", async ({ request }) => {
+  const response = await request.get("/manifest.webmanifest");
+  expect(response.ok()).toBeTruthy();
+  const manifest = await response.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.start_url).toBe("/#home");
+  for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBeTruthy();
 });
 
 test("attendee screens stay concise and event switching preserves saved artists", async ({
@@ -81,7 +243,14 @@ test("attendee screens stay concise and event switching preserves saved artists"
   ).toHaveAttribute("aria-pressed", "true");
   await page.goto("/#map");
   await expect(page.getByRole("button", { name: "Location privacy", exact: true })).toBeVisible();
-  await expect(page.getByText("Lineup", { exact: true })).toHaveCount(0);
+  await expect(page.locator("main").getByText("Lineup", { exact: true })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Lineup", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Open your profile", exact: true }).click();
+  await expect(page).toHaveURL(/#you$/);
   await expect(page.getByText("Mark where I am", { exact: true })).toHaveCount(0);
 });
 

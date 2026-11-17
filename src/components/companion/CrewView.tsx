@@ -1,4 +1,4 @@
-import { MessageCircle, MapPin } from "lucide-react";
+import { MessageCircle, MapPin, Dices } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
 import { CrewPeople } from "./CrewPeople";
@@ -26,6 +26,11 @@ export function CrewView() {
       </div>
       <FestivalBump />
       <div className="ios-group ios-group-indent mx-4 mt-6">
+        <button type="button" className="ios-row" onClick={() => openSheet({ kind: "play" })}>
+          <IconTile icon={Dices} />
+          <RowText title="Festival extras" subtitle="Stage picks, photo challenges and bingo" />
+          <Chevron />
+        </button>
         <button type="button" className="ios-row" onClick={() => openSheet({ kind: "pings" })}>
           <IconTile icon={MessageCircle} />
           <RowText title="Where are you?" subtitle="Share a quick message with your friend" />

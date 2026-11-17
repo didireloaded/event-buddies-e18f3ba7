@@ -14,6 +14,7 @@ import type { DayPlan } from "@/lib/day-plan/schema";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { PerformanceRecord } from "@/lib/event/types";
 import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/schedule";
+import { createLineupPoster } from "@/lib/attendee/recap-card";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
 import { ArtistAvatar } from "./ArtistAvatar";
@@ -154,6 +155,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [planState, setPlanState] = useState<"idle" | "loading" | "error">("idle");
   const [planError, setPlanError] = useState<string | null>(null);
+  const [exportingPoster, setExportingPoster] = useState(false);
   const term = query.trim().toLowerCase();
   const stageName = (id: string) => data.stages.find((s) => s.id === id)?.name ?? "Stage";
 
@@ -355,6 +357,38 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             <RowText
               title="Discover an artist"
               subtitle="Random pick from artists you haven’t saved"
+            />
+            <Chevron />
+          </button>
+          <button
+            type="button"
+            className="ios-row"
+            disabled={!preferences.savedArtists.length || exportingPoster}
+            onClick={async () => {
+              setExportingPoster(true);
+              try {
+                const blob = await createLineupPoster(data, preferences.savedArtists);
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${data.event.slug}-my-lineup.png`;
+                link.click();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+              } catch {
+                attendee.notify("Couldn’t export your lineup poster. Try again.", true);
+              } finally {
+                setExportingPoster(false);
+              }
+            }}
+          >
+            <IconTile icon={Music2} />
+            <RowText
+              title="Download my lineup poster"
+              subtitle={
+                preferences.savedArtists.length
+                  ? "All your saved artists, ready to share"
+                  : "Save an artist to create your poster"
+              }
             />
             <Chevron />
           </button>

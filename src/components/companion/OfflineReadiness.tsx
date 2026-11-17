@@ -15,13 +15,12 @@ export function InstallReminder() {
       ("standalone" in navigator && navigator.standalone === true);
     setEligible(ios && !installed && !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent));
   }, []);
-  if (!eligible || !attendee.preferences.meeting || attendee.preferences.installHintDismissed)
-    return null;
+  if (!eligible || attendee.preferences.installHintDismissed) return null;
   return (
     <section className="mx-4 mt-5 border-y border-border py-3" aria-labelledby="install-reminder">
       <div className="flex items-center gap-2">
         <h2 id="install-reminder" className="flex-1 text-[17px] font-semibold">
-          Keep your plan close
+          Keep Event Buddies on your Home Screen
         </h2>
         <button
           type="button"

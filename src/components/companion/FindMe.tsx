@@ -1,14 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import { initials, useCompanion } from "./context";
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
+import { countdownLabel, eventPhase } from "@/lib/attendee/event-clock";
+import { Segmented } from "./ui";
 
 function SignalScreen({ onClose }: { onClose: () => void }) {
   const { data, attendee, places, now } = useCompanion();
   const dialog = useRef<HTMLDialogElement>(null);
+  const [mode, setMode] = useState<"name" | "message" | "countdown" | "timer">("name");
+  const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [message, setMessage] = useState("Meet me here");
+  const [light, setLight] = useState(false);
   const here = attendee.preferences.here;
   const pointId =
     activeLandmarkPin(data, here, now)?.pointId ?? attendee.preferences.meeting?.pointId;
   const place = places.find((p) => p.id === pointId);
+  useEffect(() => {
+    if (timerEndsAt === null || mode !== "timer") return;
+    let interval: number | undefined;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) window.clearInterval(interval);
+    };
+    tick();
+    if (timerEndsAt > Date.now()) interval = window.setInterval(tick, 250);
+    return () => window.clearInterval(interval);
+  }, [timerEndsAt, mode]);
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
     const el = dialog.current;
@@ -21,7 +40,8 @@ function SignalScreen({ onClose }: { onClose: () => void }) {
   return (
     <dialog
       ref={dialog}
-      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none bg-favorite p-6 text-primary-foreground"
+      className="signal-screen fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none p-6"
+      data-light={light}
       aria-labelledby="find-me-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -41,16 +61,78 @@ function SignalScreen({ onClose }: { onClose: () => void }) {
             Close
           </button>
         </div>
-        <div>
-          <p className="text-[clamp(6rem,35vw,14rem)] font-black leading-none">
-            {initials(attendee.preferences.profile.name)}
+        <div className="w-full">
+          <p
+            className="break-words text-[clamp(2.5rem,12vw,6rem)] leading-tight font-bold"
+            aria-live={mode === "countdown" ? "polite" : "off"}
+          >
+            {mode === "name"
+              ? initials(attendee.preferences.profile.name)
+              : mode === "message"
+                ? message || "Your message"
+                : mode === "timer"
+                  ? secondsLeft === null
+                    ? "Ready?"
+                    : secondsLeft === 0
+                      ? "Photo time"
+                      : secondsLeft
+                  : attendee.preferences.meeting
+                    ? countdownLabel(attendee.preferences.meeting.at, now)
+                    : eventPhase(data, now).label}
           </p>
           <p className="mt-5 text-[32px] font-bold">{attendee.preferences.profile.name}</p>
           {place && <p className="mt-3 text-[22px]">{place.name}</p>}
         </div>
-        <p className="max-w-sm text-[17px]">
-          Hold your screen up for your friends. This signal stays on your screen.
-        </p>
+        <div className="w-full space-y-3">
+          <Segmented
+            label="Signal display"
+            value={mode}
+            options={[
+              { value: "name", label: "Name" },
+              { value: "message", label: "Message" },
+              { value: "countdown", label: attendee.preferences.meeting ? "Meetup" : "Event" },
+              { value: "timer", label: "Timer" },
+            ]}
+            onChange={setMode}
+          />
+          {mode === "message" && (
+            <input
+              className="ios-field"
+              aria-label="Big screen message"
+              maxLength={60}
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+            />
+          )}
+          {mode === "countdown" && (
+            <p className="text-[15px]">
+              {attendee.preferences.meeting ? "Until your saved meetup" : "Until doors open"}
+            </p>
+          )}
+          {mode === "timer" && (
+            <>
+              <button
+                type="button"
+                className="min-h-12 rounded-xl border border-current px-4 text-[17px] font-semibold"
+                onClick={() => setTimerEndsAt(Date.now() + 5000)}
+              >
+                Start 5-second countdown
+              </button>
+              <p className="text-[14px]">
+                A countdown for your group photo. Open your camera to take the picture.
+              </p>
+            </>
+          )}
+          <button
+            type="button"
+            aria-pressed={light}
+            className="min-h-11 px-4 text-[17px] underline"
+            onClick={() => setLight(!light)}
+          >
+            {light ? "Use black screen" : "Use white screen"}
+          </button>
+          <p className="text-[14px]">Hold up your phone. This signal stays on your screen.</p>
+        </div>
       </div>
     </dialog>
   );

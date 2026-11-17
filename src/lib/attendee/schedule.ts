@@ -25,20 +25,22 @@ export function scheduleClashes(performances: Performance[]) {
   );
 }
 
+const escape = (value: string) =>
+  value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+const utc = (date: Date | string) =>
+  new Date(date)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
+const calendarHeader = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//Event Buddies//Schedule//EN",
+  "CALSCALE:GREGORIAN",
+];
+
 export function downloadCalendar(data: DemoData, performances: Performance[]) {
-  const escape = (value: string) =>
-    value.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
-  const utc = (date: Date | string) =>
-    new Date(date)
-      .toISOString()
-      .replace(/[-:]/g, "")
-      .replace(/\.\d{3}/, "");
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Event Buddies//Schedule//EN",
-    "CALSCALE:GREGORIAN",
-  ];
+  const lines = [...calendarHeader];
   for (const performance of performances) {
     lines.push(
       "BEGIN:VEVENT",
@@ -52,6 +54,27 @@ export function downloadCalendar(data: DemoData, performances: Performance[]) {
       "END:VEVENT",
     );
   }
+  downloadCalendarFile(lines, `${data.event.slug}-schedule.ics`);
+}
+
+export function downloadEventCalendar(data: DemoData) {
+  downloadCalendarFile(
+    [
+      ...calendarHeader,
+      "BEGIN:VEVENT",
+      `UID:${data.event.id}@event-buddies`,
+      `DTSTAMP:${utc(new Date())}`,
+      `DTSTART:${utc(data.event.startAt)}`,
+      `DTEND:${utc(data.event.endAt)}`,
+      `SUMMARY:${escape(data.event.name)}`,
+      `LOCATION:${escape(`${data.event.venueName}, ${data.event.city}`)}`,
+      "END:VEVENT",
+    ],
+    `${data.event.slug}.ics`,
+  );
+}
+
+function downloadCalendarFile(lines: string[], filename: string) {
   lines.push("END:VCALENDAR");
   const url = URL.createObjectURL(
     new Blob([lines.join("\r\n") + "\r\n"], {
@@ -60,7 +83,7 @@ export function downloadCalendar(data: DemoData, performances: Performance[]) {
   );
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${data.event.slug}-schedule.ics`;
+  link.download = filename;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

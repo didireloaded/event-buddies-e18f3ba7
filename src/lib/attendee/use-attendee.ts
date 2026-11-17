@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { DemoData } from "@/lib/event/types";
 import type { LocalMeeting } from "./meeting";
 import { readBump, type BumpPlan } from "./festival-bump";
+import { PREPARATION_ITEMS } from "./preparation";
+import { BINGO_ITEMS } from "./play";
+import { hapticTap } from "./haptics";
 
 export type { LocalMeeting };
 export type Preferences = {
+  bingo: string[];
+  preparation: string[];
   selectedEventId: string | null;
   saved: string[];
   savedArtists: string[];
@@ -28,6 +33,8 @@ export const storageKey = (eventId: string) => `event-buddies:${eventId}:attende
 
 export function defaultPreferences(data: DemoData): Preferences {
   return {
+    bingo: [],
+    preparation: [],
     selectedEventId: null,
     saved: data.savedPerformanceIds,
     savedArtists: [],
@@ -82,6 +89,18 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     }
   }
   return {
+    bingo: [
+      ...new Set(
+        (strings(stored["bingo"]) ?? []).filter((id) => BINGO_ITEMS.some((item) => item.id === id)),
+      ),
+    ],
+    preparation: [
+      ...new Set(
+        (strings(stored["preparation"]) ?? []).filter((id) =>
+          PREPARATION_ITEMS.some((item) => item.id === id),
+        ),
+      ),
+    ],
     selectedEventId:
       stored["selectedEventId"] === data.event.id ||
       (!("selectedEventId" in stored) && stored["hasName"] === true)
@@ -203,7 +222,10 @@ export function useAttendee(data: DemoData) {
       ? [...current.current.saved, id]
       : current.current.saved.filter((item) => item !== id);
     const ok = update({ saved });
-    if (ok) notify(enabled ? "Added to your lineup" : "Removed from your lineup");
+    if (ok) {
+      hapticTap();
+      notify(enabled ? "Added to your lineup" : "Removed from your lineup");
+    }
     return ok;
   };
 
@@ -212,14 +234,18 @@ export function useAttendee(data: DemoData) {
     const savedArtists = enabled
       ? [...current.current.savedArtists, id]
       : current.current.savedArtists.filter((item) => item !== id);
-    if (update({ savedArtists }))
+    if (update({ savedArtists })) {
+      hapticTap();
       notify(enabled ? "Artist saved on this device" : "Artist removed from saved");
+    }
   };
 
   const toggleFollow = () => {
     const enabled = !current.current.following;
-    if (update({ following: enabled }))
+    if (update({ following: enabled })) {
+      hapticTap();
       notify(enabled ? "Event saved on this device" : "Event removed from saved");
+    }
   };
 
   return { preferences, ready, message, notify, update, toggleSaved, toggleArtist, toggleFollow };
