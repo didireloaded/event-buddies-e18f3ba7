@@ -5,7 +5,7 @@ import { PrimaryButton } from "./ui";
 import { activeLandmarkPin, eventLifecycle, landmarkPinExpiry } from "@/lib/attendee/lifecycle";
 
 export function LandmarkCheckin() {
-  const { data, attendee, places, map, now } = useCompanion();
+  const { data, attendee, places, openPlace, now } = useCompanion();
   const landmarks = places.filter((p) => p.type === "stage" || p.type === "entrance");
   const [chosen, setChosen] = useState(landmarks[0]?.id ?? "");
   const here = attendee.preferences.here;
@@ -48,9 +48,7 @@ export function LandmarkCheckin() {
             const expiry = landmarkPinExpiry(data, timestamp);
             if (data.event.status === "cancelled" || expiry <= timestamp) return;
             if (attendee.update({ here: { pointId: chosen, expiresAt: expiry } })) {
-              map.setQuery("");
-              map.setFilter("all");
-              map.setSelected(chosen);
+              openPlace(chosen);
               attendee.notify(`Landmark saved privately until ${eventTime(new Date(expiry))} CAT`);
               event.currentTarget.closest("details")?.removeAttribute("open");
             }

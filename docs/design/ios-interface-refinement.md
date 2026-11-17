@@ -1,5 +1,7 @@
 # iOS interface refinement
 
+The owner’s 17 November monochrome direction and event-selection references supersede this earlier pink-accent refinement. See [the current build report](discovery-and-monochrome.md).
+
 ## Brief
 
 Event Buddies is a mobile PWA for Sound of Summer attendees finding facilities, saving artists and meeting friends on a low-signal coast. The primary tasks are opening a venue point, finding a friend’s shared meetup and reviewing the lineup. Navigation remains Events, Map, Crew and You, with browser hash history.

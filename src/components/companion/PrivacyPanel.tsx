@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { photoStore } from "@/lib/attendee/ride-photo";
+import { clearMemories } from "@/lib/attendee/memories";
+import { LandmarkCheckin } from "./LandmarkCheckin";
 import { storageKey } from "@/lib/attendee/use-attendee";
 import { useCompanion } from "./context";
 import { SecondaryButton } from "./ui";
@@ -10,6 +12,7 @@ export function PrivacyPanel() {
   const [error, setError] = useState("");
   return (
     <div className="space-y-4 pt-1 text-[16px] leading-relaxed">
+      <LandmarkCheckin />
       <p>
         Your phone’s GPS location is never requested. Landmark check-ins are chosen by you and stay
         on this device. Pins expire after 60 minutes or two hours after the event ends, whichever
@@ -24,7 +27,8 @@ export function PrivacyPanel() {
       <p>
         Your profile, favourites, meetings, imported plans and ride notes use this browser’s
         storage. Landmark photos and ticket copies use local photo storage. Clearing browser data
-        removes those records. You can download a plan backup from Crew. Photos stay on this device.
+        removes those records. Your photo diary also stays on this device. Download photos you want
+        to keep.
       </p>
       <p>
         Accounts, live crew location, attendee discovery and in-app message delivery are awaiting a
@@ -39,6 +43,7 @@ export function PrivacyPanel() {
             if ("indexedDB" in window) {
               await photoStore(data.event.id, "remove");
               await photoStore(`ticket:${data.event.id}`, "remove");
+              await clearMemories(data.event.id);
             }
             localStorage.removeItem(storageKey(data.event.id));
             attendee.notify(
@@ -53,7 +58,7 @@ export function PrivacyPanel() {
           }
         }}
       >
-        {clearing ? "Clearing saved data…" : "Clear my plans, profile, ticket and photo"}
+        {clearing ? "Clearing saved data…" : "Clear saved data on this phone"}
       </SecondaryButton>
       {error && (
         <p role="alert" className="text-destructive">

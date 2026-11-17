@@ -1,4 +1,4 @@
-import { Heart, Share2, Users, Music2, MapPin, Info } from "lucide-react";
+import { Heart, Share2, Users, Music2, MapPin, Info, CalendarDays } from "lucide-react";
 import { List, ListItem } from "konsta/react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
@@ -7,6 +7,7 @@ import { useCompanion } from "./context";
 import { CrewPeople } from "./CrewPeople";
 import { IconTile, PrimaryButton } from "./ui";
 import { PostEventState } from "./PostEventState";
+import { InstallReminder } from "./OfflineReadiness";
 
 export function HomeView({ onShare }: { onShare: () => void }) {
   const { data, attendee, now, navigate, openSheet } = useCompanion();
@@ -103,9 +104,15 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             href="#map"
           />
           <ListItem title="Festival essentials" media={<IconTile icon={Info} />} href="#info" />
+          <ListItem
+            title="Upcoming events"
+            media={<IconTile icon={CalendarDays} />}
+            href="#events"
+          />
         </List>
       </div>
       <CrewPeople />
+      <InstallReminder />
     </>
   );
 }

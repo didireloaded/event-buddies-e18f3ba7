@@ -2,6 +2,8 @@ import { useCompanion } from "./context";
 import { eventTime } from "@/lib/attendee/schedule";
 import { Section } from "./ui";
 import { EventSections } from "./EventSections";
+import { PreparationChecklist } from "./PreparationChecklist";
+import { RideBookmark } from "./RideBookmark";
 
 export function InfoView() {
   const { data, showOnMap, openSheet } = useCompanion();
@@ -20,6 +22,13 @@ export function InfoView() {
       <Section title="Transport" id="info-transport">
         <p className="text-[16px] leading-relaxed">{data.festival.transport}</p>
       </Section>
+      <PreparationChecklist />
+      <details className="mt-4 rounded-xl bg-popover px-4">
+        <summary className="min-h-12 cursor-pointer content-center text-[17px] font-semibold">
+          Parking & ride bookmark
+        </summary>
+        <RideBookmark />
+      </details>
       <button
         type="button"
         className="ios-row mt-4 w-full rounded-2xl bg-popover text-favorite"

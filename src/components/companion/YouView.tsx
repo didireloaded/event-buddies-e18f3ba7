@@ -1,4 +1,12 @@
-import { Ticket, ShieldCheck, Smartphone, UserRound, CalendarDays } from "lucide-react";
+import {
+  Ticket,
+  ShieldCheck,
+  Smartphone,
+  UserRound,
+  CalendarDays,
+  Camera,
+  Stamp,
+} from "lucide-react";
 import { initials, useCompanion } from "./context";
 import { AfterEventData } from "./AfterEventData";
 import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
@@ -60,6 +68,19 @@ export function YouView() {
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "ticket" })}>
             <IconTile icon={Ticket} />
             <RowText title="Ticket vault" subtitle="Your offline ticket copy" />
+            <Chevron />
+          </button>
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "memories" })}>
+            <IconTile icon={Camera} />
+            <RowText title="Photo diary" subtitle="Private memories and landmarks" />
+            <Chevron />
+          </button>
+          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "passport" })}>
+            <IconTile icon={Stamp} />
+            <RowText
+              title="Festival passport"
+              subtitle={`${preferences.stamps.length} stops checked off`}
+            />
             <Chevron />
           </button>
         </div>

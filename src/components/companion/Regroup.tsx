@@ -63,14 +63,14 @@ export function Regroup() {
       canvas.height = 1350;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas unavailable");
-      ctx.fillStyle = "#f7f7f2";
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, 1080, 1350);
       ctx.fillStyle = "#111111";
       ctx.font = "bold 42px sans-serif";
       ctx.fillText("eventbuddies.", 72, 100);
       ctx.font = "bold 82px sans-serif";
       ctx.fillText("LET’S REGROUP", 72, 230);
-      ctx.fillStyle = "#f00061";
+      ctx.fillStyle = "#111111";
       ctx.fillRect(72, 280, 936, 8);
       ctx.fillStyle = "#111111";
       ctx.font = "bold 44px sans-serif";

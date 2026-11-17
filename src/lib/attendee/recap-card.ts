@@ -9,8 +9,7 @@ export async function createRecapCard(data: DemoData, preferences: Preferences):
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Image export unavailable");
   const ink = "#111111",
-    paper = "#f7f7f2",
-    pink = "#f00061";
+    paper = "#ffffff";
   ctx.fillStyle = paper;
   ctx.fillRect(0, 0, 1080, 1350);
   ctx.fillStyle = ink;
@@ -18,7 +17,7 @@ export async function createRecapCard(data: DemoData, preferences: Preferences):
   ctx.fillText("eventbuddies.", 64, 96);
   ctx.font = "bold 36px sans-serif";
   ctx.fillText("MY FESTIVAL RECAP", 64, 180);
-  ctx.fillStyle = pink;
+  ctx.fillStyle = ink;
   const titleWords = data.event.name.toUpperCase().split(" ");
   const split = Math.ceil(titleWords.length / 2);
   for (const [index, line] of [
@@ -56,7 +55,7 @@ export async function createRecapCard(data: DemoData, preferences: Preferences):
       fontSize -= 2;
       ctx.font = `bold ${fontSize}px sans-serif`;
     }
-    ctx.fillText(text, 64, y);
+    ctx.fillText(text, 64, y, 936);
   };
   fit(preferences.profile.name, 602, 50);
   const artists = data.festival.artists.filter((a) => preferences.savedArtists.includes(a.id));
@@ -91,6 +90,52 @@ export async function createRecapCard(data: DemoData, preferences: Preferences):
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Image export failed"))),
+      "image/png",
+    ),
+  );
+}
+
+export async function createLineupPoster(data: DemoData, savedArtistIds: string[]): Promise<Blob> {
+  const artists = data.festival.artists.filter((artist) => savedArtistIds.includes(artist.id));
+  if (!artists.length) throw new Error("Save an artist before exporting your lineup.");
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = Math.max(1350, 480 + artists.length * 76);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Image export is unavailable in this browser.");
+  context.fillStyle = "#111111";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#ffffff";
+  context.font = "600 36px system-ui, sans-serif";
+  context.fillText("eventbuddies · MY LINEUP", 64, 100);
+  context.font = "700 76px system-ui, sans-serif";
+  context.fillText(data.event.name, 64, 230, 952);
+  context.font = "32px system-ui, sans-serif";
+  context.fillText(
+    dateLabel(data.event.startAt, data.event.timezone, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }),
+    64,
+    300,
+  );
+  artists.forEach((artist, index) => {
+    context.font = "600 44px system-ui, sans-serif";
+    context.fillText(artist.name, 64, 420 + index * 76, 952);
+  });
+  context.font = "28px system-ui, sans-serif";
+  context.fillText(
+    data.festival.timetablePublished
+      ? "My saved artists"
+      : "My saved artists · Set times awaiting publication",
+    64,
+    canvas.height - 64,
+    952,
+  );
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("The lineup poster couldn’t be saved."))),
       "image/png",
     ),
   );

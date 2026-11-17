@@ -5,6 +5,7 @@ import {
   House,
   Compass,
   Users,
+  Music2,
   WifiOff,
   Check,
   Info,
@@ -34,9 +35,9 @@ import { SheetContent, sheetTitle } from "./SheetContent";
 
 const NAV: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "home", label: "Events", icon: House },
+  { id: "lineup", label: "Lineup", icon: Music2 },
   { id: "map", label: "Map", icon: Compass },
   { id: "crew", label: "Crew", icon: Users },
-  { id: "you", label: "You", icon: UserRound },
 ];
 
 // Tabs are hash routes (#home, #lineup, #map, #crew) so browser Back,
@@ -95,6 +96,17 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const measure = () =>
+      shellRef.current?.style.setProperty("--companion-header-height", `${header.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const update = () =>
@@ -189,12 +201,15 @@ export function EventCompanion({ data }: { data: DemoData }) {
   };
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
-  const onboarding = attendee.ready && view === "home" && !attendee.preferences.hasName;
+  const onboarding = attendee.ready && view !== "crew" && !attendee.preferences.hasName;
   const selecting =
+    attendee.ready &&
     !onboarding &&
-    (view === "events" ||
-      (attendee.ready && !attendee.preferences.selectedEventId && view === "home"));
-  const activeTab = view === "lineup" || view === "info" ? "home" : view;
+    (view === "events" || (!attendee.preferences.selectedEventId && view !== "crew"));
+  const eventContent = attendee.ready && !onboarding && !selecting;
+  const showNavigation =
+    eventContent && attendee.preferences.hasName && Boolean(attendee.preferences.selectedEventId);
+  const activeTab = view === "you" || view === "info" ? "home" : view;
   const message = attendee.message;
 
   return (
@@ -213,14 +228,18 @@ export function EventCompanion({ data }: { data: DemoData }) {
           </a>
 
           <div className="min-w-0">
-            <header hidden={onboarding} className="ios-bar sticky top-0 z-20 pt-safe">
+            <header
+              ref={headerRef}
+              hidden={onboarding}
+              className="ios-bar sticky top-0 z-20 pt-safe"
+            >
               <div className="mx-auto flex h-11 max-w-3xl items-center gap-1 px-safe">
                 <a
                   href="#home"
                   className="mr-auto flex min-h-11 items-center gap-1 text-[17px] font-semibold tracking-tight"
                   aria-label="eventbuddies home"
                 >
-                  {view === "lineup" || view === "info" ? (
+                  {view === "lineup" || view === "info" || view === "you" ? (
                     <>
                       <ChevronLeft size={24} strokeWidth={2} />
                       <span>Events</span>
@@ -234,6 +253,14 @@ export function EventCompanion({ data }: { data: DemoData }) {
                   )}
                 </a>
                 <SafetyAccess />
+                <button
+                  type="button"
+                  aria-label="Open your profile"
+                  onClick={() => navigate("you")}
+                  className="ios-press grid size-11 place-items-center rounded-full text-foreground"
+                >
+                  <UserRound size={22} />
+                </button>
                 <button
                   type="button"
                   aria-label="Menu: profile, updates, rules and settings"
@@ -279,24 +306,24 @@ export function EventCompanion({ data }: { data: DemoData }) {
                     gate ↗
                   </button>
                 )}
-              {view === "home" && !onboarding && !selecting && <HomeView onShare={shareEvent} />}
-              {view === "lineup" && <LineupView searchRef={searchRef} />}
-              {view === "map" && <MapView />}
-              {view === "crew" && <CrewView />}
-              {view === "you" && <YouView />}
-              {view === "info" && <InfoView />}
+              {eventContent && view === "home" && <HomeView onShare={shareEvent} />}
+              {eventContent && view === "lineup" && <LineupView searchRef={searchRef} />}
+              {eventContent && view === "map" && <MapView />}
+              {eventContent && view === "crew" && <CrewView />}
+              {eventContent && view === "you" && <YouView />}
+              {eventContent && view === "info" && <InfoView />}
             </main>
           </div>
 
-          {!onboarding && !selecting && (
+          {showNavigation && (
             <nav aria-label="Main" className="companion-navigation fixed inset-x-0 bottom-0 z-30">
-              <ul className="companion-tabs mx-auto flex min-h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-md bg-nav px-2 pb-[env(safe-area-inset-bottom)]">
+              <ul className="companion-tabs mx-auto flex min-h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-full bg-nav px-2 pb-[env(safe-area-inset-bottom)]">
                 {NAV.map(({ id, label, icon: Icon }) => (
                   <li key={id} className="flex-1">
                     <a
                       href={`#${id}`}
                       aria-current={activeTab === id ? "page" : undefined}
-                      className="relative flex min-h-14 h-full flex-col items-center justify-center gap-0.5 text-[12px] font-medium text-nav-foreground aria-[current=page]:text-favorite"
+                      className="relative flex min-h-14 h-full flex-col items-center justify-center gap-0.5 text-[13px] font-medium text-nav-foreground aria-[current=page]:text-favorite"
                     >
                       <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
                       {label}

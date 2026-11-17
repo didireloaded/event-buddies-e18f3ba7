@@ -29,6 +29,9 @@ import { PlanBackup } from "./PlanBackup";
 import { OfflineReadiness } from "./OfflineReadiness";
 import { QuickPings } from "./QuickPings";
 import { FestivalPassport } from "./FestivalPassport";
+import { EventMemories } from "./EventMemories";
+import { FestivalPlay } from "./FestivalPlay";
+import { NearbyPlaces } from "./NearbyPlaces";
 import { TYPE_LABELS, placeIcon, placeTone } from "./places";
 import { Avatar, Chevron, IconTile, Notice, PrimaryButton, RowText, SecondaryButton } from "./ui";
 
@@ -60,6 +63,9 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         offline: "Offline & installation",
         pings: "Quick message",
         passport: "Festival passport",
+        memories: "Your event memories",
+        play: "Festival extras",
+        nearby: "Find nearby facilities",
         install: "Add to Home Screen",
         event: ctx.data.event.name,
         profile: "My profile",
@@ -103,6 +109,12 @@ export function SheetContent({
       return <QuickPings />;
     case "passport":
       return <FestivalPassport />;
+    case "memories":
+      return <EventMemories />;
+    case "play":
+      return <FestivalPlay />;
+    case "nearby":
+      return <NearbyPlaces />;
     case "assistant":
       return <EventAssistant />;
     case "ticket":
