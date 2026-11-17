@@ -30,3 +30,7 @@ The archived 220-item ledger contains implemented features, historical alternati
 ## Continuation
 
 Run `npm run check` and `npm run test:e2e`. Use the committed Cloud verification scripts after schema changes. Preserve the separate local promoter checkout. GitHub Actions previously failed before launching jobs, so report hosted CI independently of local checks. Continue through the requirements ledger with explicit verification evidence for each implemented slice.
+
+## Catalogue access correction
+
+The internal validation catalogue is now inaccessible through direct anonymous or authenticated reads. The broad read policy was removed. Database validation reads it through a restricted boolean function, while attendee writes retain invoker permissions and owner RLS. See `backend/cloud/private-event-catalogue.sql` and `verify-private-catalogue.sql`.

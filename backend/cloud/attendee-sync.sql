@@ -11,14 +11,13 @@ create table if not exists public.event_sync_catalogue (
 );
 alter table public.event_sync_catalogue enable row level security;
 drop policy if exists catalogue_read on public.event_sync_catalogue;
-create policy catalogue_read on public.event_sync_catalogue for select to anon, authenticated using (true);
-revoke all on public.event_sync_catalogue from anon, authenticated;
-grant select on public.event_sync_catalogue to anon, authenticated;
+-- Internal validation data is read only by the restricted validation function.
+revoke all on public.event_sync_catalogue from public, anon, authenticated;
 insert into public.event_sync_catalogue values ('20000000-0000-4000-8000-000000000002',array['shimza','buddykev','celso-fabbri','donbey','dreas','kandy','kaytee','mapiiano','pequenogang','xduppy','faffa-bruwer','hartbeat','housecat','hugo','lmt','lazarusman','nam-got-funk','alu','kurt-april','maps','macky','shafa','skelm','timo-odv','yd-fresh']::text[],array['sos-main','sos-afro','sos-jetty','sos-poi-1','sos-poi-2','sos-poi-3','sos-poi-4','sos-poi-5','sos-poi-6','sos-poi-7','sos-poi-8','sos-poi-9','sos-poi-10','sos-poi-11','sos-poi-12','sos-poi-13','sos-poi-14','sos-poi-15','sos-poi-16','sos-poi-17','sos-poi-18','sos-poi-19','sos-poi-20','sos-poi-21','sos-poi-22','sos-poi-23','sos-poi-24','sos-poi-25','sos-poi-26','sos-poi-27','sos-poi-28','sos-poi-29','sos-poi-30','sos-poi-31','sos-poi-32','sos-poi-33','sos-poi-34','sos-poi-35','sos-poi-36','sos-poi-37','sos-poi-38']::text[],'2026-12-28T10:00:00.000Z','2026-12-28T21:00:00.000Z')
 on conflict (event_id) do update set artist_ids=excluded.artist_ids, point_ids=excluded.point_ids, starts_at=excluded.starts_at, ends_at=excluded.ends_at;
 
 create or replace function public.valid_attendee_selection(p_event_id uuid, p_artists text[], p_meeting jsonb)
-returns boolean language plpgsql stable security invoker set search_path = '' as $fn$
+returns boolean language plpgsql stable security definer set search_path = '' as $fn$
 declare catalogue public.event_sync_catalogue%rowtype; meeting_at timestamptz;
 begin
   select * into catalogue from public.event_sync_catalogue where event_id=p_event_id;
@@ -79,7 +78,7 @@ declare actor uuid=auth.uid(); current_row public.attendee_event_preferences%row
 begin
   if actor is null then raise exception 'Sign in to save account preferences' using errcode='42501'; end if;
   if p_action_id is null or jsonb_typeof(p_action) is distinct from 'object' or octet_length(p_action::text)>16000 or exists(select 1 from jsonb_object_keys(p_action) k where k not in ('artists','meeting')) then raise exception 'Invalid preference action' using errcode='22023'; end if;
-  if not exists(select 1 from public.event_sync_catalogue where event_id=p_event_id) then raise exception 'Unknown event' using errcode='22023'; end if;
+  if not public.valid_attendee_selection(p_event_id,'{}'::text[],null) then raise exception 'Unknown event' using errcode='22023'; end if;
   insert into public.attendee_event_preferences(user_id,event_id) values(actor,p_event_id) on conflict do nothing;
   select * into current_row from public.attendee_event_preferences where user_id=actor and event_id=p_event_id for update;
   insert into public.attendee_preference_actions(user_id,event_id,action_id) values(actor,p_event_id,p_action_id) on conflict do nothing returning action_id into accepted;
@@ -90,7 +89,7 @@ begin
     if jsonb_typeof(p_action->'artists') is distinct from 'array' or jsonb_array_length(p_action->'artists')>50 then raise exception 'Invalid artist edits' using errcode='22023'; end if;
     for edit in select * from jsonb_array_elements(p_action->'artists') loop
       if jsonb_typeof(edit) is distinct from 'object' or jsonb_typeof(edit->'id') is distinct from 'string' or jsonb_typeof(edit->'saved') is distinct from 'boolean' or (select count(*) from jsonb_object_keys(edit))<>2 then raise exception 'Invalid artist edit' using errcode='22023'; end if;
-      if not exists(select 1 from public.event_sync_catalogue where event_id=p_event_id and (edit->>'id')=any(artist_ids)) then raise exception 'Unknown artist' using errcode='22023'; end if;
+      if not public.valid_attendee_selection(p_event_id,array[edit->>'id'],null) then raise exception 'Unknown artist' using errcode='22023'; end if;
       next_artists=array_remove(next_artists,edit->>'id');
       if (edit->>'saved')::boolean then next_artists=array_append(next_artists,edit->>'id'); end if;
     end loop;
