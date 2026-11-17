@@ -26,6 +26,7 @@ export const actionSchema = z
 export type AccountAction = z.infer<typeof actionSchema>;
 export function validSelection(selection: Selection, data: DemoData) {
   if (
+    selection.savedArtists.length > 50 ||
     selection.savedArtists.some((id) => !data.festival.artists.some((artist) => artist.id === id))
   )
     return false;
@@ -33,7 +34,9 @@ export function validSelection(selection: Selection, data: DemoData) {
   const time = Date.parse(selection.meeting.at);
   return (
     [...data.stages, ...data.points].some((place) => place.id === selection.meeting!.pointId) &&
-    /(?:Z|[+-]\d{2}:\d{2})$/.test(selection.meeting.at) &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[.]\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      selection.meeting.at,
+    ) &&
     Number.isFinite(time) &&
     time >= +data.event.startAt &&
     time <= +data.event.endAt

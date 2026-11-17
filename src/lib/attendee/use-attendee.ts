@@ -8,7 +8,12 @@ import { hapticTap } from "./haptics";
 import { useAccountAuth } from "@/lib/account/use-auth";
 import { useAccountSync } from "@/lib/account/use-account-sync";
 import { enqueue, queuedActions, acknowledge, clearAccountCache } from "@/lib/account/outbox";
-import { replayActions, selectionPatch, type AccountSnapshot } from "@/lib/account/schema";
+import {
+  replayActions,
+  selectionPatch,
+  validSelection,
+  type AccountSnapshot,
+} from "@/lib/account/schema";
 import { dayPlanSchema, type DayPlan } from "@/lib/day-plan/schema";
 
 export type { LocalMeeting };
@@ -173,7 +178,10 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
       typeof meeting["pointId"] === "string" &&
       typeof meeting["at"] === "string" &&
       placeIds.includes(meeting["pointId"]) &&
-      Number.isFinite(Date.parse(meeting["at"]))
+      validSelection(
+        { savedArtists: [], meeting: { pointId: meeting["pointId"], at: meeting["at"] } },
+        data,
+      )
         ? { pointId: meeting["pointId"], at: meeting["at"] }
         : null,
   };
@@ -270,6 +278,10 @@ export function useAttendee(data: DemoData) {
     if (!ready || currentScope.current !== key) return false;
     const previous = current.current;
     const next = { ...previous, ...patch };
+    if (userId && !validSelection(next, data)) {
+      notify("Choose an announced artist and a meeting within event hours before syncing.", true);
+      return false;
+    }
     const actionPatch = userId ? selectionPatch(previous, next) : null;
     try {
       if (actionPatch) enqueue(key, actionPatch);

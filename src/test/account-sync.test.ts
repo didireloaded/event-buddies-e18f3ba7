@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { parseStoredPreferences } from "@/lib/attendee/use-attendee";
 import { getDemoData } from "@/lib/event/demo-data";
 import { readSnapshot, replayActions, selectionPatch, validSelection } from "@/lib/account/schema";
 import { acknowledge, clearAccountCache, enqueue, queuedActions } from "@/lib/account/outbox";
@@ -20,6 +21,14 @@ describe("account selections", () => {
     clearAccountCache("account-a");
     expect(queuedActions("account-a")).toHaveLength(0);
     expect(queuedActions("account-b")).toHaveLength(1);
+  });
+  it("drops a legacy meeting outside event hours before account import", () => {
+    expect(
+      parseStoredPreferences(
+        { meeting: { pointId: "sos-main", at: "2026-12-28T23:30:00+02:00" } },
+        data,
+      ).meeting,
+    ).toBeNull();
   });
   it("emits per-artist deltas and explicit meeting clears", () => {
     expect(
