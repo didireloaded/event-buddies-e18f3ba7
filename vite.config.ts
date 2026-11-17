@@ -8,6 +8,7 @@
 // hosting already compresses at the edge.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 export default defineConfig({
   tanstackStart: {
@@ -15,6 +16,7 @@ export default defineConfig({
   },
   vite: {
     plugins: [
+      mcpPlugin(),
       // Offline support: Workbox generates /sw.js from the real client build.
       // Registration happens only in src/lib/pwa.ts (never in dev or Lovable preview).
       VitePWA({
@@ -36,7 +38,9 @@ export default defineConfig({
             {
               // SSR pages: network first, cached copy when offline. Never cache OAuth.
               urlPattern: ({ request, url }) =>
-                request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
+                request.mode === "navigate" && !url.pathname.startsWith("/~oauth") &&
+                !url.pathname.startsWith("/.lovable/") &&
+                !url.pathname.startsWith("/login"),
               handler: "NetworkFirst",
               options: {
                 cacheName: "event-buddies-pages",
