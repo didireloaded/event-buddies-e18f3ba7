@@ -34,7 +34,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-sm px-5 py-16 text-foreground">
       <h1 className="text-2xl font-bold">Couldn't load this request</h1>
-      <p className="mt-2 text-muted-foreground">{error.message} It may have expired — start the connection again from your assistant.</p>
+      <p className="mt-2 text-muted-foreground">{error instanceof Error ? error.message : "Unknown error."} It may have expired — start the connection again from your assistant.</p>
     </main>
   ),
 });
