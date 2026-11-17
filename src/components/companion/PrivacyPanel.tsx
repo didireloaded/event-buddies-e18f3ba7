@@ -9,7 +9,7 @@ import { useCompanion } from "./context";
 import { SecondaryButton } from "./ui";
 
 export function PrivacyPanel() {
-  const { data, attendee } = useCompanion();
+  const { data, attendee, crew } = useCompanion();
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -45,7 +45,7 @@ export function PrivacyPanel() {
           setError("");
           try {
             if (attendee.auth.user) {
-              if (queuedActions(attendee.scope).length)
+              if (queuedActions(attendee.scope).length || crew.pending)
                 throw new Error("Sync queued changes first.");
               const result = await supabase.auth.signOut({ scope: "local" });
               if (result.error) throw result.error;

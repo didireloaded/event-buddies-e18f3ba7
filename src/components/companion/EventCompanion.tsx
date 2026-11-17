@@ -11,25 +11,35 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
+import { useCrew } from "@/lib/crew/use-crew";
 import { useAttendee } from "@/lib/attendee/use-attendee";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 import { KonstaProvider } from "konsta/react";
 import { Companion, type CompanionContext, type Sheet as SheetState, type View } from "./context";
-import { CrewView } from "./CrewView";
+const CrewView = lazy(() => import("./CrewView").then((module) => ({ default: module.CrewView })));
 import { HomeView } from "./HomeView";
 import { EventSelection } from "./EventSelection";
 import { SafetyAccess } from "./SafetyAccess";
 import { Onboarding } from "./Onboarding";
-import { YouView } from "./YouView";
-import { InfoView } from "./InfoView";
+const YouView = lazy(() => import("./YouView").then((module) => ({ default: module.YouView })));
+const InfoView = lazy(() => import("./InfoView").then((module) => ({ default: module.InfoView })));
 import { PinPrivacy } from "./PinPrivacy";
 import { LineupView } from "./LineupView";
-import { MapView } from "./MapView";
+const MapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
 import { Sheet } from "./Sheet";
 import { SheetContent, sheetTitle } from "./SheetContent";
 
@@ -85,6 +95,12 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
   const attendee = useAttendee(data);
+  const crew = useCrew(
+    data.event.id,
+    attendee.auth.user?.id ?? null,
+    attendee.scope,
+    attendee.ready,
+  );
   const now = useEventClock(attendee.preferences.batterySaver ? 60000 : 10000);
   const places = useMemo(() => buildPlaces(data), [data]);
   const [sheet, setSheet] = useState<SheetState>(null);
@@ -164,6 +180,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
     data,
     places,
     attendee,
+    crew,
     now,
     offlineStatus,
     view,
@@ -306,12 +323,20 @@ export function EventCompanion({ data }: { data: DemoData }) {
                     gate ↗
                   </button>
                 )}
-              {eventContent && view === "home" && <HomeView onShare={shareEvent} />}
-              {eventContent && view === "lineup" && <LineupView searchRef={searchRef} />}
-              {eventContent && view === "map" && <MapView />}
-              {eventContent && view === "crew" && <CrewView />}
-              {eventContent && view === "you" && <YouView />}
-              {eventContent && view === "info" && <InfoView />}
+              <Suspense
+                fallback={
+                  <p role="status" className="px-4 py-8 text-[17px] text-muted-foreground">
+                    Opening your event view…
+                  </p>
+                }
+              >
+                {eventContent && view === "home" && <HomeView onShare={shareEvent} />}
+                {eventContent && view === "lineup" && <LineupView searchRef={searchRef} />}
+                {eventContent && view === "map" && <MapView />}
+                {eventContent && view === "crew" && <CrewView />}
+                {eventContent && view === "you" && <YouView />}
+                {eventContent && view === "info" && <InfoView />}
+              </Suspense>
             </main>
           </div>
 
