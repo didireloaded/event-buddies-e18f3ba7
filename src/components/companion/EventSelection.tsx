@@ -88,14 +88,10 @@ export function EventSelection() {
             modifiers={{ event: eventDay }}
             modifiersClassNames={{ event: "calendar-event-day" }}
             classNames={{
-              day: "group/day relative aspect-square h-full w-full select-none p-0 text-center",
+              day: "group/day relative h-11 min-w-0 flex-1 select-none p-0 text-center",
             }}
-            className="w-full bg-transparent p-1 [--cell-size:2.25rem] [&_button[data-selected-single=true]]:rounded-full"
+            className="w-full bg-transparent p-1 [--cell-size:2.75rem]"
           />
-          <p className="px-3 pb-2 text-[14px] text-muted-foreground">
-            <span className="mr-2 inline-block size-1.5 rounded-full bg-favorite" />
-            Published event date
-          </p>
         </section>
       )}
       <div className="mb-3 mt-6 flex items-center justify-between">

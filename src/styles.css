@@ -206,23 +206,6 @@
     -webkit-backdrop-filter: blur(18px);
     border: 1px solid oklch(1 0 0 / 0.24);
   }
-  .event-calendar .calendar-event-day::after {
-    content: "";
-    position: absolute;
-    bottom: 3px;
-    left: calc(50% - 2px);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--color-favorite);
-    pointer-events: none;
-  }
-  .event-calendar button[data-selected-single="true"] {
-    border-radius: 50%;
-  }
-  .event-calendar .calendar-event-day:has(button[data-selected-single="true"])::after {
-    background: white;
-  }
   .companion-navigation {
     animation: navigation-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
@@ -545,6 +528,35 @@
     color: var(--color-foreground);
     box-shadow: var(--shadow-float);
     pointer-events: none;
+  }
+}
+
+/* Override the shared calendar button utilities only within event discovery. */
+@layer utilities {
+  .event-calendar .calendar-event-day::after {
+    content: "";
+    position: absolute;
+    bottom: 5px;
+    left: calc(50% - 2px);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-favorite);
+    pointer-events: none;
+  }
+  .event-calendar button[data-day] {
+    height: 2.75rem;
+    min-width: 0;
+    width: 100%;
+    aspect-ratio: auto;
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+  }
+  .event-calendar button[data-selected-single="true"] {
+    background: radial-gradient(circle 18px at center, var(--color-primary) 98%, transparent 100%);
+  }
+  .event-calendar .calendar-event-day:has(button[data-selected-single="true"])::after {
+    background: white;
   }
 }
 
