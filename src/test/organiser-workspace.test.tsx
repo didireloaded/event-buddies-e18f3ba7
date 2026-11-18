@@ -182,7 +182,7 @@ describe("organiser tabs", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/Only PDF files/);
   });
 
-  it("separates verified timed items from unscheduled items and discloses blocked broadcasts", () => {
+  it("separates verified timed items from unscheduled items and discloses broadcast and aggregate rules", async () => {
     const liveEvent = makeEvent({
       id: "live-1",
       status: "published",
@@ -191,11 +191,15 @@ describe("organiser tabs", () => {
         { title: "Xduppy", place: "", time: "", status: "scheduled" },
       ],
     });
-    render(<LiveTab ctx={makeCtx([liveEvent], "verified")} />);
+    await act(async () => {
+      render(<LiveTab ctx={makeCtx([liveEvent], "verified")} />);
+    });
     expect(screen.getByText(/21:00/)).toBeVisible();
     expect(screen.getByText(/Time pending/)).toBeVisible();
-    expect(screen.getByText("Push & announcement delivery unavailable")).toBeVisible();
-    expect(screen.getByText(/Aggregate attendance counts aren’t collected yet/)).toBeVisible();
+    expect(screen.getByText("One-way attendee broadcast")).toBeVisible();
+    expect(
+      screen.getByText(/Individual attendee profiles and locations are never exposed/),
+    ).toBeVisible();
   });
 
   it("lists publish blockers and adapts terminology in EventReview", async () => {

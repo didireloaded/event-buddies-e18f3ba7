@@ -35,7 +35,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 4 | Offline Festival Pack | Implemented | Workbox SW precaches app shell, map & 24 portraits; honest offline/reconnect banner (`OfflineReadiness.tsx`) | `pwa.ts`, `OfflineReadiness.tsx` |
 | 5 | Unified Search | Partial | Searches artists, venue, city and places for the verified event; multi-event catalogue blocked on additional verified events | `EventSelection.tsx`, `MapView.tsx`, `LineupView.tsx` |
 | 6 | Event Timeline | Partial | Event hours & countdown work; per-set timeline blocked on organiser-published set times | `HomeView.tsx`, `LineupView.tsx` |
-| 7 | Official Announcements | Blocked | Local updates notice and organiser draft schema exist; push/announcement delivery table & provider blocked | `SheetContent.tsx`, `LiveTab.tsx` |
+| 7 | Official Announcements | Partial | In-app one-way broadcast & emergency alert feed (`organiser_broadcasts`, `LiveTab.tsx`, `SheetContent.tsx`); OS web-push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx`, `organiser-and-crew-extensions.sql` |
 | 8 | My Festival Plan | Partial | Saved artists, meeting plan, and AI day-plan review work; unpublished set times stay pending | `LineupView.tsx`, `DayPlanPanel.tsx`, `forms.tsx` |
 | 9 | Quick Action Bar | Implemented | Four bottom tabs post-selection plus header safety, profile and menu controls | `EventCompanion.tsx`, `SafetyAccess.tsx` |
 | 10 | Multi-Event Support | Blocked | Per-event storage/SQL scoping implemented; blocked on additional verified/published event records | `sound-of-summer.ts`, `organiser_events` |
@@ -47,7 +47,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 16 | Artist Profiles | Implemented | 25 announced artists with 24 supplied portraits, stage/billing, and honest TBA set times | `SheetContent.tsx`, `ArtistAvatar.tsx` |
 | 17 | Music Preview | Partial | Opens external Spotify artist search links; no embedded licensed audio playback | `SheetContent.tsx` |
 | 18 | Find My DJ on the Map | Implemented | Stage artists open stage pin on map; map search matches artist names (`shimza` → Main Stage) | `SheetContent.tsx`, `map.ts` |
-| 19 | Shared Crew Lineup | Partial | Imported QR Bump plans show artist overlap badges on Lineup; automatic Cloud crew lineup sync not wired | `LineupView.tsx`, `FestivalBump.tsx` |
+| 19 | Shared Crew Lineup | Implemented | Lineup shows friend badges from both imported QR Bump plans and signed-in Cloud crewmates (`attendee_crew_artist_overlap`) | `LineupView.tsx`, `cloud-extensions.ts`, `organiser-and-crew-extensions.sql` |
 | 20 | Discover My Next DJ | Implemented | Random pick from unsaved announced artists (`spin()`) | `EventCompanion.tsx`, `LineupView.tsx` |
 | 21 | Smart Map Filters | Implemented | Data-derived category chips with real counts (`Stages 3`, `Bars 17`, `Toilets 5`, `Food 1`, `Medics 2`, `Gates 3`, `Sponsors 6`, `Tents 2`, `Zones 2`) | `MapView.tsx`, `places.ts` |
 | 22 | Find Facilities | Implemented | Category filter lists + plan-relative `NearbyPlaces` helper (explicitly marks water stations unmapped) | `MapView.tsx`, `NearbyPlaces.tsx` |
@@ -119,15 +119,15 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 88 | Outdoor Visibility Mode | Partial | High-contrast tokens & original/monochrome map toggle implemented; field sunlight verification pending | `MapView.tsx`, `styles.css` |
 | 89 | Language Options | Blocked | English-only copy; localized event data & translations blocked on verified multi-language content | `sound-of-summer.ts` |
 | 90 | Offline Status Indicator | Implemented | Header offline banner (`WifiOff`) + `OfflineReadiness` registration & status sheet | `EventCompanion.tsx`, `OfflineReadiness.tsx` |
-| 91 | Organiser Dashboard | Partial | Magic-link `/organiser` PWA workspace, DB RLS, PDF extract & 4 tabs built (`OrganiserApp.tsx`); admin verification approval & live attendee push blocked | `OrganiserApp.tsx`, `0000_organiser_workspace.sql` |
-| 92 | Official Event Updates | Blocked | Organiser Live tab edits `program` item time/place/status in DB; attendee live sync & push delivery blocked | `LiveTab.tsx`, `SheetContent.tsx` |
+| 91 | Organiser Dashboard | Implemented | Magic-link `/organiser` PWA, 4 tabs, PDF extract, site-plan/zone editor, admin verification queue & Cloud SQL extensions | `OrganiserApp.tsx`, `AccountTab.tsx`, `organiser-and-crew-extensions.sql` |
+| 92 | Official Event Updates | Partial | Organiser Live tab edits `program` status and publishes in-app broadcasts (`organiser_broadcasts`); background push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
 | 93 | Lineup Management | Implemented | Organiser Program sheet adds/edits/reorders/removes items & adapts Festival/Conference/Corporate terms | `EventReview.tsx`, `LiveTab.tsx` |
 | 94 | Vendor Management | Deferred | Out of first-release organiser scope (zones cover food/bar/sponsor pins on site plan) | `EventReview.tsx` |
 | 95 | Venue Issue Reporting | Deferred | Owner-deferred operations workflow | `requirements-ledger.md` |
 | 96 | Sponsor Campaigns | Deferred | Excluded per Build Brief ("no sponsor-management suite") | `requirements-ledger.md` |
 | 97 | Live Stage Polls | Deferred | Owner-deferred moderated audience polling | `requirements-ledger.md` |
-| 98 | Event Analytics | Blocked | Explicitly blocked until aggregate-only server collection exists (never displays fake metrics) | `LiveTab.tsx` |
-| 99 | Multi-Festival Platform | Partial | Per-event ID isolation & organiser event CRUD built; blocked on verified multi-event public catalogue feed | `organiser_events`, `sound-of-summer.ts` |
+| 98 | Event Analytics | Implemented | Aggregate-only counts RPC (`organiser_event_aggregates`: saved plans, crews, members, active pins) + counts-only CSV export; zero PII | `LiveTab.tsx`, `organiser-and-crew-extensions.sql` |
+| 99 | Multi-Festival Platform | Partial | Per-event ID isolation, organiser CRUD & `list_published_events()` → `EventSelection.tsx` sync built; awaiting additional verified public events | `EventSelection.tsx`, `organiser-and-crew-extensions.sql` |
 | 100 | Official Ticketing Integration | Blocked | External Howler link only; ticket validation & tier entitlements blocked on ticketing provider integration | `TicketVault.tsx`, `OrganiserWorkspace.tsx` |
 
 ## 120-feature-platform
@@ -162,7 +162,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 26 | Programme Filters | Implemented | Stage chips, search box, and `All` / `Saved` toggle | `LineupView.tsx` |
 | 27 | Personal Schedule View | Partial | Shows saved artists & reviewed day plan; timed rows await published set times | `LineupView.tsx`, `DayPlanPanel.tsx` |
 | 28 | Programme Changes | Blocked | Organiser Live tab edits `program` status (`delayed`/`moved`/`cancelled`); attendee live push blocked | `LiveTab.tsx` |
-| 29 | Crew Schedule Comparison | Partial | Lineup shows avatar badges of friends from imported Bump plans who saved each artist | `LineupView.tsx` |
+| 29 | Crew Schedule Comparison | Implemented | Lineup displays avatar badges from both QR Bump imports and signed-in Cloud crewmates (`attendee_crew_artist_overlap`) | `LineupView.tsx`, `cloud-extensions.ts` |
 | 30 | Smart Event Suggestions | Implemented | Grounded Lovable AI Gateway day plan (`suggestDayPlan`) clamping unverified times to TBA | `DayPlanPanel.tsx`, `day-plan.functions.ts` |
 | 31 | Interactive Venue Maps | Implemented | Supplied venue plan with zoom (+/-), pinch/drag pan, full-screen dialog & monochrome/original toggle | `MapView.tsx`, `use-map-gestures.ts` |
 | 32 | Search the Map | Implemented | Searches places, types, synonyms (`bathroom`, `medical`) & artist-to-stage mapping | `MapView.tsx`, `map.ts` |
@@ -236,7 +236,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 100 | Event Memory Archive | Partial | Per-event local diary; cross-event archive blocked on multi-event catalogue | `EventMemories.tsx` |
 | 101 | Emergency Information | Implemented | Medical & security places + honest steward/safety guidance (`SafetyAccess.tsx`) | `SafetyAccess.tsx` |
 | 102 | Medical Facility Locator | Implemented | 2 medical stations mapped with `Medics` filter & `NearbyPlaces` proximity order | `MapView.tsx`, `NearbyPlaces.tsx` |
-| 103 | Safety Announcements | Blocked | Organiser Live tab explains push & broadcast delivery is blocked pending provider & DB table | `LiveTab.tsx` |
+| 103 | Safety Announcements | Partial | In-app emergency broadcast with explicit confirmation (`organiser_broadcasts`, `LiveTab.tsx`); background OS push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
 | 104 | Safe Check-In | Partial | Expiring Cloud landmark pin + Ghost Mode; automated check-in alerts deferred | `ConnectedCrew.tsx` |
 | 105 | Temporary Location Sharing | Implemented | 60m auto-expiring pins (local & Cloud crew), server generation revocation & Ghost Mode | `shared-crews.sql`, `PinPrivacy.tsx` |
 | 106 | Privacy Dashboard | Implemented | Clear local/account/crew boundaries, pin revocation & local wipe (`PrivacyPanel.tsx`) | `PrivacyPanel.tsx` |
@@ -250,7 +250,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 114 | Brand Customisation | Partial | Organiser logo upload & Event-type labels (`Festival`/`Conference`/`Corporate`) implemented; theme overrides not exposed | `AccountTab.tsx`, `EventReview.tsx` |
 | 115 | Programme Manager | Implemented | Add/edit/reorder/remove items, status changes & live overrides (`EventReview.tsx`, `LiveTab.tsx`) | `EventReview.tsx`, `LiveTab.tsx` |
 | 116 | Interactive Map Editor | Implemented | Site-plan upload + tap-to-position `(x, y)` percentage pins for stages, bars, medical, gates & zones | `EventReview.tsx` |
-| 117 | Announcement Centre | Blocked | Blocked on push provider setup & broadcast persistence table | `LiveTab.tsx` |
+| 117 | Announcement Centre | Partial | In-app one-way update & emergency broadcast composer and attendee feed (`organiser_broadcasts`); background push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
 | 118 | Interactive Activity Builder | Deferred | Out of first-release organiser scope | `requirements-ledger.md` |
-| 119 | Organiser Analytics | Blocked | Explicitly blocked until real aggregate-only counts are collected (zero fake charts/numbers) | `LiveTab.tsx` |
+| 119 | Organiser Analytics | Implemented | Aggregate-only counts RPC (`organiser_event_aggregates`) + counts-only CSV export in `LiveTab.tsx` (zero PII) | `LiveTab.tsx`, `organiser-and-crew-extensions.sql` |
 | 120 | Team Roles and Permissions | Partial | `app_role ('admin')`, `has_role()` & strict `owner_id = auth.uid()` RLS enforced; multi-member team invites deferred | `0000_organiser_workspace.sql`, `AccountTab.tsx` |

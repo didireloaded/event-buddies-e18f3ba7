@@ -1,9 +1,10 @@
 import { CalendarPlus, Check, Heart, Music2, Plus, Shuffle, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { PerformanceRecord } from "@/lib/event/types";
 import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/schedule";
 import { createLineupPoster } from "@/lib/attendee/recap-card";
+import { getCrewArtistOverlap } from "@/lib/organiser/cloud-extensions";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
 import { DayPlanPanel } from "./DayPlanPanel";
@@ -15,22 +16,25 @@ export function ArtistRow({
   artist,
   saved,
   disabled,
+  crewSharedNames = [],
   onOpen,
   onSave,
 }: {
   artist: FestivalArtist;
   saved: boolean;
   disabled: boolean;
+  crewSharedNames?: string[];
   onOpen: () => void;
   onSave: () => void;
 }) {
   const { attendee, data } = useCompanion();
   const sharedNames = [
-    ...new Set(
-      attendee.preferences.sharedPlans
+    ...new Set([
+      ...crewSharedNames,
+      ...attendee.preferences.sharedPlans
         .filter((entry) => entry.plan.artists.includes(artist.id))
         .map((entry) => entry.plan.name),
-    ),
+    ]),
   ];
   const stageLabel = artist.stageId
     ? data.stages.find((stage) => stage.id === artist.stageId)?.name
@@ -137,12 +141,27 @@ function SetRow({
 }
 
 export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElement> }) {
-  const { data, attendee, openSheet, spin } = useCompanion();
+  const { data, attendee, crew, openSheet, spin } = useCompanion();
   const { preferences, ready, toggleArtist, toggleSaved } = attendee;
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState<"all" | "saved">("all");
   const [stage, setStage] = useState("all");
   const [exportingPoster, setExportingPoster] = useState(false);
+  const [crewOverlap, setCrewOverlap] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (!attendee.auth.user || !crew?.crew) {
+      setCrewOverlap({});
+      return;
+    }
+    let active = true;
+    void getCrewArtistOverlap(data.event.id).then((map) => {
+      if (active) setCrewOverlap(map);
+    });
+    return () => {
+      active = false;
+    };
+  }, [attendee.auth.user, crew?.crew, data.event.id]);
   const term = query.trim().toLowerCase();
   const stageName = (id: string) => data.stages.find((s) => s.id === id)?.name ?? "Stage";
 
@@ -244,6 +263,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
                 artist={artist}
                 saved={preferences.savedArtists.includes(artist.id)}
                 disabled={!ready}
+                crewSharedNames={crewOverlap[artist.id] ?? []}
                 onOpen={() => openSheet({ kind: "artist", artist })}
                 onSave={() => toggleArtist(artist.id)}
               />

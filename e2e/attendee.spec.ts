@@ -509,3 +509,16 @@ test("organiser route renders safely without client errors", async ({ page }) =>
   await expect(page.getByRole("heading", { name: /Organiser/i })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("crew invite deep link is retained and login supports magic-link mode", async ({ page }) => {
+  await guest(page);
+  await page.goto("/?crewInvite=d3333333-3333-4333-8333-333333333333#crew");
+  await expect(page).toHaveURL(/\/#crew$/);
+  await expect(
+    page.getByText("Crew invite ready — sign in to review and join this private crew."),
+  ).toBeVisible();
+  await page.goto("/login?next=%2F%23crew");
+  await page.getByRole("button", { name: "Email me a sign-in link", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Email sign-in link" })).toBeVisible();
+  await expect(page.getByLabel("Password")).toHaveCount(0);
+});

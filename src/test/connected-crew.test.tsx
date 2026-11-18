@@ -1,6 +1,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ConnectedCrew } from "@/components/companion/ConnectedCrew";
+import {
+  buildCrewInviteUrl,
+  CREW_INVITE_STORAGE_KEY,
+  extractCrewInviteCode,
+} from "@/lib/crew/invite-link";
 import { getDemoData } from "@/lib/event/demo-data";
 import { buildPlaces } from "@/lib/attendee/map";
 const mock = vi.hoisted(() => ({ ctx: {} as any }));
@@ -82,4 +87,23 @@ it("shows a recoverable sync failure without claiming confirmed membership", () 
   expect(screen.getByRole("alert")).toHaveTextContent("Offline");
   fireEvent.click(screen.getByRole("button", { name: "Retry crew sync" }));
   expect(mock.ctx.crew.refresh).toHaveBeenCalled();
+});
+it("extracts crew invite UUIDs from raw codes, full URLs and shared messages, and pre-opens Join", () => {
+  const uuid = "d3333333-3333-4333-8333-333333333333";
+  const link = buildCrewInviteUrl("https://eventbudides.lovable.app", uuid);
+  expect(extractCrewInviteCode(uuid)).toBe(uuid);
+  expect(extractCrewInviteCode(link)).toBe(uuid);
+  expect(extractCrewInviteCode(`Join Coast crew: ${link}`)).toBe(uuid);
+  expect(extractCrewInviteCode("not-a-uuid")).toBeNull();
+
+  sessionStorage.setItem(CREW_INVITE_STORAGE_KEY, uuid);
+  render(<ConnectedCrew />);
+  expect(screen.getByRole("dialog", { name: "Join a crew" })).toBeVisible();
+  expect(screen.getByLabelText("Crew code or invite link")).toHaveValue(uuid);
+  fireEvent.click(screen.getByRole("button", { name: "Join crew" }));
+  expect(mock.ctx.crew.command).toHaveBeenCalledWith({
+    op: "join",
+    code: uuid,
+    displayName: "Maya",
+  });
 });

@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, MapPin, Clock, ArrowUpRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
+import {
+  listPublishedOrganiserEvents,
+  type PublishedOrganiserEvent,
+} from "@/lib/organiser/cloud-extensions";
 import { useCompanion } from "./context";
 import { Sheet } from "./Sheet";
 import { PrimaryButton, Segmented, SearchField } from "./ui";
@@ -12,6 +16,24 @@ export function EventSelection() {
   const [preview, setPreview] = useState(false);
   const [mode, setMode] = useState<"browse" | "calendar">("browse");
   const [query, setQuery] = useState("");
+  const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void listPublishedOrganiserEvents().then((items) => {
+      if (!active) return;
+      setExtraEvents(
+        items.filter(
+          (item) =>
+            item.id !== data.event.id &&
+            item.name.trim().toLowerCase() !== data.event.name.trim().toLowerCase(),
+        ),
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [data.event.id, data.event.name]);
   const eventDay = new Date(
     new Intl.DateTimeFormat("en-CA", {
       timeZone: data.event.timezone,
@@ -187,6 +209,28 @@ export function EventSelection() {
             </PrimaryButton>
           </div>
         </Sheet>
+      )}
+      {extraEvents.length > 0 && (
+        <section className="mt-6 space-y-3" aria-label="Additional published events">
+          <h2 className="text-[18px] font-semibold">Also published</h2>
+          <div className="ios-group">
+            {extraEvents
+              .filter((ev) =>
+                `${ev.name} ${ev.venue} ${ev.startDate ?? ""}`
+                  .toLowerCase()
+                  .includes(query.trim().toLowerCase()),
+              )
+              .map((ev) => (
+                <div key={ev.id} className="ios-row flex-col items-start py-3">
+                  <p className="text-[17px] font-semibold">{ev.name}</p>
+                  <p className="text-[14px] text-muted-foreground">
+                    {ev.startDate ?? "Date TBA"} · {ev.venue || "Venue TBA"}
+                    {ev.gatesOpen ? ` · Gates ${ev.gatesOpen}` : ""}
+                  </p>
+                </div>
+              ))}
+          </div>
+        </section>
       )}
     </div>
   );

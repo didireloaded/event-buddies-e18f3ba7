@@ -1,4 +1,5 @@
-import { queuedActions } from "@/lib/account/outbox";
+import { clearAccountCache, queuedActions } from "@/lib/account/outbox";
+import { deleteMyAccountData } from "@/lib/organiser/cloud-extensions";
 import { useState } from "react";
 import { Cloud, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ export function AccountPanel() {
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [copyMeeting, setCopyMeeting] = useState(false);
   const [guest, setGuest] = useState<ReturnType<typeof parseStoredPreferences> | null>(null);
   function reviewImport() {
@@ -89,6 +91,14 @@ export function AccountPanel() {
           >
             <LogOut size={18} />
             {busy ? "Signing out…" : "Sign out"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="block min-h-11 text-left text-[15px] font-semibold text-destructive disabled:opacity-50"
+            onClick={() => setConfirmDelete(true)}
+          >
+            Delete synced account data
           </button>
           <p className="text-[14px] text-muted-foreground">
             Suggested day plans, ticket copies and photos stay on this device. Your account’s
@@ -176,6 +186,42 @@ export function AccountPanel() {
             onClick={() => setConfirmLeave(false)}
           >
             Keep syncing
+          </button>
+        </Sheet>
+      )}
+      {confirmDelete && (
+        <Sheet title="Delete synced account data?" onClose={() => setConfirmDelete(false)}>
+          <p className="mb-4 text-[17px]">
+            This deletes your synced favourites, private meeting plan and crew membership from
+            Lovable Cloud, transfers any crew you own to the longest-standing member, and signs you
+            out.
+          </p>
+          <PrimaryButton
+            className="bg-destructive"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError("");
+              const res = await deleteMyAccountData();
+              if (!res.ok) {
+                setBusy(false);
+                setError(res.error);
+                setConfirmDelete(false);
+                return;
+              }
+              clearAccountCache(attendee.scope);
+              await signOut();
+              setConfirmDelete(false);
+            }}
+          >
+            Delete synced data & sign out
+          </PrimaryButton>
+          <button
+            type="button"
+            className="mt-2 min-h-11 w-full text-favorite"
+            onClick={() => setConfirmDelete(false)}
+          >
+            Cancel
           </button>
         </Sheet>
       )}

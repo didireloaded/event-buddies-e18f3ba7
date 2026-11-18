@@ -72,6 +72,40 @@
           "additionalProperties": false
         },
         "outputSchema": null
+      },
+      {
+        "name": "get_my_saved_plan",
+        "title": "Get my saved plan",
+        "description": "Get the signed-in attendee’s synced favourite artists and private meeting plan for Sound of Summer 2026.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_my_crew",
+        "title": "Get my crew",
+        "description": "Get the signed-in attendee’s private crew, shared crew meeting, and active expiring landmark pins for Sound of Summer 2026.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
       }
     ]
   }

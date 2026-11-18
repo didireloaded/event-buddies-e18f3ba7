@@ -16,8 +16,10 @@ import {
   Shuffle,
   User,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
+import { listEventBroadcasts, type OrganiserBroadcast } from "@/lib/organiser/cloud-extensions";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion, type Sheet as SheetState } from "./context";
 import { MeetingForm, ProfileForm } from "./forms";
@@ -79,6 +81,52 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
 const Paragraph = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <p className={cn("text-[17px] leading-relaxed", className)}>{children}</p>
 );
+
+function EventUpdatesSheet({ eventId }: { eventId: string }) {
+  const { data } = useCompanion();
+  const [broadcasts, setBroadcasts] = useState<OrganiserBroadcast[]>([]);
+  useEffect(() => {
+    let active = true;
+    void listEventBroadcasts(eventId).then((items) => {
+      if (active) setBroadcasts(items);
+    });
+    return () => {
+      active = false;
+    };
+  }, [eventId]);
+
+  if (!data.announcements.length && !broadcasts.length) {
+    return (
+      <Notice icon={Bell}>
+        <strong className="font-semibold">No updates yet.</strong> Organiser announcements appear
+        here when published. Check the official event page for the latest news.
+      </Notice>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {broadcasts.map((b) => (
+        <article key={b.id} className="ios-card p-4">
+          <p className="text-[13px] font-semibold uppercase text-primary">
+            {b.kind === "emergency" ? "Emergency alert" : "Organiser update"} ·{" "}
+            {eventTime(new Date(b.createdAt))}
+          </p>
+          <p className="mt-1 text-[16px]">{b.message}</p>
+        </article>
+      ))}
+      {data.announcements.map((a) => (
+        <article key={a.id} className="ios-card p-4">
+          <p className="text-[13px] text-muted-foreground">
+            {eventTime(a.publishAt)} · {a.category}
+          </p>
+          <h3 className="text-[17px] font-semibold">{a.title}</h3>
+          <p className="text-[15px]">{a.body}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
 
 export function SheetContent({
   sheet,
@@ -349,25 +397,7 @@ export function SheetContent({
       );
 
     case "updates":
-      return data.announcements.length ? (
-        <div className="space-y-3">
-          {data.announcements.map((a) => (
-            <article key={a.id} className="ios-card p-4">
-              <p className="text-[13px] text-muted-foreground">
-                {eventTime(a.publishAt)} · {a.category}
-              </p>
-              <h3 className="text-[17px] font-semibold">{a.title}</h3>
-              <p className="text-[15px]">{a.body}</p>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <Notice icon={Bell}>
-          <strong className="font-semibold">No updates yet.</strong> Organiser announcements will
-          appear here once live delivery is connected. Check the official event page for the latest
-          news.
-        </Notice>
-      );
+      return <EventUpdatesSheet eventId={data.event.id} />;
 
     case "menu":
       return (

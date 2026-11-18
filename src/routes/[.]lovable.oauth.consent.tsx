@@ -127,13 +127,13 @@ export function Consent({
       <h1 className="text-2xl font-bold">Connect {client} to Event Buddies</h1>
       <p>
         {client} will be able to read public Sound of Summer event info, the lineup and venue
-        places.
+        places, plus your synced saved artists, meeting plan and private crew.
       </p>
       {email && <p className="text-sm text-muted-foreground">Signed in as {email}</p>}
       {host && <p className="text-sm text-muted-foreground">Returns to {host}</p>}
       <p className="text-sm text-muted-foreground">
-        Shares your basic profile and email. It can’t read your saved artists, meeting plans or
-        crew.
+        Shares your basic profile, email and read-only access to your synced event plan and crew.
+        Your local ticket copy and photo diary stay on your phone.
       </p>
       {error && (
         <p role="alert" className="text-sm">

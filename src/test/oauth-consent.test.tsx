@@ -42,8 +42,12 @@ describe("OAuth consent screen", () => {
     expect(
       screen.getByText(/read public Sound of Summer event info, the lineup and venue places/i),
     ).toBeVisible();
-    expect(screen.getByText(/can’t read your saved artists, meeting plans or crew/i)).toBeVisible();
-    expect(screen.queryByText(/stay on your phone/i)).toBeNull();
+    expect(
+      screen.getByText(/your synced saved artists, meeting plan and private crew/i),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Your local ticket copy and photo diary stay on your phone/i),
+    ).toBeVisible();
     expect(screen.getByText("Returns to assistant.example")).toBeVisible();
   });
 

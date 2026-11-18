@@ -25,7 +25,7 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const { next } = Route.useSearch();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up" | "magic">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,7 +55,14 @@ function Login() {
     setBusy(true);
     setMsg(null);
     try {
-      if (mode === "in") {
+      if (mode === "magic") {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: { emailRedirectTo: returnUrl() },
+        });
+        if (error) setMsg("Couldn’t send the sign-in link. Check your email and try again.");
+        else setMsg("Check your email for your sign-in link.");
+      } else if (mode === "in") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) setMsg("Couldn’t sign in. Check your email and password, then try again.");
         else window.location.assign(next);
@@ -97,7 +104,7 @@ function Login() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-5 py-10">
       <h1 className="text-3xl font-bold text-foreground">
-        {mode === "in" ? "Sign in" : "Create account"}
+        {mode === "in" ? "Sign in" : mode === "up" ? "Create account" : "Email sign-in link"}
       </h1>
       <a href={next} className="min-h-11 text-primary">
         Back to Event Buddies
@@ -119,18 +126,20 @@ function Login() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
-          Password
-          <input
-            className="ios-field"
-            type="password"
-            required
-            minLength={6}
-            autoComplete={mode === "in" ? "current-password" : "new-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
+        {mode !== "magic" && (
+          <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+            Password
+            <input
+              className="ios-field"
+              type="password"
+              required
+              minLength={6}
+              autoComplete={mode === "in" ? "current-password" : "new-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+        )}
         {msg && (
           <p role="alert" className="text-sm text-muted-foreground">
             {msg}
@@ -140,9 +149,19 @@ function Login() {
           disabled={busy || !accountConfigured}
           className="min-h-11 rounded-full bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-50"
         >
-          {mode === "in" ? "Sign in" : "Sign up"}
+          {mode === "in" ? "Sign in" : mode === "up" ? "Sign up" : "Email me a link"}
         </button>
       </form>
+      <button
+        type="button"
+        onClick={() => {
+          setMsg(null);
+          setMode(mode === "magic" ? "in" : "magic");
+        }}
+        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
+      >
+        {mode === "magic" ? "Use a password instead" : "Email me a sign-in link"}
+      </button>
       <button
         type="button"
         disabled={busy || !accountConfigured}

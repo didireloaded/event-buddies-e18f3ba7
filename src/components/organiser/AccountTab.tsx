@@ -3,6 +3,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { dbError, signedUrl, uploadOwnFile } from "@/lib/organiser/data";
 import {
+  deleteMyAccountData,
+  listAdminVerifications,
+  reviewOrganiserVerification,
+  type AdminVerificationRow,
+} from "@/lib/organiser/cloud-extensions";
+import {
   IMAGE_TYPES,
   validateImageFile,
   validateVerificationFile,
@@ -19,6 +25,18 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [adminRows, setAdminRows] = useState<AdminVerificationRow[] | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void listAdminVerifications().then((rows) => {
+      if (active) setAdminRows(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
@@ -258,7 +276,6 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
         <div className="ios-card space-y-3 p-4">
           <p className="text-[15px] text-muted-foreground">
             Drafts, uploaded files and event records are scoped to your account by database rules.
-            Full workspace data deletion awaits an approved retention and ownership-transfer policy.
           </p>
           <Link to="/" className="flex min-h-11 items-center font-semibold text-primary">
             Open attendee app
@@ -279,8 +296,100 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
           >
             Sign out
           </SecondaryButton>
+          {!confirmDelete ? (
+            <button
+              type="button"
+              disabled={busy}
+              className="min-h-11 text-[15px] font-semibold text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete my synced account data
+            </button>
+          ) : (
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-[14px] text-muted-foreground">
+                Deletes your unpublished drafts and synced attendee data, transfers any crew you own
+                to the longest-standing member, and signs you out.
+              </p>
+              <div className="flex gap-2">
+                <PrimaryButton
+                  className="bg-destructive"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError("");
+                    const res = await deleteMyAccountData();
+                    if (!res.ok) {
+                      setBusy(false);
+                      setError(res.error);
+                      return;
+                    }
+                    await supabase.auth.signOut({ scope: "local" });
+                    setBusy(false);
+                  }}
+                >
+                  Confirm delete
+                </PrimaryButton>
+                <SecondaryButton onClick={() => setConfirmDelete(false)}>Cancel</SecondaryButton>
+              </div>
+            </div>
+          )}
         </div>
       </Section>
+
+      {adminRows && (
+        <Section title="Admin verification queue" id="org-admin-queue">
+          <div className="ios-card divide-y divide-border p-4">
+            {adminRows.length === 0 ? (
+              <p className="text-[15px] text-muted-foreground">No organiser profiles submitted.</p>
+            ) : (
+              adminRows.map((row) => (
+                <div key={row.userId} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                  <p className="text-[16px] font-semibold">
+                    {row.organisation || "Unnamed organisation"} ·{" "}
+                    {row.displayName || row.userId.slice(0, 8)}
+                  </p>
+                  <p className="text-[14px] text-muted-foreground">
+                    Status: <strong className="capitalize">{row.verificationStatus}</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || row.verificationStatus === "verified"}
+                      className="min-h-11 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground disabled:opacity-50"
+                      onClick={async () => {
+                        setBusy(true);
+                        const res = await reviewOrganiserVerification(row.userId, "verified");
+                        if (!res.ok) setError(res.error);
+                        else setAdminRows(await listAdminVerifications());
+                        await reload();
+                        setBusy(false);
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || row.verificationStatus === "rejected"}
+                      className="min-h-11 rounded-full border border-border px-4 text-[14px] font-semibold disabled:opacity-50"
+                      onClick={async () => {
+                        setBusy(true);
+                        const res = await reviewOrganiserVerification(row.userId, "rejected");
+                        if (!res.ok) setError(res.error);
+                        else setAdminRows(await listAdminVerifications());
+                        await reload();
+                        setBusy(false);
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }

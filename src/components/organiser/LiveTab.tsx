@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { dbError } from "@/lib/organiser/data";
-import { parseProgram, type ProgramItem } from "@/lib/organiser/schema";
+import {
+  getOrganiserEventAggregates,
+  listEventBroadcasts,
+  sendOrganiserBroadcast,
+  type OrganiserBroadcast,
+  type OrganiserEventAggregates,
+} from "@/lib/organiser/cloud-extensions";
+import { BROADCAST_LIMIT, parseProgram, type ProgramItem } from "@/lib/organiser/schema";
 import { PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
 import type { OrgCtx } from "./OrganiserApp";
 
@@ -23,6 +30,29 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [changelog, setChangelog] = useState<ChangeEntry[]>([]);
+
+  const [broadcasts, setBroadcasts] = useState<OrganiserBroadcast[]>([]);
+  const [broadcastKind, setBroadcastKind] = useState<"update" | "emergency">("update");
+  const [broadcastText, setBroadcastText] = useState("");
+  const [confirmEmergency, setConfirmEmergency] = useState(false);
+  const [broadcastBusy, setBroadcastBusy] = useState(false);
+  const [broadcastNotice, setBroadcastNotice] = useState("");
+  const [aggregates, setAggregates] = useState<OrganiserEventAggregates | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    let mounted = true;
+    void Promise.all([listEventBroadcasts(active.id), getOrganiserEventAggregates(active.id)]).then(
+      ([bList, aggs]) => {
+        if (!mounted) return;
+        setBroadcasts(bList);
+        setAggregates(aggs);
+      },
+    );
+    return () => {
+      mounted = false;
+    };
+  }, [active]);
 
   if (!active) {
     return (
@@ -74,6 +104,48 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
     }
     setEditingIndex(null);
     await ctx.reload();
+  }
+
+  async function handleSendBroadcast() {
+    if (!active || broadcastBusy) return;
+    if (broadcastKind === "emergency" && !confirmEmergency) {
+      setError("Confirm the emergency alert checkbox before sending.");
+      return;
+    }
+    setBroadcastBusy(true);
+    setError("");
+    setBroadcastNotice("");
+    const result = await sendOrganiserBroadcast({
+      eventId: active.id,
+      kind: broadcastKind,
+      message: broadcastText,
+    });
+    setBroadcastBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setBroadcasts((prev) => [result.broadcast, ...prev]);
+    setBroadcastText("");
+    setConfirmEmergency(false);
+    setBroadcastNotice(
+      "Published to the in-app Event updates feed. Browser push notifications remain disabled until a push provider is configured.",
+    );
+  }
+
+  function exportAggregatesCsv() {
+    if (!active || !aggregates) return;
+    const csv = [
+      "event_id,event_name,saved_plans_count,crews_count,crew_members_count,active_pins_count",
+      `${active.id},"${active.name.replace(/"/g, '""')}",${aggregates.savedPlansCount},${aggregates.crewsCount},${aggregates.crewMembersCount},${aggregates.activePinsCount}`,
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(active.name || "event").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-counts.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return (
@@ -256,17 +328,122 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
         </Section>
       )}
 
-      <Section title="Attendee broadcasts & counts" id="org-live-blocked">
-        <div className="ios-card space-y-2 p-4 text-[14px] text-muted-foreground">
-          <p className="font-semibold text-foreground">Push & announcement delivery unavailable</p>
-          <p>
-            One-way attendee broadcasts and emergency alerts require an approved push provider and
-            announcement delivery table before sends can be confirmed.
+      <Section title="One-way attendee broadcast" id="org-live-broadcast">
+        <div className="ios-card space-y-3 p-4">
+          <p className="text-[14px] text-muted-foreground">
+            Posts to the in-app Event updates sheet for this event. Push notifications require a
+            push provider before background delivery is available.
           </p>
-          <p>
-            Aggregate attendance counts aren’t collected yet. Individual attendee profiles and
-            locations are never exposed to organisers.
-          </p>
+          <label className="block text-[14px] font-semibold">
+            Broadcast type
+            <select
+              className="ios-field mt-1"
+              value={broadcastKind}
+              onChange={(e) => {
+                setBroadcastKind(e.target.value as "update" | "emergency");
+                setConfirmEmergency(false);
+              }}
+            >
+              <option value="update">Event update</option>
+              <option value="emergency">Emergency / safety alert</option>
+            </select>
+          </label>
+          <label className="block text-[14px] font-semibold">
+            Message ({broadcastText.length}/{BROADCAST_LIMIT})
+            <textarea
+              rows={3}
+              maxLength={BROADCAST_LIMIT}
+              className="ios-field mt-1"
+              value={broadcastText}
+              placeholder="Stage delay, gate advice or safety notice…"
+              onChange={(e) => setBroadcastText(e.target.value)}
+            />
+          </label>
+          {broadcastKind === "emergency" && (
+            <label className="flex min-h-11 items-center gap-3 text-[14px] font-medium">
+              <input
+                type="checkbox"
+                className="size-5 accent-primary"
+                checked={confirmEmergency}
+                onChange={(e) => setConfirmEmergency(e.target.checked)}
+              />
+              Confirm this is an urgent safety alert for attendees of {active.name}
+            </label>
+          )}
+          <PrimaryButton
+            disabled={
+              broadcastBusy ||
+              !broadcastText.trim() ||
+              (broadcastKind === "emergency" && !confirmEmergency)
+            }
+            onClick={() => void handleSendBroadcast()}
+          >
+            {broadcastBusy
+              ? "Publishing…"
+              : broadcastKind === "emergency"
+                ? "Publish emergency alert"
+                : "Publish event update"}
+          </PrimaryButton>
+          {broadcastNotice && (
+            <p role="status" className="text-[14px] text-muted-foreground">
+              {broadcastNotice}
+            </p>
+          )}
+          {broadcasts.length > 0 && (
+            <ul className="divide-y divide-border border-t border-border pt-2 text-[14px]">
+              {broadcasts.map((b) => (
+                <li key={b.id} className="py-2">
+                  <span className="font-semibold uppercase text-primary">{b.kind}</span> ·{" "}
+                  <span className="text-muted-foreground">
+                    {new Date(b.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <p className="mt-0.5">{b.message}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Section>
+
+      <Section title="Aggregate attendance counts" id="org-live-aggregates">
+        <div className="ios-card space-y-3 p-4 text-[14px]">
+          {aggregates ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-secondary p-3">
+                  <p className="text-[22px] font-bold tabular-nums">{aggregates.savedPlansCount}</p>
+                  <p className="text-muted-foreground">Saved plans</p>
+                </div>
+                <div className="rounded-xl bg-secondary p-3">
+                  <p className="text-[22px] font-bold tabular-nums">{aggregates.crewsCount}</p>
+                  <p className="text-muted-foreground">Private crews</p>
+                </div>
+                <div className="rounded-xl bg-secondary p-3">
+                  <p className="text-[22px] font-bold tabular-nums">
+                    {aggregates.crewMembersCount}
+                  </p>
+                  <p className="text-muted-foreground">Crew members</p>
+                </div>
+                <div className="rounded-xl bg-secondary p-3">
+                  <p className="text-[22px] font-bold tabular-nums">{aggregates.activePinsCount}</p>
+                  <p className="text-muted-foreground">Active landmark pins</p>
+                </div>
+              </div>
+              <SecondaryButton onClick={exportAggregatesCsv}>
+                Download counts-only CSV
+              </SecondaryButton>
+            </>
+          ) : (
+            <p className="text-muted-foreground">
+              Aggregate attendance counts aren’t available yet. Apply{" "}
+              <code>backend/cloud/organiser-and-crew-extensions.sql</code> in Lovable Cloud to
+              enable counts-only summaries. Individual attendee profiles and locations are never
+              exposed to organisers.
+            </p>
+          )}
         </div>
       </Section>
     </div>

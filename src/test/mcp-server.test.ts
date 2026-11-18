@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { defineMcp } from "@lovable.dev/mcp-js";
+import { describe, expect, it, vi } from "vitest";
+import { defineMcp, ToolError } from "@lovable.dev/mcp-js";
 import { createMcpProtocolHandler } from "@lovable.dev/mcp-js/protocols/mcp";
 import { createOAuthProtectedResourceMetadataHandler } from "@lovable.dev/mcp-js/protocols/oauth-metadata";
 import { assertToolResult } from "@lovable.dev/mcp-js/testing";
@@ -8,6 +8,9 @@ import mcpServer from "@/lib/mcp";
 import getEventInfo from "@/lib/mcp/tools/get-event-info";
 import listLineup from "@/lib/mcp/tools/list-lineup";
 import searchVenuePlaces from "@/lib/mcp/tools/search-venue-places";
+import getMySavedPlan from "@/lib/mcp/tools/get-my-saved-plan";
+import getMyCrew from "@/lib/mcp/tools/get-my-crew";
+import * as callerModule from "@/lib/mcp/supabase-caller";
 import { getDemoData } from "@/lib/event/demo-data";
 
 const demo = getDemoData();
@@ -17,8 +20,8 @@ const publicTestServer = defineMcp({
   title: "Festival Map Meetup Buddies",
   version: "0.1.0",
   instructions:
-    "Read-only facts about Sound of Summer 2026 (Langstrand, Namibia): event info, announced lineup and venue-plan places. Set times and GPS are not published; never invent them.",
-  tools: [getEventInfo, listLineup, searchVenuePlaces],
+    "Read-only facts about Sound of Summer 2026 (Langstrand, Namibia) plus the signed-in attendee’s synced saved artists, meeting plan and private crew. Set times and GPS are not published; never invent them.",
+  tools: [getEventInfo, listLineup, searchVenuePlaces, getMySavedPlan, getMyCrew],
   metrics: false,
 });
 
@@ -106,10 +109,72 @@ describe("MCP tool handlers", () => {
       text: expect.stringContaining("No matching places"),
     });
   });
+
+  it("get_my_saved_plan and get_my_crew require OAuth and resolve synced account data", async () => {
+    await expect(getMySavedPlan.handler({}, makeCtx())).rejects.toThrow(ToolError);
+    await expect(getMyCrew.handler({}, makeCtx())).rejects.toThrow(ToolError);
+
+    const spy = vi.spyOn(callerModule, "requireCallerSupabase").mockReturnValue({
+      userId: "u-1",
+      supabase: {
+        from: () => ({
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    saved_artist_ids: ["shimza"],
+                    meeting: { pointId: "sos-main", at: "2026-12-28T17:30:00+02:00" },
+                    updated_at: "2026-11-18T12:00:00Z",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }),
+        rpc: async () => ({
+          data: {
+            id: "d2222222-2222-4222-8222-222222222222",
+            name: "Coast Crew",
+            revision: 1,
+            meeting: { pointId: "sos-jetty", at: "2026-12-28T18:00:00+02:00" },
+            members: [
+              {
+                id: "d1111111-1111-4111-8111-111111111111",
+                name: "Maya",
+                owner: true,
+                generation: 1,
+                pointId: "sos-main",
+                expiresAt: new Date(Date.now() + 3600000).toISOString(),
+              },
+            ],
+          },
+          error: null,
+        }),
+      } as never,
+    });
+
+    const planResult = await getMySavedPlan.handler({}, makeCtx());
+    await assertToolResult(planResult);
+    expect(planResult.content?.[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("Shimza"),
+    });
+
+    const crewResult = await getMyCrew.handler({}, makeCtx());
+    await assertToolResult(crewResult);
+    expect(crewResult.content?.[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("Coast Crew"),
+    });
+
+    spy.mockRestore();
+  });
 });
 
 describe("MCP HTTP protocol and OAuth boundary", () => {
-  it("lists and executes all three read-only tools and enforces closed input schemas", async () => {
+  it("lists and executes read-only tools and enforces closed input schemas", async () => {
     const report = await checkMcpServer({
       endpoint: "http://localhost/mcp",
       handler: publicHandler,
@@ -117,6 +182,8 @@ describe("MCP HTTP protocol and OAuth boundary", () => {
         { name: "get_event_info", arguments: {} },
         { name: "list_lineup", arguments: {} },
         { name: "search_venue_places", arguments: { query: "medical" } },
+        { name: "get_my_saved_plan", arguments: {}, isError: true },
+        { name: "get_my_crew", arguments: {}, isError: true },
         { name: "search_venue_places", arguments: { query: "x".repeat(81) }, isError: true },
         { name: "get_event_info", arguments: { unknownKey: true }, isError: true },
       ],
@@ -129,6 +196,8 @@ describe("MCP HTTP protocol and OAuth boundary", () => {
         const listed = await client.listTools();
         expect(listed.tools.map((t) => t.name).sort()).toEqual([
           "get_event_info",
+          "get_my_crew",
+          "get_my_saved_plan",
           "list_lineup",
           "search_venue_places",
         ]);

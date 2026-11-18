@@ -24,6 +24,7 @@ import {
 import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
 import { useCrew } from "@/lib/crew/use-crew";
+import { captureCrewInviteFromUrl } from "@/lib/crew/invite-link";
 import { useAttendee } from "@/lib/attendee/use-attendee";
 import { useAttendeeAvatar } from "@/lib/attendee/avatar";
 import type { DemoData } from "@/lib/event/types";
@@ -139,6 +140,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   }, []);
 
   useEffect(() => {
+    captureCrewInviteFromUrl();
     let active = true;
     void registerServiceWorker().then((status) => {
       if (active) setOfflineStatus(status);

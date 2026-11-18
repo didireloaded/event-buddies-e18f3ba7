@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCompanion, initials } from "./context";
 import { Sheet } from "./Sheet";
 import { MeetingForm } from "./forms";
 import { eventTime } from "@/lib/attendee/schedule";
+import {
+  buildCrewInviteUrl,
+  captureCrewInviteFromUrl,
+  clearPendingCrewInvite,
+  extractCrewInviteCode,
+  readPendingCrewInvite,
+} from "@/lib/crew/invite-link";
 import { PrimaryButton, SecondaryButton, Avatar } from "./ui";
 
 export function ConnectedCrew() {
@@ -12,7 +19,8 @@ export function ConnectedCrew() {
     "create" | "join" | "invite" | "meeting" | "leave" | "pin" | null
   >(null);
   const [name, setName] = useState("Our crew");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => readPendingCrewInvite() ?? "");
+  const [pendingInvite, setPendingInvite] = useState<string | null>(() => readPendingCrewInvite());
   const [pointId, setPointId] = useState(places[0]?.id ?? "");
   const [localError, setLocalError] = useState("");
   const crew = sync.crew;
@@ -21,15 +29,34 @@ export function ConnectedCrew() {
   const meetingPlace = places.find((p) => p.id === crew?.meeting?.pointId);
   const activePin =
     self?.pointId && self.expiresAt && Date.parse(self.expiresAt) > (now ?? Date.now());
+
+  useEffect(() => {
+    const captured = captureCrewInviteFromUrl();
+    if (captured) {
+      setPendingInvite(captured);
+      setCode(captured);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (attendee.auth.user && !crew && !sync.loading && pendingInvite) {
+      setCode(pendingInvite);
+      setMode("join");
+      setPendingInvite(null);
+      clearPendingCrewInvite();
+    }
+  }, [attendee.auth.user, crew, sync.loading, pendingInvite]);
+
   function open(next: typeof mode) {
     setLocalError("");
     setMode(next);
   }
   async function shareInvite() {
     if (!sync.invite) return;
-    const text = `Join ${crew?.name ?? "our crew"} on Event Buddies. Crew code: ${sync.invite.code}`;
+    const link = buildCrewInviteUrl(window.location.origin, sync.invite.code);
+    const text = `Join ${crew?.name ?? "our crew"} on Event Buddies: ${link}\nCrew code: ${sync.invite.code}`;
     try {
-      if (navigator.share) await navigator.share({ title: "Event Buddies crew", text });
+      if (navigator.share) await navigator.share({ title: "Event Buddies crew", text, url: link });
       else {
         await navigator.clipboard.writeText(text);
         attendee.notify("Crew invite copied");
@@ -48,6 +75,14 @@ export function ConnectedCrew() {
       </h2>
       {!attendee.auth.user ? (
         <>
+          {pendingInvite && (
+            <p
+              role="status"
+              className="mt-2 rounded-xl bg-secondary px-3 py-2 text-[15px] font-medium"
+            >
+              Crew invite ready — sign in to review and join this private crew.
+            </p>
+          )}
           <p className="mt-2 text-[15px] text-muted-foreground">
             Sign in to share a crew and meeting across your phones.
           </p>
@@ -220,31 +255,44 @@ export function ConnectedCrew() {
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                const value =
-                  mode === "create"
-                    ? {
-                        op: "create" as const,
-                        name: name.trim(),
-                        displayName: attendee.preferences.profile.name,
-                      }
-                    : {
-                        op: "join" as const,
-                        code: code.trim().toLowerCase(),
-                        displayName: attendee.preferences.profile.name,
-                      };
-                if (sync.command(value)) setMode(null);
+                if (mode === "create") {
+                  if (
+                    sync.command({
+                      op: "create",
+                      name: name.trim(),
+                      displayName: attendee.preferences.profile.name,
+                    })
+                  )
+                    setMode(null);
+                  return;
+                }
+                const parsedCode = extractCrewInviteCode(code);
+                if (!parsedCode) {
+                  setLocalError("Enter a valid 36-character crew code or invite link.");
+                  return;
+                }
+                clearPendingCrewInvite();
+                setPendingInvite(null);
+                if (
+                  sync.command({
+                    op: "join",
+                    code: parsedCode,
+                    displayName: attendee.preferences.profile.name,
+                  })
+                )
+                  setMode(null);
               }}
             >
               <p className="text-[15px] text-muted-foreground">
                 One active private crew per event. Your profile name will be visible to its members.
               </p>
               <label className="block font-medium">
-                {mode === "create" ? "Crew name" : "Crew code"}
+                {mode === "create" ? "Crew name" : "Crew code or invite link"}
                 <input
                   className="ios-field mt-2"
                   required
                   minLength={mode === "create" ? 2 : 36}
-                  maxLength={mode === "create" ? 60 : 36}
+                  maxLength={mode === "create" ? 60 : 240}
                   autoCapitalize="off"
                   value={mode === "create" ? name : code}
                   onChange={(e) =>
@@ -260,14 +308,15 @@ export function ConnectedCrew() {
           {mode === "invite" && crew && (
             <div className="space-y-4">
               <p className="text-[15px]">
-                Anyone with this code can join. Replacing the code revokes the previous invite.
+                Anyone with this code or link can join. Replacing the code revokes the previous
+                invite.
               </p>
               {sync.invite && Date.parse(sync.invite.expiresAt) > Date.now() && (
                 <>
                   <SecondaryButton onClick={() => void shareInvite()}>Share invite</SecondaryButton>
                   <div className="mx-auto w-fit bg-white p-4">
                     <QRCodeSVG
-                      value={sync.invite.code}
+                      value={buildCrewInviteUrl(window.location.origin, sync.invite.code)}
                       size={220}
                       fgColor="#000000"
                       bgColor="#ffffff"
@@ -278,18 +327,34 @@ export function ConnectedCrew() {
                   <p className="text-[15px]">
                     Expires {new Date(sync.invite.expiresAt).toLocaleString()}
                   </p>
-                  <SecondaryButton
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(sync.invite!.code);
-                        attendee.notify("Crew code copied");
-                      } catch {
-                        setLocalError("Select and copy the code above.");
-                      }
-                    }}
-                  >
-                    Copy code
-                  </SecondaryButton>
+                  <div className="grid grid-cols-2 gap-2">
+                    <SecondaryButton
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(sync.invite!.code);
+                          attendee.notify("Crew code copied");
+                        } catch {
+                          setLocalError("Select and copy the code above.");
+                        }
+                      }}
+                    >
+                      Copy code
+                    </SecondaryButton>
+                    <SecondaryButton
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(
+                            buildCrewInviteUrl(window.location.origin, sync.invite!.code),
+                          );
+                          attendee.notify("Crew invite link copied");
+                        } catch {
+                          setLocalError("Select and copy the code above.");
+                        }
+                      }}
+                    >
+                      Copy invite link
+                    </SecondaryButton>
+                  </div>
                 </>
               )}
               <PrimaryButton
