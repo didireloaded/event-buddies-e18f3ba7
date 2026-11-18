@@ -99,7 +99,6 @@ function Login() {
       <h1 className="text-3xl font-bold text-foreground">
         {mode === "in" ? "Sign in" : "Create account"}
       </h1>
-      {!accountConfigured && <p role="status">Account connection settings are pending.</p>}
       <a href={next} className="min-h-11 text-primary">
         Back to Event Buddies
       </a>

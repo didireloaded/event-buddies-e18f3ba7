@@ -4,6 +4,7 @@ import { resolve, extname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Readable } from "node:stream";
 
+const port = Number(process.env.PREVIEW_PORT) || 4173;
 const publicRoot = resolve(".output/public");
 const { default: app } = await import(pathToFileURL(resolve(".output/server/index.mjs")).href);
 const types = {
@@ -53,4 +54,4 @@ createServer(async (incoming, outgoing) => {
     outgoing.writeHead(500);
     outgoing.end("Preview request failed. Rebuild and restart the preview.");
   }
-}).listen(4173, "127.0.0.1", () => console.log("Production preview at http://127.0.0.1:4173"));
+}).listen(port, "127.0.0.1", () => console.log(`Production preview at http://127.0.0.1:${port}`));

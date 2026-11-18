@@ -52,7 +52,8 @@ export function CrewView() {
         </button>
       </div>
       <p className="px-4 pt-4 text-[14px] text-muted-foreground">
-        QR and link sharing work with saved plans. Live crew location sharing is pending.
+        QR and link sharing work offline with saved plans. Connected crews share meetings and
+        expiring landmark pins when signed in; continuous live GPS is not used.
       </p>
     </>
   );

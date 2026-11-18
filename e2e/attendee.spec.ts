@@ -123,13 +123,11 @@ test("private photo diary saves offline, exports a card and removes the photo", 
   });
   await page.getByRole("button", { name: "Save memory on this phone", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("JPG, PNG or WebP");
-  await page
-    .getByLabel("Add a photo", { exact: true })
-    .setInputFiles({
-      name: "broken.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("damaged image"),
-    });
+  await page.getByLabel("Add a photo", { exact: true }).setInputFiles({
+    name: "broken.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("damaged image"),
+  });
   await page.getByRole("button", { name: "Save memory on this phone", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("couldn’t be read");
   await page.getByLabel("Add a photo", { exact: true }).setInputFiles({
@@ -468,4 +466,46 @@ test("sheet grabber follows a drag and dismisses after the threshold", async ({ 
   await page.mouse.move(x, y + 85, { steps: 4 });
   await page.mouse.up();
   await expect(page.locator("dialog[open]")).toHaveCount(0);
+});
+
+test("onboarding optional self-photo attaches, persists across views, and can be removed", async ({
+  page,
+}) => {
+  await page.goto("/#home");
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "selfie.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jxGkAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await expect(page.getByRole("img", { name: /profile photo/i })).toBeVisible();
+  await page.getByLabel("Your name", { exact: true }).fill("Maya");
+  await page.getByRole("button", { name: "Go to my event" }).click();
+  await page.getByRole("button", { name: "Preview Sound of Summer" }).click();
+  await page.getByRole("button", { name: "I’m going", exact: true }).click();
+
+  await page.goto("/#you");
+  await expect(page.getByRole("img", { name: /Maya’s profile photo/i })).toBeVisible();
+  await page.getByRole("button", { name: /Edit name/ }).click();
+  await page.getByRole("button", { name: "Remove photo", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove photo", exact: true })).toHaveCount(0);
+});
+
+test("map category chips only list existing categories and include tents", async ({ page }) => {
+  await guest(page);
+  await page.goto("/#map");
+  const filterGroup = page.getByRole("group", { name: "Filter places" });
+  await expect(filterGroup.getByRole("button", { name: /Tents/ })).toContainText("2");
+  await expect(filterGroup.getByRole("button", { name: /Water/ })).toHaveCount(0);
+});
+
+test("organiser route renders safely without client errors", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (err) => errors.push(err.message));
+  await page.goto("/organiser");
+  await expect(page.getByRole("heading", { name: /Organiser/i })).toBeVisible();
+  expect(errors).toEqual([]);
 });

@@ -60,8 +60,10 @@ export const MAP_FILTERS: { id: MapFilter; label: string; icon: LucideIcon }[] =
   { id: "bar", label: "Bars", icon: Beer },
   { id: "toilet", label: "Toilets", icon: Toilet },
   { id: "food", label: "Food", icon: Utensils },
+  { id: "water", label: "Water", icon: Droplets },
   { id: "first-aid", label: "Medics", icon: Cross },
   { id: "entrance", label: "Gates", icon: ArrowRightToLine },
   { id: "sponsor", label: "Sponsors", icon: Megaphone },
+  { id: "tent", label: "Tents", icon: Tent },
   { id: "zone", label: "Zones", icon: Square },
 ];

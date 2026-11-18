@@ -53,7 +53,7 @@
       {
         "name": "search_venue_places",
         "title": "Search venue places",
-        "description": "Find places on the Sound of Summer venue plan (stages, toilets, bars, water, medical, gates). Leave query empty to list all.",
+        "description": "Find places on the Sound of Summer venue plan (stages, bars, toilets, food, medical, gates, sponsors, tents, zones). Water points aren’t mapped yet. Leave query empty to list all.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

@@ -209,22 +209,26 @@ export function Avatar({
   label,
   index = 0,
   size = "md",
+  src,
+  alt = "",
 }: {
   label: string;
   index?: number;
   size?: "md" | "lg";
+  src?: string | null | undefined;
+  alt?: string;
 }) {
   const tones = ["bg-primary", "bg-pin-amenity", "bg-pin-entrance", "bg-pin-other"];
   return (
     <span
-      aria-hidden="true"
+      aria-hidden={src ? undefined : true}
       className={cn(
-        "grid flex-none place-items-center rounded-full font-semibold text-primary-foreground",
+        "grid flex-none place-items-center overflow-hidden rounded-full font-semibold text-primary-foreground",
         tones[index % tones.length],
         size === "lg" ? "size-16 text-xl" : "size-10 text-[15px]",
       )}
     >
-      {label}
+      {src ? <img src={src} alt={alt} className="h-full w-full object-cover" /> : label}
     </span>
   );
 }

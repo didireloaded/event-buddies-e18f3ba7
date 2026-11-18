@@ -18,6 +18,7 @@ export type MapFilter =
   | "water"
   | "entrance"
   | "sponsor"
+  | "tent"
   | "zone"
   | "first-aid"
   | "safety";

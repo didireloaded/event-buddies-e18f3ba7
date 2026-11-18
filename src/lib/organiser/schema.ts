@@ -153,3 +153,91 @@ export function publishBlockers(e: ReadinessInput): string[] {
 }
 
 export const BROADCAST_LIMIT = 240;
+
+export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const VERIFICATION_MAX_BYTES = 10 * 1024 * 1024;
+
+export function validateImageFile(
+  file: { type: string; size: number },
+  maxBytes = IMAGE_MAX_BYTES,
+): string | null {
+  if (!IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number]))
+    return "Choose a JPG, PNG or WebP image.";
+  if (file.size <= 0) return "This image file is empty.";
+  if (file.size > maxBytes)
+    return `This image is larger than ${Math.round(maxBytes / (1024 * 1024))} MB.`;
+  return null;
+}
+
+export function validateVerificationFile(file: {
+  name: string;
+  type: string;
+  size: number;
+}): string | null {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  const isImage = IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number]);
+  if (!isPdf && !isImage) return "Choose a PDF, JPG, PNG or WebP document.";
+  if (file.size <= 0) return "This file is empty.";
+  if (file.size > VERIFICATION_MAX_BYTES) return "This file is larger than 10 MB.";
+  return null;
+}
+
+export function parseProgram(raw: unknown): ProgramItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: ProgramItem[] = [];
+  for (const entry of raw) {
+    const parsed = programItem.safeParse(entry);
+    if (parsed.success) items.push(parsed.data);
+  }
+  return items;
+}
+
+export function parseZones(raw: unknown): ZoneItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: ZoneItem[] = [];
+  for (const entry of raw) {
+    const parsed = zoneItem.safeParse(entry);
+    if (parsed.success) items.push(parsed.data);
+  }
+  return items;
+}
+
+export type OrganiserEventSummary = {
+  id: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+export function groupEventsBySection<T extends OrganiserEventSummary>(
+  events: T[],
+  todayIso: string,
+) {
+  const live: T[] = [];
+  const drafts: T[] = [];
+  const imported: T[] = [];
+  const past: T[] = [];
+  for (const event of events) {
+    if (event.status === "imported") imported.push(event);
+    else if (event.status === "published") {
+      const end = event.end_date ?? event.start_date;
+      if (end && end < todayIso) past.push(event);
+      else live.push(event);
+    } else drafts.push(event);
+  }
+  return { live, drafts, imported, past };
+}
+
+export function verificationStatusCopy(status: string | null | undefined): string {
+  switch (status) {
+    case "verified":
+      return "Verified — you can publish reviewed events.";
+    case "pending":
+      return "Pending review — drafts can be saved while verification is checked.";
+    case "rejected":
+      return "Verification not approved — upload updated proof to submit again.";
+    default:
+      return "Unverified — drafts stay private until an admin approves verification.";
+  }
+}

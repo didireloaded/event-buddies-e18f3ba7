@@ -13,7 +13,7 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
 function MapCanvas({ expanded }: { expanded: boolean }) {
-  const { data, places, map, openSheet, attendee, now, crew } = useCompanion();
+  const { data, places, map, openSheet, attendee, avatar, now, crew } = useCompanion();
   const hereId = activeLandmarkPin(data, attendee.preferences.here, now)?.pointId ?? null;
   const [zoom, setZoomState] = useState(expanded ? 2.5 : 1);
   const [baseSize, setBaseSize] = useState(0);
@@ -161,8 +161,14 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                   }
                 }}
               >
-                <span className={cn("map-pin-dot", isHere && "map-pin-here")}>
-                  {many ? ids.length : <Icon size={15} strokeWidth={2.4} aria-hidden />}
+                <span className={cn("map-pin-dot overflow-hidden", isHere && "map-pin-here")}>
+                  {many ? (
+                    ids.length
+                  ) : isHere && avatar?.url ? (
+                    <img src={avatar.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Icon size={15} strokeWidth={2.4} aria-hidden />
+                  )}
                 </span>
                 {(selected || isHere || zoom >= 2.5) && !many && (
                   <span className="map-pin-label">
@@ -309,7 +315,9 @@ export function MapView() {
         role="group"
         aria-label="Filter places"
       >
-        {MAP_FILTERS.map(({ id, label, icon: Icon }) => (
+        {MAP_FILTERS.filter(
+          ({ id }) => id === "all" || places.some((p) => matchesFilter(p, id)),
+        ).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"

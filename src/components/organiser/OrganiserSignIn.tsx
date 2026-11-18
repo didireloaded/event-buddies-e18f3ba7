@@ -50,7 +50,9 @@ export function OrganiserSignIn() {
               Couldn’t send the link. Try again.
             </p>
           )}
-          {offline && <p className="text-[15px] text-muted-foreground">You’re offline. Connect to sign in.</p>}
+          {offline && (
+            <p className="text-[15px] text-muted-foreground">You’re offline. Connect to sign in.</p>
+          )}
           <PrimaryButton type="submit" disabled={state === "sending" || offline}>
             {state === "sending" ? "Sending…" : "Email me a link"}
           </PrimaryButton>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MapPin, Music2, Users } from "lucide-react";
+import { AvatarPicker } from "./AvatarPicker";
 import { initials, useCompanion } from "./context";
 import { PrimaryButton, SecondaryButton } from "./ui";
 
@@ -98,11 +99,8 @@ export function Onboarding() {
           }}
         >
           <h1 className="text-[30px] font-bold">What should we call you?</h1>
-          <div
-            className="mx-auto my-8 grid size-24 place-items-center rounded-full bg-favorite-soft text-[34px] font-bold text-favorite"
-            aria-hidden
-          >
-            {initials(name) || "?"}
+          <div className="my-6">
+            <AvatarPicker fallbackLabel={initials(name) || "?"} altName={name.trim()} size="lg" />
           </div>
           <label htmlFor="welcome-name" className="sr-only">
             Your name

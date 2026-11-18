@@ -25,6 +25,7 @@ import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
 import { useCrew } from "@/lib/crew/use-crew";
 import { useAttendee } from "@/lib/attendee/use-attendee";
+import { useAttendeeAvatar } from "@/lib/attendee/avatar";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
@@ -95,6 +96,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
   const attendee = useAttendee(data);
+  const avatar = useAttendeeAvatar(data.event.id);
   const crew = useCrew(
     data.event.id,
     attendee.auth.user?.id ?? null,
@@ -180,6 +182,7 @@ export function EventCompanion({ data }: { data: DemoData }) {
     data,
     places,
     attendee,
+    avatar,
     crew,
     now,
     offlineStatus,

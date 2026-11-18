@@ -1,8 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { redirectHost } from "@/lib/oauth-return-path";
 
-type OAuthResult = { data: { redirect_url?: string; redirect_to?: string; client?: { name?: string }; redirect_uri?: string; scope?: string } | null; error: { message: string } | null };
+type OAuthResult = {
+  data: {
+    redirect_url?: string;
+    redirect_to?: string;
+    client?: { name?: string };
+    redirect_uri?: string;
+    scope?: string;
+  } | null;
+  error: { message: string } | null;
+};
 type OAuthApi = {
   getAuthorizationDetails(id: string): Promise<OAuthResult>;
   approveAuthorization(id: string): Promise<OAuthResult>;
@@ -16,9 +26,14 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     authorization_id: typeof s["authorization_id"] === "string" ? s["authorization_id"] : "",
   }),
   beforeLoad: async ({ search, location }) => {
-    if (!search.authorization_id) throw new Error("This connection link is missing its request ID.");
+    if (!search.authorization_id)
+      throw new Error("This connection link is missing its request ID.");
     const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login", search: { next: location.pathname + location.searchStr } });
+    if (!data.session)
+      throw redirect({
+        to: "/login",
+        search: { next: location.pathname + location.searchStr },
+      });
   },
   loaderDeps: ({ search }) => ({ id: search.authorization_id }),
   loader: async ({ deps }) => {
@@ -29,49 +44,118 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     const { data: u } = await supabase.auth.getUser();
     return { details: data, email: u.user?.email ?? "" };
   },
-  head: () => ({ meta: [{ title: "Connect an assistant — Event Buddies" }, { name: "robots", content: "noindex" }] }),
-  component: Consent,
+  head: () => ({
+    meta: [
+      { title: "Connect an assistant — Event Buddies" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: ConsentRoute,
   errorComponent: ({ error }) => (
     <main className="mx-auto max-w-sm px-5 py-16 text-foreground">
       <h1 className="text-2xl font-bold">Couldn't load this request</h1>
-      <p className="mt-2 text-muted-foreground">{error instanceof Error ? error.message : "Unknown error."} It may have expired — start the connection again from your assistant.</p>
+      <p className="mt-2 text-muted-foreground">
+        {error instanceof Error ? error.message : "Unknown error."} It may have expired — start the
+        connection again from your assistant.
+      </p>
     </main>
   ),
 });
 
-function Consent() {
+function ConsentRoute() {
   const { details, email } = Route.useLoaderData();
   const { authorization_id } = Route.useSearch();
+  return (
+    <Consent
+      authorizationId={authorization_id}
+      details={details}
+      email={email}
+      onDecide={(approve) =>
+        approve
+          ? oauth().approveAuthorization(authorization_id)
+          : oauth().denyAuthorization(authorization_id)
+      }
+      onRedirect={(target) => {
+        window.location.href = target;
+      }}
+    />
+  );
+}
+
+export function Consent({
+  authorizationId,
+  details,
+  email,
+  onDecide,
+  onRedirect,
+}: {
+  authorizationId: string;
+  details: OAuthResult["data"];
+  email: string;
+  onDecide: (approve: boolean) => Promise<OAuthResult>;
+  onRedirect: (target: string) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const client = details?.client?.name ?? "An app";
+  const host = redirectHost(details?.redirect_uri);
 
   async function decide(approve: boolean) {
+    if (!authorizationId) {
+      setError("This connection link is missing its request ID.");
+      return;
+    }
     setBusy(true);
     setError(null);
-    const { data, error } = approve
-      ? await oauth().approveAuthorization(authorization_id)
-      : await oauth().denyAuthorization(authorization_id);
-    const target = data?.redirect_url ?? data?.redirect_to;
-    if (error || !target) {
+    try {
+      const { data, error } = await onDecide(approve);
+      const target = data?.redirect_url ?? data?.redirect_to;
+      if (error || !target) {
+        setBusy(false);
+        setError(error?.message ?? "No redirect was returned. Try again.");
+        return;
+      }
+      onRedirect(target);
+    } catch {
       setBusy(false);
-      return setError(error?.message ?? "No redirect was returned. Try again.");
+      setError("Couldn’t finish this connection request. Try again.");
     }
-    window.location.href = target;
   }
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-5 py-10 text-foreground">
       <h1 className="text-2xl font-bold">Connect {client} to Event Buddies</h1>
-      <p>{client} will be able to read Sound of Summer event info, the lineup and venue places as you.</p>
+      <p>
+        {client} will be able to read public Sound of Summer event info, the lineup and venue
+        places.
+      </p>
       {email && <p className="text-sm text-muted-foreground">Signed in as {email}</p>}
-      {details?.redirect_uri && <p className="text-sm text-muted-foreground">Returns to {new URL(details.redirect_uri).host}</p>}
-      <p className="text-sm text-muted-foreground">Shares your basic profile and email. Saved favourites and meeting plans stay on your phone.</p>
-      {error && <p role="alert" className="text-sm">{error}</p>}
-      <button disabled={busy} onClick={() => decide(true)}
-        className="min-h-11 rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50">Approve</button>
-      <button disabled={busy} onClick={() => decide(false)}
-        className="min-h-11 rounded-full border border-border font-semibold">Cancel connection</button>
+      {host && <p className="text-sm text-muted-foreground">Returns to {host}</p>}
+      <p className="text-sm text-muted-foreground">
+        Shares your basic profile and email. It can’t read your saved artists, meeting plans or
+        crew.
+      </p>
+      {error && (
+        <p role="alert" className="text-sm">
+          {error}
+        </p>
+      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void decide(true)}
+        className="min-h-11 rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        Approve
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void decide(false)}
+        className="min-h-11 rounded-full border border-border font-semibold"
+      >
+        Cancel connection
+      </button>
     </main>
   );
 }

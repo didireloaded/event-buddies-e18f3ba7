@@ -37,22 +37,22 @@ The [Cloud integration brief](docs/engineering/cloud-integration-brief.md) defin
 
 For attendee UI, copy, design reviews and builder prompts, apply [anti-slop-brutal](docs/skills/anti-slop-brutal/SKILL.md) alongside [Strict Interface Engineer](docs/skills/strict-interface-engineer/SKILL.md). The supplied manual is retained in the skill’s references. Design reviews use verdict, one fix, issues, missing states, cuts and the five-item ship check. Builder prompts identify the surface, states, exact copy and observable completion conditions.
 
-Current navigation is Events, Map, Crew and You. Artist data includes the 24 supplied Post portraits plus Shimza. Lovable supplies the public account connection settings. Review local sharing and recap behaviour against actual source and rendered screens.
+Current navigation is Events, Lineup, Map and Crew, with Profile in the header. Artist data includes the 24 supplied Post portraits plus Shimza. Lovable supplies the public account connection settings. Review local sharing and recap behaviour against actual source and rendered screens.
 
 Ask Lovable in chat, or edit the files above. Change event data only in
 `sound-of-summer.ts`. Run `bunx vitest run` after changing rules.
 
 ## Not implemented (honest gaps)
 
-- Shared crews, invites and live location (account favourites and private meetings now sync through Cloud)
+- Public crew discovery, join requests, crew chat and continuous live location. Private Cloud crews, invite codes, shared meetings and expiring landmark pins exist; account favourites and private meetings sync through Cloud.
 - Organiser editing/publishing and announcement delivery; push notifications
 - Set times/reminders (organiser hasn't published), GPS calibration, walking routes, vendor menus/prices
 - Ticket purchase (Howler link only), payments
 
 ## Visual source of truth
 
-The Codex screenshot (`codex-event-buddies-map-reference.png`, supplied Nov 2026) is the
-authoritative UI reference: warm paper background, black ink, hot pink only for
-active/favourite/map highlights, black hamburger + centred lowercase `eventbuddies.` wordmark,
-condensed uppercase titles (Anton), flat hairline lists, and a floating black pill tab bar.
-It supersedes the earlier cool-grey iOS look.
+The current direction is restrained coastal teal actions and favourites, muted amber stage
+markers, neutral surfaces, real event photos, a glass-card event picker, a published-event
+calendar and a charcoal venue map. See `docs/design/discovery-and-monochrome.md` and
+`docs/product/visual-references/`. The earlier warm-paper/hot-pink Codex screenshot is
+archived as a historical source and no longer governs the UI.

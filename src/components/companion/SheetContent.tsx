@@ -542,8 +542,7 @@ export function SheetContent({
           </p>
           <p className="text-[15px] leading-relaxed text-muted-foreground">
             On iPhone, web notifications require iOS 16.4 or later and an installed Home Screen app.
-            Crew alerts and push delivery still need the Cloud connection. Check your plans directly
-            in the app.
+            Crew alerts and push delivery aren’t enabled yet. Check your plans directly in the app.
           </p>
         </div>
       );
@@ -624,8 +623,8 @@ export function SheetContent({
             </div>
           ) : (
             <Notice icon={ShieldCheck}>
-              {member.displayName}’s live location isn’t available. Cross-device sharing needs
-              accounts and consent, which aren’t connected yet.
+              {member.displayName}’s continuous GPS location isn’t tracked. Sign in to share
+              expiring landmark pins with a connected crew.
             </Notice>
           )}
           {isMe && (

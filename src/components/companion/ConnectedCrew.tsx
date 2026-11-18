@@ -7,7 +7,7 @@ import { eventTime } from "@/lib/attendee/schedule";
 import { PrimaryButton, SecondaryButton, Avatar } from "./ui";
 
 export function ConnectedCrew() {
-  const { crew: sync, attendee, data, places, openPlace, now } = useCompanion();
+  const { crew: sync, attendee, avatar, data, places, openPlace, now } = useCompanion();
   const [mode, setMode] = useState<
     "create" | "join" | "invite" | "meeting" | "leave" | "pin" | null
   >(null);
@@ -121,7 +121,11 @@ export function ConnectedCrew() {
                       className="flex min-h-16 w-full items-center gap-3 py-3 text-left disabled:opacity-100"
                       onClick={() => place && openPlace(place.id)}
                     >
-                      <Avatar label={initials(member.name)} />
+                      <Avatar
+                        label={initials(member.name)}
+                        src={member.id === attendee.auth.user?.id ? avatar?.url : null}
+                        alt={member.id === attendee.auth.user?.id ? "Your profile photo" : ""}
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block font-semibold break-words">
                           {member.name}

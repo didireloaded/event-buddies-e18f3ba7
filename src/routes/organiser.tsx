@@ -1,21 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { OrganiserApp } from "@/components/organiser/OrganiserApp";
 import { OrganiserWorkspace } from "@/components/organiser/OrganiserWorkspace";
+import { accountConfigured } from "@/lib/account/use-auth";
 import { getOrganiserData } from "@/lib/event/demo-data";
 
 export const Route = createFileRoute("/organiser")({
+  ssr: false,
   head: () => ({
     meta: [
-      { title: "Organiser workspace (demo) · Event Buddies" },
+      { title: "Organiser workspace · Event Buddies" },
       {
         name: "description",
         content:
-          "Demo organiser view of the Sound of Summer 2026 event data, venue points and pending integrations.",
+          "Role-protected organiser workspace for reviewing and managing Event Buddies events.",
       },
-      { property: "og:title", content: "Organiser workspace (demo) · Event Buddies" },
+      { property: "og:title", content: "Organiser workspace · Event Buddies" },
       {
         property: "og:description",
-        content: "Read-only demo of event data readiness for Sound of Summer 2026.",
+        content: "Private organiser workspace for Event Buddies.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -27,5 +30,5 @@ export const Route = createFileRoute("/organiser")({
 
 function OrganiserPage() {
   const [data] = useState(getOrganiserData);
-  return <OrganiserWorkspace data={data} />;
+  return accountConfigured ? <OrganiserApp /> : <OrganiserWorkspace data={data} />;
 }

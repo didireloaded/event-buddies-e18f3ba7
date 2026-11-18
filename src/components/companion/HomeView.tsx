@@ -1,4 +1,15 @@
-import { Heart, Share2, Users, Music2, MapPin, Info, CalendarDays, Ticket, MessageCircleQuestion, LocateFixed } from "lucide-react";
+import {
+  Heart,
+  Share2,
+  Users,
+  Music2,
+  MapPin,
+  Info,
+  CalendarDays,
+  Ticket,
+  MessageCircleQuestion,
+  LocateFixed,
+} from "lucide-react";
 import { List, ListItem } from "konsta/react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";

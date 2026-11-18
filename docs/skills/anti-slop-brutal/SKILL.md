@@ -16,7 +16,7 @@ Apply alongside the repository’s Strict Interface Engineer guidance. Preserve 
 - Use actual imported-plan names and saved-artist overlap for social context. A populated chat example requires real messages or an explicitly labelled test fixture.
 - Display timestamps, countdowns, locations and ETAs only when the app has the underlying information. Explain unavailable information beside the relevant action.
 - Keep local landmark check-ins private and expiring. Represent actual sharing state and storage scope clearly.
-- Accounts, Cloud crew chat, server retention and push notifications await the backend connection, as directed by the user. The manual’s proposed flows describe acceptance targets for future implementation.
+- Accounts, account sync of favourites and meetings, private Cloud crews with invite codes, shared meetings and expiring landmark pins are implemented. Crew chat, public discovery, server retention jobs and push notifications are not. The manual’s proposed flows for those describe acceptance targets for future implementation.
 - Preserve browser zoom, text selection, keyboard access, focus return and reduced-motion support. Apply press feedback where it suits the control, with readable type and comfortable touch targets.
 - Treat motion, fun and perceived activity as requirements for intentional feedback. Evaluate them against truthful state and accessibility.
 

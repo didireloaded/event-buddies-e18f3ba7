@@ -7,7 +7,12 @@ export type OrgProfile = Database["public"]["Tables"]["organiser_profiles"]["Row
 export const BUCKET = "organiser-files";
 
 export async function uploadOwnFile(userId: string, file: File, folder: string) {
-  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const ext =
+    file.name
+      .split(".")
+      .pop()
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "") || "bin";
   const path = `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from(BUCKET)
@@ -23,8 +28,9 @@ export async function signedUrl(path: string | null) {
 }
 
 export function dbError(message: string | undefined) {
-  if (!message) return "Something went wrong. Try again.";
+  if (!message) return "Couldn’t save your changes. Try again.";
   if (message.includes("verification")) return "Organiser verification must be approved first.";
-  if (message.includes("Publishing needs")) return "Add a name, date and site plan before publishing.";
+  if (message.includes("Publishing needs"))
+    return "Add a name, date and site plan before publishing.";
   return "Couldn’t save. Check your connection and try again.";
 }

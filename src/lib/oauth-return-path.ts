@@ -1,9 +1,26 @@
+function hasUnsafeControlOrSlash(value: string): boolean {
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f || code === 0x5c) return true;
+  }
+  return false;
+}
+
+export function redirectHost(uri: string | undefined): string | null {
+  if (!uri) return null;
+  try {
+    return new URL(uri).host || null;
+  } catch {
+    return null;
+  }
+}
+
 export function oauthReturnPath(value: unknown): string {
   if (
     typeof value !== "string" ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
-    /[\\\u0000-\u001f\u007f]/.test(value)
+    hasUnsafeControlOrSlash(value)
   )
     return "/";
   const origin = "https://app.invalid";

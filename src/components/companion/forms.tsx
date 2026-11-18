@@ -7,6 +7,8 @@ import {
 } from "@/lib/attendee/meeting";
 import { eventTime } from "@/lib/attendee/schedule";
 import type { Place } from "@/lib/attendee/map";
+import { AvatarPicker } from "./AvatarPicker";
+import { initials } from "./context";
 import { PrimaryButton } from "./ui";
 
 export function MeetingForm({
@@ -157,6 +159,7 @@ export function ProfileForm({
         if (!problem) onSave({ ...initial, name: name.trim() });
       }}
     >
+      <AvatarPicker fallbackLabel={initials(name) || "?"} altName={name.trim()} size="md" />
       <p className="text-[15px] text-muted-foreground">
         {savedCount} saved {savedCount === 1 ? "favourite" : "favourites"}. This is the name shown
         on your shared plans.

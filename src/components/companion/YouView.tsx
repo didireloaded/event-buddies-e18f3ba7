@@ -13,7 +13,7 @@ import { AfterEventData } from "./AfterEventData";
 import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
 
 export function YouView() {
-  const { attendee, openSheet, offlineStatus } = useCompanion();
+  const { attendee, avatar, openSheet, offlineStatus } = useCompanion();
   const { preferences } = attendee;
   return (
     <div className="px-4">
@@ -24,7 +24,16 @@ export function YouView() {
         className="ios-row mt-4 gap-4 rounded-2xl bg-popover py-5"
         onClick={() => openSheet({ kind: "profile" })}
       >
-        <Avatar label={initials(preferences.profile.name)} size="lg" />
+        <Avatar
+          label={initials(preferences.profile.name)}
+          src={avatar?.url}
+          alt={
+            preferences.hasName
+              ? `${preferences.profile.name}’s profile photo`
+              : "Your profile photo"
+          }
+          size="lg"
+        />
         <span className="min-w-0 flex-1">
           <span className="block break-words text-[22px] font-bold tracking-tight">
             {preferences.hasName ? preferences.profile.name : "Your festival name"}

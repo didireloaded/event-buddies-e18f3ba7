@@ -96,21 +96,33 @@ export function OrganiserApp() {
       </header>
       <main className="mx-auto max-w-xl px-4">
         {error && (
-          <div role="alert" className="mt-4 flex items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]">
+          <div
+            role="alert"
+            className="mt-4 flex items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]"
+          >
             <span className="flex-1">{error}</span>
-            <button type="button" className="min-h-11 font-semibold text-primary" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="min-h-11 font-semibold text-primary"
+              onClick={() => void reload()}
+            >
               Retry
             </button>
           </div>
         )}
         {events === null ? (
           <div className="py-16 text-center" role="status">
-            <LoaderCircle className="mx-auto animate-spin text-muted-foreground" aria-label="Loading events" />
+            <LoaderCircle
+              className="mx-auto animate-spin text-muted-foreground"
+              aria-label="Loading events"
+            />
           </div>
         ) : open ? (
           <EventReview ctx={ctx} event={open} />
         ) : route.eventId ? (
-          <p className="py-10 text-center text-muted-foreground">This event isn’t in your workspace.</p>
+          <p className="py-10 text-center text-muted-foreground">
+            This event isn’t in your workspace.
+          </p>
         ) : route.tab === "create" ? (
           <CreateTab ctx={ctx} />
         ) : route.tab === "live" ? (

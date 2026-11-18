@@ -65,7 +65,11 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
       state: "pending",
     },
     { label: "Vendors, menus & prices", detail: "Awaiting organiser data", state: "pending" },
-    { label: "Accounts & roles", detail: "No authentication connected", state: "blocked" },
+    {
+      label: "Accounts & roles",
+      detail: "Attendee sign-in is connected; organiser publishing routes are in setup",
+      state: "pending",
+    },
     {
       label: "Announcement delivery",
       detail: "No backend or push service connected",
@@ -101,8 +105,8 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
           <p className="text-[15px] font-semibold uppercase tracking-wide text-warning">
             Demo · read-only
           </p>
-          <h1 className="text-[34px] font-bold tracking-tight">Organiser workspace</h1>
-          <p className="text-[17px] text-muted-foreground">
+          <h1 className="ios-large-title">Organiser workspace</h1>
+          <p className="mt-2 text-[17px] text-muted-foreground">
             {data.event.name} 2026 · {data.organiser.name}. This preview shows the data the attendee
             app uses. Nothing here is published to attendees.
           </p>

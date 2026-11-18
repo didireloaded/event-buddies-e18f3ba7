@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const port = Number(process.env["PREVIEW_PORT"]) || 4173;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -9,7 +11,7 @@ export default defineConfig({
   use: {
     ...devices["iPhone 13"],
     defaultBrowserType: "chromium",
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: `http://127.0.0.1:${port}`,
     launchOptions: process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"]
       ? { executablePath: process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] }
       : {},
@@ -17,7 +19,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run preview",
-    url: "http://127.0.0.1:4173",
+    url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
   },
 });

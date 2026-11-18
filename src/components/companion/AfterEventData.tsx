@@ -24,7 +24,7 @@ export function AfterEventData() {
           ],
           [
             "Cloud crew chat & photos",
-            "Deferred with the backend connection. Chat archiving and server-side deletion policies are pending implementation.",
+            "Crew chat, cloud photo albums and automated server deletion policies aren’t enabled yet.",
           ],
         ].map(([title, detail]) => (
           <div key={title} className="py-3">

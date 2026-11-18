@@ -4,6 +4,7 @@ import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { MapFilter, Place } from "@/lib/attendee/map";
 import type { useCrew } from "@/lib/crew/use-crew";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
+import type { useAttendeeAvatar } from "@/lib/attendee/avatar";
 import type { OfflineStatus } from "@/lib/pwa";
 
 export type View = "home" | "lineup" | "map" | "crew" | "you" | "info" | "events";
@@ -42,6 +43,7 @@ export type CompanionContext = {
   data: DemoData;
   places: Place[];
   attendee: ReturnType<typeof useAttendee>;
+  avatar?: ReturnType<typeof useAttendeeAvatar>;
   crew: ReturnType<typeof useCrew>;
   now: number | null;
   offlineStatus: OfflineStatus;

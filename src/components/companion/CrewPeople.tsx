@@ -7,7 +7,7 @@ import { Avatar, PrimaryButton, Section } from "./ui";
 
 /** People are drawn only from plans actually imported on this phone. */
 export function CrewPeople() {
-  const { attendee, places, openSheet, openPlace, view } = useCompanion();
+  const { attendee, avatar, places, openSheet, openPlace, view } = useCompanion();
   const plans = attendee.preferences.sharedPlans;
   const [selected, setSelected] = useState<number | null>(null);
   const entry = selected === null ? undefined : plans[selected];
@@ -21,7 +21,12 @@ export function CrewPeople() {
           className="flex min-w-16 flex-col items-center gap-2"
           onClick={() => openSheet({ kind: "profile" })}
         >
-          <Avatar label={initials(attendee.preferences.profile.name)} size="lg" />
+          <Avatar
+            label={initials(attendee.preferences.profile.name)}
+            src={avatar?.url}
+            alt="Your profile photo"
+            size="lg"
+          />
           <span className="text-[15px] font-medium">You</span>
         </button>
         {plans.map(({ plan, receivedAt }, index) => (
@@ -80,7 +85,8 @@ export function CrewPeople() {
               </PrimaryButton>
             )}
             <p className="text-[15px] text-muted-foreground">
-              Live location sharing awaits the crew connection.
+              This copy stays on your phone. Sign in to share expiring landmark pins with a
+              connected crew.
             </p>
             <button
               type="button"

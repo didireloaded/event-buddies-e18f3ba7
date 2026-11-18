@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { GatewayError, generateResponse } from "@lovable.dev/ai-gateway";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { extractionJsonSchema, extractionSchema, missingFields } from "./schema";
+import { extractionJsonSchema, extractionSchema, missingFields, PDF_MAX_BYTES } from "./schema";
 
 const INSTRUCTIONS = `You read an event document supplied by its organiser and copy facts into JSON.
 Rules:
@@ -22,42 +22,48 @@ export const extractEventFromPdf = createServerFn({ method: "POST" })
       .from("organiser_events")
       .select("id, source_pdf_path, status")
       .eq("id", data.eventId)
+      .eq("owner_id", context.userId)
       .maybeSingle();
     if (error || !row) return { ok: false, error: "Draft not found." };
     if (!row.source_pdf_path) return { ok: false, error: "No PDF attached to this draft." };
     const file = await supabase.storage.from("organiser-files").download(row.source_pdf_path);
     if (file.error || !file.data) return { ok: false, error: "Couldn’t open the uploaded PDF." };
     const bytes = new Uint8Array(await file.data.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > PDF_MAX_BYTES)
+      return { ok: false, error: "PDF must be non-empty and 50 MB or smaller." };
     let binary = "";
     for (let i = 0; i < bytes.length; i += 0x8000)
       binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     const base64 = btoa(binary);
     try {
-      const response = await generateResponse({
-        model: "openai/gpt-6-astra",
-        instructions: INSTRUCTIONS,
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_file",
-                filename: "event.pdf",
-                file_data: `data:application/pdf;base64,${base64}`,
-              },
-              { type: "input_text", text: "Extract the event facts." },
-            ],
-          },
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "event_extraction",
-            strict: true,
-            schema: extractionJsonSchema as unknown as Record<string, unknown>,
+      const response = await generateResponse(
+        {
+          model: "openai/gpt-6-astra",
+          instructions: INSTRUCTIONS,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_file",
+                  filename: "event.pdf",
+                  file_data: `data:application/pdf;base64,${base64}`,
+                },
+                { type: "input_text", text: "Extract the event facts." },
+              ],
+            },
+          ],
+          text: {
+            format: {
+              type: "json_schema",
+              name: "event_extraction",
+              strict: true,
+              schema: extractionJsonSchema as unknown as Record<string, unknown>,
+            },
           },
         },
-      });
+        { signal: AbortSignal.timeout(25000) },
+      );
       const text = response.output
         .flatMap((item) => (item.type === "message" ? item.content : []))
         .map((part) => (part.type === "output_text" ? part.text : ""))
@@ -69,7 +75,8 @@ export const extractEventFromPdf = createServerFn({ method: "POST" })
         return { ok: false, error: "The document reader returned unreadable data. Try again." };
       }
       const parsed = extractionSchema.safeParse(json);
-      if (!parsed.success) return { ok: false, error: "Extracted details failed checks. Try again." };
+      if (!parsed.success)
+        return { ok: false, error: "Extracted details failed checks. Try again." };
       const x = parsed.data;
       const missing = missingFields(x);
       const update = await supabase

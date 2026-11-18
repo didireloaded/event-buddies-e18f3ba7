@@ -2,6 +2,7 @@ import { clearAccountCache, queuedActions } from "@/lib/account/outbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { photoStore } from "@/lib/attendee/ride-photo";
+import { avatarStorageKey } from "@/lib/attendee/avatar";
 import { clearMemories } from "@/lib/attendee/memories";
 import { LandmarkCheckin } from "./LandmarkCheckin";
 import { storageKey } from "@/lib/attendee/use-attendee";
@@ -34,9 +35,10 @@ export function PrivacyPanel() {
         to keep.
       </p>
       <p>
-        Live crew location, attendee discovery and in-app message delivery are pending. Clearing
-        this phone signs you out. Synced favourites and meetings remain in your account. Sync queued
-        changes before clearing.
+        Continuous live GPS, public attendee discovery and crew chat aren’t enabled yet. Signed-in
+        crew members see only the landmark pin you choose to share, until it expires or you stop.
+        Your profile photo stays on this device. Clearing this phone signs you out. Synced
+        favourites and meetings remain in your account. Sync queued changes before clearing.
       </p>
       <SecondaryButton
         disabled={clearing}
@@ -54,6 +56,7 @@ export function PrivacyPanel() {
             if ("indexedDB" in window) {
               await photoStore(data.event.id, "remove");
               await photoStore(`ticket:${data.event.id}`, "remove");
+              await photoStore(avatarStorageKey(data.event.id), "remove");
               await clearMemories(data.event.id);
             }
             localStorage.removeItem(storageKey(data.event.id));
