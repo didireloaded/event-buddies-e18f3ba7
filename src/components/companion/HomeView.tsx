@@ -1,4 +1,4 @@
-import { Heart, Share2, Users, Music2, MapPin, Info, CalendarDays } from "lucide-react";
+import { Heart, Share2, Users, Music2, MapPin, Info, CalendarDays, Ticket, MessageCircleQuestion, LocateFixed } from "lucide-react";
 import { List, ListItem } from "konsta/react";
 import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
@@ -104,6 +104,26 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             href="#map"
           />
           <ListItem title="Festival essentials" media={<IconTile icon={Info} />} href="#info" />
+          <ListItem
+            title="Ticket & pass"
+            after="On this device"
+            media={<IconTile icon={Ticket} />}
+            link
+            onClick={() => openSheet({ kind: "ticket" })}
+          />
+          <ListItem
+            title="Nearest facilities"
+            after="Plan-based"
+            media={<IconTile icon={LocateFixed} />}
+            link
+            onClick={() => openSheet({ kind: "nearby" })}
+          />
+          <ListItem
+            title="Ask about rules & transport"
+            media={<IconTile icon={MessageCircleQuestion} />}
+            link
+            onClick={() => openSheet({ kind: "assistant" })}
+          />
           <ListItem
             title="Upcoming events"
             media={<IconTile icon={CalendarDays} />}

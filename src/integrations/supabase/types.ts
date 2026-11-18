@@ -241,6 +241,123 @@ export type Database = {
         }
         Relationships: []
       }
+      organiser_events: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          entry_rules: string
+          event_type: string
+          extraction_missing: string[]
+          gates_open: string
+          id: string
+          name: string
+          owner_id: string
+          program: Json
+          published_at: string | null
+          site_plan_path: string | null
+          source_label: string | null
+          source_pdf_path: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          venue: string
+          zones: Json
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          entry_rules?: string
+          event_type?: string
+          extraction_missing?: string[]
+          gates_open?: string
+          id?: string
+          name?: string
+          owner_id: string
+          program?: Json
+          published_at?: string | null
+          site_plan_path?: string | null
+          source_label?: string | null
+          source_pdf_path?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          venue?: string
+          zones?: Json
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          entry_rules?: string
+          event_type?: string
+          extraction_missing?: string[]
+          gates_open?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          program?: Json
+          published_at?: string | null
+          site_plan_path?: string | null
+          source_label?: string | null
+          source_pdf_path?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          venue?: string
+          zones?: Json
+        }
+        Relationships: []
+      }
+      organiser_profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          logo_path: string | null
+          organisation: string
+          updated_at: string
+          user_id: string
+          verification_document_path: string | null
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          logo_path?: string | null
+          organisation?: string
+          updated_at?: string
+          user_id: string
+          verification_document_path?: string | null
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          logo_path?: string | null
+          organisation?: string
+          updated_at?: string
+          user_id?: string
+          verification_document_path?: string | null
+          verification_status?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -268,13 +385,20 @@ export type Database = {
         Returns: Json
       }
       attendee_crew_state: { Args: { p_event_id: string }; Returns: Json }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       valid_attendee_selection: {
         Args: { p_artists: string[]; p_event_id: string; p_meeting: Json }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -401,6 +525,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin"],
+    },
   },
 } as const
