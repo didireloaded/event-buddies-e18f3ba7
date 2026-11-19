@@ -60,7 +60,8 @@ export const suggestDayPlan = createServerFn({ method: "POST" })
       return { ok: true, plan: enforceKnownTimes(parsed.data, facts) };
     } catch (error) {
       if (error instanceof GatewayError) {
-        if (error.httpStatus === 402) return { ok: false, error: "AI credits have run out." };
+        if (error.httpStatus === 402)
+          return { ok: false, error: "Planning service credits have run out." };
         if (error.httpStatus === 429)
           return { ok: false, error: "Too many requests right now. Try again in a minute." };
       }

@@ -52,8 +52,8 @@ it("shows loading, retries a failure, persists and clears the reviewed plan", as
   const view = render(<DayPlanPanel />);
   fireEvent.click(screen.getByRole("button", { name: "Suggest my day plan" }));
   expect(screen.getByRole("button", { name: "Suggesting your day…" })).toBeDisabled();
-  await act(async () => resolve({ ok: false, error: "AI credits have run out." }));
-  expect(screen.getByRole("alert")).toHaveTextContent("AI credits have run out.");
+  await act(async () => resolve({ ok: false, error: "Planning service credits have run out." }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Planning service credits have run out.");
   mocks.suggest.mockResolvedValueOnce({ ok: true, plan });
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Retry day plan" })));
   view.rerender(<DayPlanPanel />);

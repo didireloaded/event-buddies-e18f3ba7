@@ -122,6 +122,28 @@ begin
     raise exception 'Crew activity was not listed';
   end if;
 
+  -- Real-time pin drop, rounding, list & remove
+  perform public.drop_pin(
+    '20000000-0000-4000-8000-000000000002',
+    (select crew_id from public.attendee_crew_members where user_id = org_b limit 1),
+    'stage-main',
+    45.678,
+    52.341,
+    -22.819876,
+    14.542345
+  );
+  if jsonb_array_length(
+    public.list_crew_pins((select crew_id from public.attendee_crew_members where user_id = org_b limit 1))
+  ) <> 1 then
+    raise exception 'Dropped pin was not listed in public.pins';
+  end if;
+  perform public.remove_pin((select crew_id from public.attendee_crew_members where user_id = org_b limit 1));
+  if jsonb_array_length(
+    public.list_crew_pins((select crew_id from public.attendee_crew_members where user_id = org_b limit 1))
+  ) <> 0 then
+    raise exception 'Removed pin remained in public.pins';
+  end if;
+
   perform set_config('request.jwt.claim.sub', org_a::text, true);
   perform public.manage_organiser_team_member('upsert', 'ops@example.invalid', 'live_ops');
   if jsonb_array_length(public.list_organiser_team_members()) <> 1 then

@@ -102,7 +102,8 @@ export const extractEventFromPdf = createServerFn({ method: "POST" })
       return { ok: true, missing };
     } catch (err) {
       if (err instanceof GatewayError) {
-        if (err.httpStatus === 402) return { ok: false, error: "AI credits have run out." };
+        if (err.httpStatus === 402)
+          return { ok: false, error: "Document extraction credits have run out." };
         if (err.httpStatus === 429)
           return { ok: false, error: "Too many requests. Try again in a minute." };
       }

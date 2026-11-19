@@ -12,6 +12,7 @@ import {
   extractCrewInviteCode,
   readPendingCrewInvite,
 } from "@/lib/crew/invite-link";
+import { dropCrewPin, requestOneTimeGeolocation } from "@/lib/crew/pins";
 import { PrimaryButton, SecondaryButton, Avatar } from "./ui";
 
 export function ConnectedCrew() {
@@ -25,6 +26,8 @@ export function ConnectedCrew() {
   const [pointId, setPointId] = useState(places[0]?.id ?? "");
   const [localError, setLocalError] = useState("");
   const [scanningQr, setScanningQr] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsBusy, setGpsBusy] = useState(false);
   const crew = sync.crew;
   const self = crew?.members.find((m) => m.id === attendee.auth.user?.id);
   const waiting = Boolean(sync.pending);
@@ -427,6 +430,18 @@ export function ConnectedCrew() {
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
+                const chosenPlace = places.find((p) => p.id === pointId);
+                void dropCrewPin({
+                  eventId: data.event.id,
+                  crewId: crew.id,
+                  userId: self.id,
+                  displayName: self.name,
+                  pointId,
+                  x: chosenPlace?.x ?? null,
+                  y: chosenPlace?.y ?? null,
+                  lat: gpsCoords?.lat ?? null,
+                  lng: gpsCoords?.lng ?? null,
+                });
                 if (
                   sync.command({
                     op: "share",
@@ -457,6 +472,28 @@ export function ConnectedCrew() {
                   ))}
                 </select>
               </label>
+              <div>
+                <SecondaryButton
+                  disabled={gpsBusy}
+                  onClick={async () => {
+                    if (gpsCoords) {
+                      setGpsCoords(null);
+                      return;
+                    }
+                    setGpsBusy(true);
+                    const coords = await requestOneTimeGeolocation();
+                    setGpsBusy(false);
+                    if (coords) setGpsCoords(coords);
+                    else setLocalError("GPS unavailable. Your landmark pin will still share.");
+                  }}
+                >
+                  {gpsBusy
+                    ? "Reading GPS…"
+                    : gpsCoords
+                      ? `GPS attached (${gpsCoords.lat}, ${gpsCoords.lng}) · Remove`
+                      : "Attach one-time GPS reading (optional)"}
+                </SecondaryButton>
+              </div>
               <PrimaryButton type="submit" disabled={waiting}>
                 Share with my crew
               </PrimaryButton>

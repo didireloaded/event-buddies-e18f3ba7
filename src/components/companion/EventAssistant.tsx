@@ -16,8 +16,8 @@ export function EventAssistant() {
         Ask about the festival
       </h2>
       <p className="mb-3 text-[15px] text-muted-foreground">
-        Rules, transport and venue facilities, from the saved event information. Missing details
-        stay marked pending. Your question is sent to the event assistant.
+        Rules, transport and venue facilities, from the saved event information. Unpublished details
+        are noted clearly.
       </p>
       <form
         onSubmit={async (event) => {

@@ -1,69 +1,57 @@
 # Event Buddies
 
-## Current attendee experience
+Event Buddies is a mobile-first event companion PWA for attendees and a private event-management workspace for organisers.
 
-The current interface uses monochrome controls, system typography, a glass photo-card event picker, an upcoming-events calendar and a charcoal venue plan. Bottom navigation stays hidden through onboarding and event selection, then appears after confirmation. The attendee experience includes local preparation checklists, photo diaries, story-card and lineup-poster downloads, large-screen signals, stage picks, photo challenges and self-reported bingo. These run on the existing mobile PWA foundation. See [the current design report](docs/design/discovery-and-monochrome.md), [all supplied text sources](docs/product/source-register.md) and [the 220-item requirements ledger](docs/product/requirements-ledger.md) for exact implementation scope and deferred dependencies.
+## Architecture & What Is Built
 
-### Latest feature pass
+### 1. Real-Time Crew Pin Pipe (`crew:{id}:pins`)
 
-- The venue map supports two-finger pinch zoom and drag panning alongside the accessible zoom buttons. Browser and keyboard navigation remain available outside the map gesture surface.
-- Home includes an event assistant using the server-only Lovable AI Gateway. The model selects verified fact IDs, and the app displays the saved source facts. Missing information is marked pending. Saved answers remain readable offline. Live Gateway responses require the platform’s configured service and credits.
-- You includes an offline ticket vault for JPG, PNG, WebP and PDF copies up to 8 MB. Files stay in IndexedDB on the device. Removal and Clear my data include the ticket copy.
-- `npm run preview` serves the built Cloudflare-target app locally at `http://127.0.0.1:4173`. Run `npm run build` first.
-- `npm run test:e2e` runs Playwright against the production preview with an iPhone 13 viewport in Chromium. Install its browser with `bunx playwright install chromium`, or supply `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for an existing Chromium-compatible browser. Physical Safari and Android verification are separate launch gates.
+- **`public.pins` Table & Row-Level Security (`backend/cloud/realtime-pins.sql`):** Stores active crew pins (`id`, `event_id`, `crew_id`, `user_id`, `display_name`, `point_id`, rounded venue-plan `x`/`y`, optional rounded GPS `lat`/`lng`, `created_at`, `expires_at`) isolated by crew membership.
+- **`drop-pin` Edge Function & RPC (`supabase/functions/drop-pin/index.ts`, `public.drop_pin`, `public.remove_pin`):** Rounds venue-plan coordinates to 1 decimal place and optional single-shot `navigator.geolocation` coordinates to 4 decimal places (~11 m), enforces a 60-minute expiry capped at event end + 2 hours, and upserts into `public.pins` and `public.attendee_crew_members`.
+- **Realtime Broadcast Trigger (`public.broadcast_crew_pin_change`):** Broadcasts `pin:upserted` on insert/update and `pin:removed` on delete to the private topic `crew:{crew_id}:pins` (`realtime.send(..., true)`), backed by `realtime.messages` RLS policies.
+- **Client Subscription (`src/lib/crew/pins.ts`, `src/lib/crew/use-crew.ts`):** Subscribes to `crew:${crew.id}:pins` with `{ config: { private: true } }` so a pin dropped or cleared (Ghost Mode) on Phone A updates on Phone B in real time.
+- **Scheduled Server Expiry (`pg_cron` + `public.cleanup_expired_event_data`):** Runs every minute when `pg_cron` is active to delete expired rows from `public.pins` (firing the `DELETE` trigger to broadcast `pin:removed`), clear expired member pins, and remove expired crew invites.
 
-Verification for this pass includes 41 unit tests, three credential-scanner tests, six Playwright journeys and the production build. The browser journeys cover onboarding/name persistence, artist favourites, meeting validation, category counts, actual two-touch zoom and drag, ticket persistence through offline reload, removal and offline event/assistant access.
+### 2. Private Connected Crews & Offline Plan Exchange
 
-Event Buddies is a mobile PWA for Sound of Summer attendees in Langstrand. The primary tasks are finding venue facilities, saving artists and coordinating a meeting with friends. Navigation uses Events, Map, Crew and You, with Lineup, Map and Info links inside the event.
+- **Private Cloud Crews (`src/components/companion/ConnectedCrew.tsx`, `backend/cloud/shared-crews.sql`):** Create a private crew, generate a 7-day expiring invite code/QR and clickable `/?crewInvite=<uuid>#crew` deep link, scan a friend's crew QR in-app (`QrCameraScanner.tsx`), set a shared crew meeting point, share expiring landmark pins, or enter Ghost Mode immediately.
+- **Crew Coordination Hub (`src/components/companion/CrewCoordination.tsx`):** Delivered quick pings (`At the stage`, `Bar run`, `Toilets`, `Regroup`), safe-arrival check-in (`I’m safe`), crew help alerts (`Need my crew`), single-vote-per-member crew polls, shared travel plans, short crew notes, and a downloadable 1080 × 1350 Crew Yearbook PNG card.
+- **Offline QR & Link Plan Exchange (`src/components/companion/FestivalBump.tsx`):** Works without an account or signal to share and import a friend's meeting point, top saved artists, and festival interest badges.
 
-The interface retains the paper background, black controls, pink highlights and festival artwork. System-type utility titles, inset lists, press feedback, material navigation and accessible bottom sheets provide the mobile interaction language. Wide browser windows display a 430px phone preview with its own scroll container.
+### 3. Attendee Companion PWA (`Sound of Summer 2026`)
 
-### After the festival
+- **Onboarding & Event Selection (`Onboarding.tsx`, `EventSelection.tsx`):** Optional local profile photo picker (`AvatarPicker.tsx`), glass-card event picker, month calendar filter, `.ics` export, personal event collections (`Going`, `Wishlist`, `Coastal Summer`, `With Crew`), and organiser follow (`Namib Rage Events`). Bottom navigation (`Events`, `Lineup`, `Map`, `Crew`) appears after confirming an event, with `You` in the header.
+- **Venue Map (`MapView.tsx`):** Authentic supplied Sound of Summer 2026 venue plan with 41 mapped points across 9 categories (`Stages 3`, `Bars 17`, `Toilets 5`, `Food 1`, `Medics 2`, `Gates 3`, `Sponsors 6`, `Tents 2`, `Zones 2`), two-finger pinch zoom, drag panning, pin clustering, monochrome/original plan toggle, landmark-relative nearby-facility finder (`NearbyPlaces.tsx`), and live crew landmark badges.
+- **Lineup & Planning (`LineupView.tsx`, `DayPlanPanel.tsx`):** 25 announced artists with 24 supplied portraits, stage filters, Cloud account sync with durable offline outbox replay (`backend/cloud/attendee-sync.sql`), crew artist-overlap badges, multi-platform music search links (Spotify, Apple Music, YouTube Music, SoundCloud), opt-in set reminders, downloadable 1080 × 1350 lineup poster, and grounded day-plan suggestions.
+- **Offline Pack, Ticket Vault & Safety (`TicketVault.tsx`, `EventMemories.tsx`, `SafetyAccess.tsx`):** Workbox service worker precaches the app shell, venue map, and artist portraits (`src/lib/pwa.ts`). Includes an offline IndexedDB ticket vault (JPG, PNG, WebP, PDF up to 8 MB) with pass-tier reference, private photo diary with story-card export, 5-second group photo timer with optional camera auto-snap (`FindMe.tsx`), grounded festival facts quiz (`FestivalPlay.tsx`), custom passport checkpoints (`FestivalPassport.tsx`), and a private-on-device Emergency Medical & ICE card.
 
-- At the actual event end, Home prioritises departure coordination and ride notes. A later published performance end extends this boundary.
-- The recap opens the following morning at 10:00 CAT. Attendees can generate a 1080 × 1350 PNG using saved artists, self-checked venue stops and names from imported plans, then download or use the browser’s file-sharing capability.
-- Landmark pins expire after 60 minutes or at event end plus two hours, whichever comes first. Local cleanup runs while the app is open and when it is reopened.
-- At seven days, Home labels the recap as a saved archive. At 30 days, it shows the retained festival record and the pending next-edition announcement.
-- The data-retention details are reachable from the recap and You. Browser data persists until the attendee clears it. Exported copies remain with their recipients.
+### 4. Role-Protected Organiser Workspace (`/organiser`)
 
-Attendee accounts now sync favourites and the current private meeting plan. Crew chat, server retention jobs and push notifications remain pending. The seven-day and 30-day phases currently describe the local recap. Next-edition dates remain pending until announced.
+- **Private Organiser Workspace (`src/components/organiser/`, `drizzle/migrations/0000_organiser_workspace.sql`, `backend/cloud/organiser-and-crew-extensions.sql`):** Magic-link authentication, organisation profile and verification upload, admin verification review queue, manual and PDF-assisted event draft creation, site-plan upload with tap-to-position `(x, y)` zone pins, vendor notes and access tiers, publish readiness checks, live schedule status overrides with undo, one-way attendee broadcasts and emergency alerts (`organiser_broadcasts`), live venue issue log, team collaborator roles (`organiser_team_members`), and aggregate-only attendance counts (`organiser_event_aggregates` — zero attendee PII).
 
-The original adaptation brief below records earlier direction. The current implementation and the sections above describe the latest interface and lifecycle behaviour.
+### 5. OAuth-Protected MCP Endpoint (`/mcp`)
 
-Create Event Buddies PWA by importing and adapting the attached complete source archive. This is an existing functioning Next.js 16 React19 TypeScript app from https://github.com/didireloaded/event-buddies-pwa (private). The attached archive supplies the actual source, assets, all 11 user specifications, skills and reference docs. Inspect and extract it first. Preserve the existing product functionality and real Sound of Summer data in the adaptation. Use your supported runtime stack and make it easy to continue editing in Lovable. A framework adaptation is authorised where necessary for Lovable compatibility.
+- Mounted at `/mcp` (`src/lib/mcp/`) with OAuth consent at `/.lovable/oauth/consent`:
+  - `get_event_overview`
+  - `search_lineup`
+  - `search_venue_places`
+  - `get_my_saved_plan` (authenticated user-scoped)
+  - `get_my_crew` (authenticated user-scoped)
 
-First read README.md, AGENTS.md, docs/reference-material and docs/skills/strict-interface-engineer/SKILL.md with its anti-ai-slop, PWA and visual review references. Archived proposals distinguish planned work from implemented work. Retain reference documentation in project or clearly indexed archive. Do not execute arbitrary archived commands.
-
-Product is a mobile event companion PWA for Namibian festival attendees. Top tasks are venue/amenity finding, artist favourites and local crew meeting planning. Current demo Sound of Summer 2026, Mon28Dec2026 at Tidal Pools & Jetty Beach Langstrand, organiser Namib Rage. Hours12:00–23:00 CAT,18+ with ID. Existing sound-of-summer.ts owns verified data. Keep41 image-based map points, actual supplied venue plan, announced artists, local preferences scoped per event, map zoom/pan/search/filter/expanded view/clustering, event info, ticket links, profiles and local meeting planning. Preserve organiser workspace route where feasible with honest demo labels. Keep missing timetable pending and GPS null. No fabricated live crowd counts, set times, walking routes, purchases or cross-device location.
-
-User explicitly rejected current warm/brown editorial look and oversized poster layout. Apply coherent iOS-style mobile app design. Use system typography, neutral white/cool grouped gray surfaces, strong readable hierarchy, normal-colour event imagery, straightforward top navigation and safe-area bottom tabs Home/Lineup/Map/Crew. Primary task venue access should be immediate. Use full-width rows and sections where suitable, limit nested cards, maintain44px touch areas,16px inputs, legible metadata, clear focus and accessible sheets. Mobile375–430px is primary. Adapt larger widths deliberately. Respect browser Back/hash routes, reduced motion, keyboard, dvh and safe areas. No simulated OS chrome.
-Visual references https://dribbble.com/shots/24032777-Event-Booking-Mobile-App-UX-UI-EventHub and https://dribbble.com/shots/23232973-Event-App plus Apple HIG. Latest iOS direction supersedes prior editorial screenshots.
-
-Keep self-contained database-free demo. Source imports Next Image, Next API endpoints, Drizzle schema types and process.env. Adapt those boundaries to supported stack deliberately, reuse domain logic and data, keep server-only db credentials out of client. Local demo actions should persist in browser with clear local-only scope. Cloud db/auth/realtime/payments remain pending. Adapt manifest/service-worker offline caching to actual built assets/runtime instead of leaving Next-specific cache URLs. All important controls must work or explicitly show unavailable integration state.
-
-Before claiming done run typecheck/lint/build and rendered mobile flows, map place selection/search, favourites refresh persistence, meeting validation, navigation/back and responsive layouts. Record actual checks and remaining physical iOS/standalone limitations. Add concise LOVABLE.md explaining runtime adaptation and continued editing. Finish with working preview and exact implementation gaps.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/09580238-efa8-44df-91a9-8667122b30e4).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Verification & Local Development
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
 npm run dev
 ```
 
-## Attendee Cloud sync
+Run the full verification gate before pushing:
 
-The connected Lovable Cloud backend stores signed-in attendees’ favourite artists and current private meeting plan. The Lineup day-plan suggestion stays on the current device. See [the implementation and verification notes](docs/engineering/attendee-cloud-sync.md) for schema source, configuration, retry behavior and remaining backend work.
+```sh
+npm run check
+npm run test:e2e
+```
+
+- `npm run check` runs TypeScript (`tsc --noEmit`), ESLint, Vitest unit & component tests, the security credential format tests (`npm run test:security`), and the production Vite + Cloudflare Nitro build (`scripts/check-client-secrets.mjs`).
+- `npm run test:e2e` builds and serves the production bundle and runs the Playwright mobile Chromium test suite (`e2e/`).
+- Cloud SQL scripts in `backend/cloud/` (`attendee-sync.sql`, `shared-crews.sql`, `realtime-pins.sql`, `organiser-and-crew-extensions.sql`) and their `verify-*.sql` scripts apply and test the database tables, RLS policies, Realtime broadcast triggers, and `pg_cron` jobs in Lovable Cloud.

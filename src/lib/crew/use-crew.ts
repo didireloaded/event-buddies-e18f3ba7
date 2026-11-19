@@ -10,11 +10,13 @@ import {
   type Crew,
   type CrewCommand,
 } from "./client";
+import { dropCrewPin, listCrewPins, removeCrewPin, subscribeCrewPins, type CrewPin } from "./pins";
 const pendingSchema = z.object({ id: z.string().uuid(), command: commandSchema });
 type Pending = z.infer<typeof pendingSchema>;
 type State = {
   scope: string;
   crew: Crew | null;
+  pins: CrewPin[];
   loading: boolean;
   pending: Pending | null;
   error: string;
@@ -24,6 +26,7 @@ type State = {
 const initial: State = {
   scope: "",
   crew: null,
+  pins: [],
   loading: false,
   pending: null,
   error: "",
@@ -42,6 +45,7 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
       setState({ ...initial, scope });
       return;
     }
+    const currentUserId = userId;
     let cancelled = false;
     let running = false;
     let cached: Crew | null = null;
@@ -81,12 +85,29 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
           if (!result.ok) {
             setState((s) => ({ ...s, error: result.error ?? "This crew action needs review." }));
           }
-          if (result.ok && channel) {
-            void channel.send({
-              type: "broadcast",
-              event: "crew-updated",
-              payload: { eventId },
-            });
+          if (result.ok) {
+            if (action.command.op === "share") {
+              void dropCrewPin({
+                eventId,
+                crewId: action.command.crewId,
+                userId: currentUserId,
+                displayName:
+                  cached?.members.find((m) => m.id === currentUserId)?.name ?? "Crew member",
+                pointId: action.command.pointId,
+              });
+            } else if (action.command.op === "stop") {
+              void removeCrewPin({
+                crewId: action.command.crewId,
+                userId: currentUserId,
+              });
+            }
+            if (channel) {
+              void channel.send({
+                type: "broadcast",
+                event: "crew-updated",
+                payload: { eventId },
+              });
+            }
           }
           if (result.invite && result.expiresAt)
             setState((s) => ({
@@ -97,9 +118,11 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
         }
         const crew = await readCrew(eventId);
         if (cancelled || identity.current !== scope) return;
+        const pins = crew ? await listCrewPins(crew.id) : [];
+        if (cancelled || identity.current !== scope) return;
         const checkedAt = new Date().toISOString();
-        localStorage.setItem(storageKey, JSON.stringify({ crew, checkedAt }));
-        setState((s) => ({ ...s, crew, checkedAt, pending: pending() }));
+        localStorage.setItem(storageKey, JSON.stringify({ crew, pins, checkedAt }));
+        setState((s) => ({ ...s, crew, pins, checkedAt, pending: pending() }));
       } catch (error) {
         if (
           error instanceof Error &&
@@ -155,6 +178,57 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
       window.removeEventListener("storage", storage);
     };
   }, [eventId, userId, scope, ready, storageKey, pendingKey]);
+
+  const activeCrewId = state.scope === scope ? (state.crew?.id ?? null) : null;
+  useEffect(() => {
+    if (!userId || !ready || !activeCrewId) return;
+    return subscribeCrewPins(activeCrewId, {
+      onUpserted: (pin) => {
+        setState((s) => {
+          if (!s.crew || s.crew.id !== pin.crewId) return s;
+          const nextPins = [pin, ...s.pins.filter((p) => p.userId !== pin.userId)];
+          const nextCrew: Crew = {
+            ...s.crew,
+            members: s.crew.members.map((m) =>
+              m.id === pin.userId ? { ...m, pointId: pin.pointId, expiresAt: pin.expiresAt } : m,
+            ),
+          };
+          const checkedAt = new Date().toISOString();
+          try {
+            localStorage.setItem(
+              storageKey,
+              JSON.stringify({ crew: nextCrew, pins: nextPins, checkedAt }),
+            );
+          } catch {
+            /* Ignore quota errors. */
+          }
+          return { ...s, crew: nextCrew, pins: nextPins, checkedAt };
+        });
+      },
+      onRemoved: (removed) => {
+        setState((s) => {
+          if (!s.crew || s.crew.id !== removed.crewId) return s;
+          const nextPins = s.pins.filter((p) => p.userId !== removed.userId);
+          const nextCrew: Crew = {
+            ...s.crew,
+            members: s.crew.members.map((m) =>
+              m.id === removed.userId ? { ...m, pointId: null, expiresAt: null } : m,
+            ),
+          };
+          const checkedAt = new Date().toISOString();
+          try {
+            localStorage.setItem(
+              storageKey,
+              JSON.stringify({ crew: nextCrew, pins: nextPins, checkedAt }),
+            );
+          } catch {
+            /* Ignore quota errors. */
+          }
+          return { ...s, crew: nextCrew, pins: nextPins, checkedAt };
+        });
+      },
+    });
+  }, [activeCrewId, ready, storageKey, userId]);
   function command(value: CrewCommand) {
     if (!userId || !ready || identity.current !== scope) return false;
     try {
