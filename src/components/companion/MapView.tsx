@@ -102,14 +102,20 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           className="relative aspect-square"
           style={{ width: baseSize ? `${zoom * baseSize}px` : `${zoom * 100}%` }}
         >
-          <img
-            src={data.event.mapImageUrl}
-            alt="Supplied Sound of Summer 2026 venue plan showing three stages, bars, toilets, medics, entrances, the Experience and Platinum zones, and the jetty"
-            width={1238}
-            height={1238}
-            className="venue-map-image absolute inset-0 h-full w-full select-none"
-            draggable={false}
-          />
+          {data.event.mapImageUrl ? (
+            <img
+              src={data.event.mapImageUrl}
+              alt={`Supplied ${data.event.name} venue plan`}
+              width={1238}
+              height={1238}
+              className="venue-map-image absolute inset-0 h-full w-full select-none"
+              draggable={false}
+            />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center bg-popover p-6 text-center text-[16px] text-muted-foreground">
+              Venue map coming soon for {data.event.name}
+            </div>
+          )}
           {places.map((place) => {
             const members =
               crew.crew?.members.filter(

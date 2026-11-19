@@ -553,3 +553,83 @@ test("crew coordination pings, polls, trivia predictions and private medical car
   await expect(page.getByText("ICE contact:")).toBeVisible();
   await expect(page.getByText("O+")).toBeVisible();
 });
+
+test("selecting a newly published Event #2 switches Home, Lineup, Map and Crew cleanly and switches back", async ({
+  page,
+}) => {
+  await guest(page);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "event-buddies:published-organiser-events",
+      JSON.stringify([
+        {
+          id: "30000000-0000-4000-8000-000000000003",
+          eventType: "conference",
+          name: "Tech Summit 2026",
+          startDate: "2026-11-28",
+          endDate: "2026-11-29",
+          venue: "Safari Court, Windhoek",
+          gatesOpen: "08:30",
+          entryRules: "Conference badge required.",
+          program: [
+            {
+              title: "Keynote: African FinTech",
+              place: "Auditorium A",
+              time: "09:00",
+              status: "scheduled",
+            },
+          ],
+          zones: [
+            {
+              name: "Auditorium A",
+              type: "stage",
+              x: 40,
+              y: 45,
+              accessTier: "all",
+              vendorNote: "Main keynote hall",
+              status: "open",
+            },
+            {
+              name: "Espresso Bar",
+              type: "bar",
+              x: 65,
+              y: 55,
+              accessTier: "all",
+              vendorNote: "Coffee station",
+              status: "open",
+            },
+          ],
+          sitePlanPath: null,
+          sitePlanUrl: null,
+          publishedAt: "2026-11-19T06:00:00Z",
+        },
+      ]),
+    );
+  });
+
+  await page.goto("/#events");
+  const alsoPublished = page.getByRole("region", { name: "Additional published events" });
+  await expect(alsoPublished.getByText("Tech Summit 2026")).toBeVisible();
+  await alsoPublished.getByRole("button", { name: "I’m going" }).click();
+
+  // 1. Home shows Event #2
+  await expect(page.getByRole("heading", { name: "Tech Summit 2026" })).toBeVisible();
+  await expect(page.getByText("Safari Court")).toBeVisible();
+
+  // 2. Lineup shows Event #2's speaker/session
+  await page.goto("/#lineup");
+  await expect(page.getByText("Keynote: African FinTech").first()).toBeVisible();
+
+  // 3. Map shows Event #2's locations and venue map placeholder, not Sound of Summer's points
+  await page.goto("/#map");
+  await expect(page.getByText("Venue map coming soon for Tech Summit 2026")).toBeVisible();
+  await page.getByRole("button", { name: /Auditorium A/ }).click();
+  await expect(page.getByRole("dialog", { name: "Auditorium A" })).toBeVisible();
+
+  // 4. Switch back to Sound of Summer
+  await page.goto("/#events");
+  const switchRegion = page.getByRole("region", { name: "Additional published events" });
+  await expect(switchRegion.getByText("Sound of Summer")).toBeVisible();
+  await switchRegion.getByRole("button", { name: "I’m going" }).click();
+  await expect(page.getByRole("heading", { name: "Sound of Summer" })).toBeVisible();
+});

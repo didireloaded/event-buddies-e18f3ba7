@@ -31,6 +31,7 @@ import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 import { KonstaProvider } from "konsta/react";
+import { EventProvider, useEvent } from "@/context/EventContext";
 import { Companion, type CompanionContext, type Sheet as SheetState, type View } from "./context";
 const CrewView = lazy(() => import("./CrewView").then((module) => ({ default: module.CrewView })));
 import { HomeView } from "./HomeView";
@@ -93,7 +94,16 @@ function useConnectivity() {
   return online;
 }
 
-export function EventCompanion({ data }: { data: DemoData }) {
+export function EventCompanion({ data: initialData }: { data: DemoData }) {
+  return (
+    <EventProvider initialData={initialData}>
+      <EventCompanionInner />
+    </EventProvider>
+  );
+}
+
+function EventCompanionInner() {
+  const { data } = useEvent();
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
   const attendee = useAttendee(data);

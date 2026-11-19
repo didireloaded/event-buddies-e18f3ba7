@@ -24,9 +24,9 @@ export function EventRecap() {
     try {
       const blob = await createRecapCard(data, attendee.preferences);
       setPreview(blob);
-      const file = new File([blob], "sound-of-summer-recap.png", { type: "image/png" });
+      const file = new File([blob], `${data.event.slug}-recap.png`, { type: "image/png" });
       if (share && navigator.canShare?.({ files: [file] }) && navigator.share)
-        await navigator.share({ files: [file], title: "My Sound of Summer recap" });
+        await navigator.share({ files: [file], title: `My ${data.event.name} recap` });
       else {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
@@ -46,7 +46,7 @@ export function EventRecap() {
   const exportYearbook = async () => {
     setExporting(true);
     try {
-      const crewName = sync.crew?.name ?? "Our Sound of Summer Crew";
+      const crewName = sync.crew?.name ?? `Our ${data.event.name} Crew`;
       const memberNames = sync.crew
         ? sync.crew.members.map((m) => m.name)
         : [attendee.preferences.profile.name, ...people];
@@ -93,11 +93,11 @@ export function EventRecap() {
             : "Your recap is ready"}
       </p>
       <h1 id="recap-title" className="ios-large-title mt-2">
-        Your Sound of Summer
+        Your {data.event.name}
       </h1>
       <p className="mt-2 text-[16px] text-muted-foreground">
         {phase === "dormant"
-          ? "The next Sound of Summer dates are awaiting announcement. Your saved festival record is here."
+          ? `The next ${data.event.name} dates are awaiting announcement. Your saved festival record is here.`
           : "Keep the plan. Share the memory."}
       </p>
       <div className="mt-5 grid grid-cols-2 gap-2">
@@ -125,7 +125,7 @@ export function EventRecap() {
       {previewUrl && (
         <img
           src={previewUrl}
-          alt="Your generated Sound of Summer recap card with your saved artists and checked stops"
+          alt={`Your generated ${data.event.name} recap card with your saved artists and checked stops`}
           width={1080}
           height={1350}
           className="mt-4 w-full rounded-2xl"

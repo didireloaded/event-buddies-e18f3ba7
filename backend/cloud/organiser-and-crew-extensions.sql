@@ -150,6 +150,9 @@ returns jsonb language sql stable security definer set search_path = '' as $$
         'venue', e.venue,
         'gatesOpen', e.gates_open,
         'entryRules', e.entry_rules,
+        'program', coalesce(e.program, '[]'::jsonb),
+        'zones', coalesce(e.zones, '[]'::jsonb),
+        'sitePlanPath', e.site_plan_path,
         'publishedAt', e.published_at
       )
       order by e.start_date asc nulls last, e.published_at desc

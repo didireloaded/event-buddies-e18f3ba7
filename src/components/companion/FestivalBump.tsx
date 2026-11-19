@@ -68,7 +68,7 @@ export function FestivalBump() {
     try {
       if (navigator.share)
         await navigator.share({
-          title: "Our Sound of Summer meetup",
+          title: `Our ${data.event.name} meetup`,
           text: "Open this plan to review our meeting point and artists.",
           url,
         });

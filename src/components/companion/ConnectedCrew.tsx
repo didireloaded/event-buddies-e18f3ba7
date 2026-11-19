@@ -110,7 +110,7 @@ export function ConnectedCrew() {
                       : "You’re invited to a crew"}
                   </p>
                   <p className="text-[14px] text-muted-foreground">
-                    {inviteMeta?.crewName ?? "Private Sound of Summer crew"}
+                    {inviteMeta?.crewName ?? `Private ${data.event.name} crew`}
                   </p>
                 </div>
               </div>

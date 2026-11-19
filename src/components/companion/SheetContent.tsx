@@ -439,7 +439,7 @@ export function SheetContent({
           <Paragraph>{data.festival.transport}</Paragraph>
           <a
             className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[17px] font-semibold text-primary-foreground"
-            href="https://www.google.com/maps/search/?api=1&query=Tidal+Pools+Jetty+Beach+Langstrand+Namibia"
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${data.event.venueName} ${data.event.city} ${data.event.country}`)}`}
             target="_blank"
             rel="noreferrer"
           >

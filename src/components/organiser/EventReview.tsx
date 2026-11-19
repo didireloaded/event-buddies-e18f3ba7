@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, Trash2 } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
+import { removeLocalPublishedEvent, saveLocalPublishedEvent } from "@/lib/organiser/event-adapter";
 import {
   EVENT_TYPES,
   IMAGE_TYPES,
@@ -766,7 +767,24 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             </p>
             <PrimaryButton
               onClick={async () => {
-                if (await savePatch({ status: "published" })) setSheet(null);
+                if (await savePatch({ status: "published" })) {
+                  saveLocalPublishedEvent({
+                    id: event.id,
+                    eventType,
+                    name: name.trim(),
+                    startDate: startDate || null,
+                    endDate: endDate || null,
+                    venue: venue.trim(),
+                    gatesOpen: gatesOpen.trim(),
+                    entryRules: entryRules.trim(),
+                    program,
+                    zones,
+                    sitePlanPath: event.site_plan_path,
+                    sitePlanUrl,
+                    publishedAt: new Date().toISOString(),
+                  });
+                  setSheet(null);
+                }
               }}
             >
               Confirm publish
@@ -785,7 +803,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             </p>
             <PrimaryButton
               onClick={async () => {
-                if (await savePatch({ status: "draft" })) setSheet(null);
+                if (await savePatch({ status: "draft" })) {
+                  removeLocalPublishedEvent(event.id);
+                  setSheet(null);
+                }
               }}
             >
               Confirm unpublish

@@ -168,7 +168,7 @@ export function FestivalPlay() {
       ) : (
         <div className="space-y-5">
           <section className="space-y-3">
-            <h3 className="text-[20px] font-semibold">Sound of Summer facts quiz</h3>
+            <h3 className="text-[20px] font-semibold">{data.event.name} facts quiz</h3>
             <p className="text-[14px] text-muted-foreground">
               Grounded in verified 2026 event details.
             </p>

@@ -29,7 +29,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
   return (
     <>
       <div className="px-4 pb-4 pt-2">
-        <h1 className="ios-large-title">Sound of Summer</h1>
+        <h1 className="ios-large-title">{data.event.name}</h1>
         <p className="mt-1 text-[15px] text-muted-foreground">
           {dateLabel(data.event.startAt, data.event.timezone, {
             weekday: "short",
@@ -43,11 +43,11 @@ export function HomeView({ onShare }: { onShare: () => void }) {
           type="button"
           onClick={() => openSheet({ kind: "event" })}
           className="ios-press flex w-full items-center gap-4 p-3 text-left"
-          aria-label="About Sound of Summer"
+          aria-label={`About ${data.event.name}`}
         >
           <img
             src={data.event.heroImageUrl}
-            alt="Crowd at a past Sound of Summer edition, from Namib Rage’s official gallery"
+            alt={`${data.event.name} crowd`}
             width={1200}
             height={800}
             fetchPriority="high"

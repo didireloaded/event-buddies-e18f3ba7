@@ -66,7 +66,7 @@ export function InfoView() {
       </Section>
       <Section title="Coastal conditions" id="info-coast">
         <p className="text-[16px]">
-          Astronomical daylight for Langstrand (22.82°S, 14.54°E) on 28 December: golden hour
+          Astronomical daylight for {data.event.city} (22.82°S, 14.54°E) on 28 December: golden hour
           ~19:00–19:45 CAT · sunset ~19:45 CAT.
         </p>
         <p className="mt-2 text-[15px] text-muted-foreground">
@@ -80,8 +80,8 @@ export function InfoView() {
         </summary>
         <div className="space-y-2 pb-4 pt-1 text-[14px]">
           <p className="text-muted-foreground">
-            Common greetings and festival phrases used along the Erongo coast (Swakopmund,
-            Langstrand and Walvis Bay):
+            Common greetings and festival phrases used along the Erongo coast ({data.event.city},
+            Swakopmund and Walvis Bay):
           </p>
           <ul className="divide-y divide-border">
             <li className="py-2">

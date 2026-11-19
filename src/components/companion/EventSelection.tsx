@@ -1,35 +1,48 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, MapPin, Clock, ArrowUpRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { useEvent } from "@/context/EventContext";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
-import { EVENT_COLLECTIONS } from "@/lib/attendee/use-attendee";
+import {
+  defaultPreferences,
+  EVENT_COLLECTIONS,
+  parseStoredPreferences,
+  storageKey,
+} from "@/lib/attendee/use-attendee";
 import {
   listPublishedOrganiserEvents,
   type PublishedOrganiserEvent,
 } from "@/lib/organiser/cloud-extensions";
+import { organiserEventToDemoData, readLocalPublishedEvents } from "@/lib/organiser/event-adapter";
 import { useCompanion } from "./context";
 import { Sheet } from "./Sheet";
 import { PrimaryButton, Segmented, SearchField } from "./ui";
 
 export function EventSelection() {
   const { data, attendee, navigate, now } = useCompanion();
+  const { availableEvents, selectEvent } = useEvent();
   const [preview, setPreview] = useState(false);
   const [mode, setMode] = useState<"browse" | "calendar">("browse");
   const [query, setQuery] = useState("");
-  const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>([]);
+  const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>(() =>
+    readLocalPublishedEvents(),
+  );
 
   useEffect(() => {
     let active = true;
     void listPublishedOrganiserEvents().then((items) => {
       if (!active) return;
-      setExtraEvents(
-        items.filter(
-          (item) =>
-            item.id !== data.event.id &&
-            item.name.trim().toLowerCase() !== data.event.name.trim().toLowerCase(),
-        ),
-      );
+      const locals = readLocalPublishedEvents();
+      const seen = new Set<string>();
+      const combined: PublishedOrganiserEvent[] = [];
+      for (const item of [...items, ...locals]) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          combined.push(item);
+        }
+      }
+      setExtraEvents(combined);
     });
     return () => {
       active = false;
@@ -121,7 +134,9 @@ export function EventSelection() {
         <h2 className="text-[20px] font-semibold">
           {mode === "calendar" ? "On this date" : ended ? "Past events" : "Coming up"}
         </h2>
-        {mode === "browse" && <span className="text-[14px] text-muted-foreground">Langstrand</span>}
+        {mode === "browse" && (
+          <span className="text-[14px] text-muted-foreground">{data.event.city}</span>
+        )}
       </div>
       {(mode === "browse" || matches) && searchMatch ? (
         <button
@@ -132,7 +147,7 @@ export function EventSelection() {
         >
           <img
             src={data.event.heroImageUrl}
-            alt="Sound of Summer festival crowd"
+            alt={`${data.event.name} crowd`}
             width={1200}
             height={800}
             className="absolute inset-0 h-full w-full object-cover"
@@ -172,7 +187,7 @@ export function EventSelection() {
               setQuery("");
             }}
           >
-            Show Sound of Summer
+            Show {data.event.name}
           </button>
         </div>
       )}
@@ -283,28 +298,78 @@ export function EventSelection() {
           </a>
         </div>
       </section>
-      {extraEvents.length > 0 && (
-        <section className="mt-6 space-y-3" aria-label="Additional published events">
-          <h2 className="text-[18px] font-semibold">Also published</h2>
-          <div className="ios-group">
-            {extraEvents
-              .filter((ev) =>
-                `${ev.name} ${ev.venue} ${ev.startDate ?? ""}`
-                  .toLowerCase()
-                  .includes(query.trim().toLowerCase()),
-              )
-              .map((ev) => (
-                <div key={ev.id} className="ios-row flex-col items-start py-3">
-                  <p className="text-[17px] font-semibold">{ev.name}</p>
-                  <p className="text-[14px] text-muted-foreground">
-                    {ev.startDate ?? "Date TBA"} · {ev.venue || "Venue TBA"}
-                    {ev.gatesOpen ? ` · Gates ${ev.gatesOpen}` : ""}
-                  </p>
+      {(() => {
+        const otherDemos = [
+          ...availableEvents.filter((item) => item.event.id !== data.event.id),
+          ...extraEvents
+            .filter(
+              (ev) =>
+                ev.id !== data.event.id && !availableEvents.some((item) => item.event.id === ev.id),
+            )
+            .map(organiserEventToDemoData),
+        ].filter((demo) =>
+          `${demo.event.name} ${demo.event.venueName} ${demo.event.city}`
+            .toLowerCase()
+            .includes(query.trim().toLowerCase()),
+        );
+        if (otherDemos.length === 0) return null;
+        return (
+          <section className="mt-6 space-y-3" aria-label="Additional published events">
+            <h2 className="text-[18px] font-semibold">Also published</h2>
+            <div className="ios-group">
+              {otherDemos.map((demo) => (
+                <div
+                  key={demo.event.id}
+                  className="ios-row flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  <div>
+                    <p className="text-[17px] font-semibold">{demo.event.name}</p>
+                    <p className="text-[14px] text-muted-foreground">
+                      {dateLabel(demo.event.startAt, demo.event.timezone, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}{" "}
+                      · {demo.event.venueName}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+                    onClick={() => {
+                      const targetKey =
+                        storageKey(demo.event.id) +
+                        (attendee.auth.user?.id ? `:account:${attendee.auth.user.id}` : "");
+                      try {
+                        const existingRaw = localStorage.getItem(targetKey);
+                        const existing = existingRaw
+                          ? parseStoredPreferences(JSON.parse(existingRaw), demo)
+                          : defaultPreferences(demo);
+                        localStorage.setItem(
+                          targetKey,
+                          JSON.stringify({
+                            ...existing,
+                            selectedEventId: demo.event.id,
+                            hasName: true,
+                            onboardingDone: true,
+                            profile: attendee.preferences.profile,
+                          }),
+                        );
+                      } catch {
+                        /* Ignore storage failures. */
+                      }
+                      selectEvent(demo.event.id);
+                      navigate("home");
+                    }}
+                  >
+                    I’m going
+                  </button>
                 </div>
               ))}
-          </div>
-        </section>
-      )}
+            </div>
+          </section>
+        );
+      })()}
     </div>
   );
 }

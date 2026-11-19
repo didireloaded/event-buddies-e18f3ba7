@@ -72,11 +72,9 @@ export function CrewCoordination() {
   const [activities, setActivities] = useState<CrewActivity[]>(() => readLocalFeed(eventId));
   const [sheet, setSheet] = useState<"poll" | "travel" | "note" | null>(null);
   const [pollQuestion, setPollQuestion] = useState("Which stage next?");
-  const [pollOptionA, setPollOptionA] = useState(data.stages[0]?.name ?? "Main Stage");
-  const [pollOptionB, setPollOptionB] = useState(data.stages[1]?.name ?? "House & Techno Stage");
-  const [pollOptionC, setPollOptionC] = useState(
-    data.stages[2]?.name ?? "Amapiano & Afro Tech Stage",
-  );
+  const [pollOptionA, setPollOptionA] = useState(data.stages[0]?.name ?? "Stage 1");
+  const [pollOptionB, setPollOptionB] = useState(data.stages[1]?.name ?? "Stage 2");
+  const [pollOptionC, setPollOptionC] = useState(data.stages[2]?.name ?? "Stage 3");
   const [travelKind, setTravelKind] = useState<"car" | "shuttle" | "taxi">("car");
   const [travelTime, setTravelTime] = useState("01:00");
   const [travelNote, setTravelNote] = useState("");
@@ -249,7 +247,7 @@ export function CrewCoordination() {
   async function exportYearbook() {
     setExportingCard(true);
     try {
-      const crewName = sync.crew?.name ?? "Our Sound of Summer Crew";
+      const crewName = sync.crew?.name ?? `Our ${data.event.name} Crew`;
       const memberNames = sync.crew
         ? sync.crew.members.map((m) => m.name)
         : [

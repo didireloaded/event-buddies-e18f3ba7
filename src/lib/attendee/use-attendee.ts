@@ -337,7 +337,16 @@ export function useAttendee(data: DemoData) {
     try {
       const raw = localStorage.getItem(key);
       if (raw) next = parseStoredPreferences(JSON.parse(raw), data);
-      else if (userId) {
+      else if (currentScope.current && currentScope.current !== key && current.current.hasName) {
+        next = {
+          ...next,
+          hasName: true,
+          onboardingDone: true,
+          selectedEventId: data.event.id,
+          profile: current.current.profile,
+          festivalMode: current.current.festivalMode,
+        };
+      } else if (userId) {
         // Public event choice can carry over. Personal guest records need explicit import.
         const guestRaw = localStorage.getItem(storageKey(data.event.id));
         const guest = guestRaw ? parseStoredPreferences(JSON.parse(guestRaw), data) : null;
