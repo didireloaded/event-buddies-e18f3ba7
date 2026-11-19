@@ -110,7 +110,26 @@ begin
     raise exception 'Crew artist overlap mismatch: %', overlap;
   end if;
 
+  -- Crew poll post & vote
+  perform public.crew_post_activity(
+    '20000000-0000-4000-8000-000000000002',
+    'poll',
+    'Which stage next?',
+    'stage-main',
+    '{"options":["Main Stage","House & Techno Stage"],"votes":{}}'::jsonb
+  );
+  if jsonb_array_length(public.crew_list_activities('20000000-0000-4000-8000-000000000002')) <> 1 then
+    raise exception 'Crew activity was not listed';
+  end if;
+
   perform set_config('request.jwt.claim.sub', org_a::text, true);
+  perform public.manage_organiser_team_member('upsert', 'ops@example.invalid', 'live_ops');
+  if jsonb_array_length(public.list_organiser_team_members()) <> 1 then
+    raise exception 'Team member was not saved';
+  end if;
+
+  perform public.cleanup_expired_event_data();
+
   aggs := public.organiser_event_aggregates(ev_id);
   if (aggs->>'savedPlansCount')::int <> 0 then
     raise exception 'Unexpected aggregate count on fresh event';

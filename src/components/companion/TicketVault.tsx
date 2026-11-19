@@ -4,7 +4,7 @@ import { useCompanion } from "./context";
 
 const TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 export function TicketVault() {
-  const { data } = useCompanion();
+  const { data, attendee } = useCompanion();
   const key = `ticket:${data.event.id}`;
   const [file, setFile] = useState<Blob | null>(null);
   const [url, setUrl] = useState("");
@@ -50,6 +50,25 @@ export function TicketVault() {
         Save your Howler screenshot or PDF on this phone before the gates. This stores a copy.
         Ticket validity and admission are checked by the organiser.
       </p>
+      <label className="mb-4 block text-[15px] font-semibold">
+        My ticket tier (reference only)
+        <select
+          className="ios-field mt-1"
+          value={attendee.preferences.ticketTier ?? ""}
+          onChange={(e) => {
+            const val = e.target.value;
+            attendee.update({
+              ticketTier:
+                val === "general" || val === "experience" || val === "platinum" ? val : null,
+            });
+          }}
+        >
+          <option value="">Not recorded</option>
+          <option value="general">General / Standard</option>
+          <option value="experience">Experience tier</option>
+          <option value="platinum">Platinum tier</option>
+        </select>
+      </label>
       {!ready && (
         <p role="status" className="text-[15px]">
           Checking this phone for your ticket…

@@ -140,3 +140,106 @@ export async function createLineupPoster(data: DemoData, savedArtistIds: string[
     ),
   );
 }
+
+export async function createCrewYearbookCard(input: {
+  data: DemoData;
+  preferences: Preferences;
+  crewName: string;
+  memberNames: string[];
+  meetingLabel: string;
+}): Promise<Blob> {
+  const { data, preferences, crewName, memberNames, meetingLabel } = input;
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1350;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Image export unavailable");
+
+  ctx.fillStyle = "#0f1719";
+  ctx.fillRect(0, 0, 1080, 1350);
+
+  ctx.fillStyle = "#197b82";
+  ctx.fillRect(0, 0, 1080, 16);
+
+  ctx.fillStyle = "#7ed1d6";
+  ctx.font = "600 32px system-ui, sans-serif";
+  ctx.fillText("EVENT BUDDIES · CREW YEARBOOK", 64, 104);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 72px system-ui, sans-serif";
+  ctx.fillText(crewName || "Our Crew", 64, 210, 952);
+
+  ctx.fillStyle = "#a3b3b8";
+  ctx.font = "32px system-ui, sans-serif";
+  ctx.fillText(
+    `${data.event.name} · ${dateLabel(data.event.startAt, data.event.timezone, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })} · ${data.event.city}`,
+    64,
+    276,
+    952,
+  );
+
+  ctx.fillStyle = "#7ed1d6";
+  ctx.font = "600 28px system-ui, sans-serif";
+  ctx.fillText("CREW ROSTER", 64, 376);
+
+  const uniqueMembers = [
+    ...new Set([preferences.profile.name, ...memberNames].filter((n) => n && n.trim().length > 0)),
+  ];
+  ctx.fillStyle = "#ffffff";
+  uniqueMembers.slice(0, 6).forEach((name, idx) => {
+    ctx.font = "600 42px system-ui, sans-serif";
+    ctx.fillText(`${idx + 1}. ${name}`, 64, 444 + idx * 62, 952);
+  });
+
+  ctx.fillStyle = "#7ed1d6";
+  ctx.font = "600 28px system-ui, sans-serif";
+  ctx.fillText("MEETING SPOT", 64, 864);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "600 38px system-ui, sans-serif";
+  ctx.fillText(meetingLabel || "Meeting spot saved on our phones", 64, 922, 952);
+
+  const artists = data.festival.artists
+    .filter((a) => preferences.savedArtists.includes(a.id))
+    .map((a) => a.name);
+  ctx.fillStyle = "#7ed1d6";
+  ctx.font = "600 28px system-ui, sans-serif";
+  ctx.fillText("SHARED ARTIST PICKS", 64, 1020);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "500 34px system-ui, sans-serif";
+  ctx.fillText(
+    artists.length ? artists.slice(0, 4).join(" · ") : "Exploring the stages together",
+    64,
+    1078,
+    952,
+  );
+
+  if (preferences.badges.length > 0) {
+    ctx.fillStyle = "#a3b3b8";
+    ctx.font = "500 28px system-ui, sans-serif";
+    ctx.fillText(`Vibe · ${preferences.badges.slice(0, 5).join(" · ")}`, 64, 1146, 952);
+  }
+
+  ctx.fillStyle = "#197b82";
+  ctx.fillRect(0, 1210, 1080, 140);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "600 30px system-ui, sans-serif";
+  ctx.fillText(
+    `${uniqueMembers.length} crew ${uniqueMembers.length === 1 ? "member" : "members"} · ${preferences.stamps.length} passport stops checked`,
+    64,
+    1290,
+    952,
+  );
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Crew yearbook card export failed"))),
+      "image/png",
+    ),
+  );
+}

@@ -2,11 +2,12 @@ import { useCompanion } from "./context";
 import { PrimaryButton, SecondaryButton } from "./ui";
 import { useEffect, useState } from "react";
 import { eventLifecycle } from "@/lib/attendee/lifecycle";
-import { createRecapCard } from "@/lib/attendee/recap-card";
+import { createCrewYearbookCard, createRecapCard } from "@/lib/attendee/recap-card";
+import { eventTime } from "@/lib/attendee/schedule";
 import { AfterEventData } from "./AfterEventData";
 
 export function EventRecap() {
-  const { data, attendee, places, navigate, openPlace, now } = useCompanion();
+  const { data, attendee, crew: sync, places, navigate, openPlace, now } = useCompanion();
   const [exporting, setExporting] = useState(false);
   const [preview, setPreview] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -42,6 +43,42 @@ export function EventRecap() {
       setExporting(false);
     }
   };
+  const exportYearbook = async () => {
+    setExporting(true);
+    try {
+      const crewName = sync.crew?.name ?? "Our Sound of Summer Crew";
+      const memberNames = sync.crew
+        ? sync.crew.members.map((m) => m.name)
+        : [attendee.preferences.profile.name, ...people];
+      const activeMeeting = sync.crew?.meeting ?? attendee.preferences.meeting;
+      const meetingPlace = activeMeeting
+        ? places.find((p) => p.id === activeMeeting.pointId)
+        : null;
+      const meetingLabel =
+        activeMeeting && meetingPlace
+          ? `${meetingPlace.name} · ${eventTime(activeMeeting.at)} CAT`
+          : "No fixed meeting time saved";
+      const blob = await createCrewYearbookCard({
+        data,
+        preferences: attendee.preferences,
+        crewName,
+        memberNames,
+        meetingLabel,
+      });
+      setPreview(blob);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "sound-of-summer-crew-yearbook.png";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      attendee.notify("Crew yearbook card downloaded.");
+    } catch {
+      attendee.notify("Couldn’t create the crew yearbook card.", true);
+    } finally {
+      setExporting(false);
+    }
+  };
   const stops = places.filter((p) => attendee.preferences.stamps.includes(p.id));
   const artists = data.festival.artists.filter((a) =>
     attendee.preferences.savedArtists.includes(a.id),
@@ -70,6 +107,20 @@ export function EventRecap() {
         <SecondaryButton disabled={exporting} onClick={() => exportRecap(false)}>
           Save recap
         </SecondaryButton>
+      </div>
+      <SecondaryButton className="mt-2" disabled={exporting} onClick={() => void exportYearbook()}>
+        Download crew yearbook card
+      </SecondaryButton>
+      <div className="mt-4 rounded-2xl bg-popover p-4 text-[14px]">
+        <p className="font-semibold text-primary">My year in events · 2026</p>
+        <p className="mt-1">
+          1 confirmed festival ({data.event.name}) · {artists.length} saved artists ·{" "}
+          {stops.length + attendee.preferences.customStamps.filter((s) => s.checked).length} checked
+          stops
+          {attendee.preferences.collections.length
+            ? ` · Collections: ${attendee.preferences.collections.join(", ")}`
+            : ""}
+        </p>
       </div>
       {previewUrl && (
         <img

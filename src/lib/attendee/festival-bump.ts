@@ -1,6 +1,17 @@
 import { z } from "zod";
 import type { DemoData } from "@/lib/event/types";
 
+export const PROFILE_BADGES = [
+  "Amapiano",
+  "Afro Tech",
+  "House & Techno",
+  "Sunset Set",
+  "Front Row",
+  "Designated Driver",
+  "First Timer",
+  "Photographer",
+] as const;
+
 const payloadSchema = z.object({
   version: z.literal(1),
   event: z.string().max(80),
@@ -8,6 +19,7 @@ const payloadSchema = z.object({
   artists: z.array(z.string().max(80)).max(3),
   meeting: z.object({ pointId: z.string().max(80), at: z.string().max(40) }).nullable(),
   contact: z.object({ name: z.string().max(50), phone: z.string().max(30) }).optional(),
+  badges: z.array(z.string().max(30)).max(8).optional(),
 });
 export type BumpPlan = z.infer<typeof payloadSchema>;
 

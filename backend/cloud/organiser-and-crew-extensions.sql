@@ -335,5 +335,276 @@ end $$;
 revoke all on function public.delete_my_attendee_account_data() from public, anon;
 grant execute on function public.delete_my_attendee_account_data() to authenticated;
 
+-- 6. Private crew coordination activities (delivered quick pings, safe check-in / crew SOS, polls, shared travel, short messages)
+create table if not exists public.attendee_crew_activities (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null,
+  crew_id uuid not null references public.attendee_crews(id) on delete cascade,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  author_name text not null check (char_length(btrim(author_name)) between 1 and 50),
+  kind text not null check (kind in ('ping', 'safe', 'sos', 'poll', 'travel', 'message')),
+  message text not null check (char_length(btrim(message)) between 1 and 200),
+  point_id text,
+  meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default clock_timestamp()
+);
+create index if not exists attendee_crew_activities_crew_idx
+  on public.attendee_crew_activities(crew_id, created_at desc);
+alter table public.attendee_crew_activities enable row level security;
+revoke all on public.attendee_crew_activities from public, anon, authenticated;
+
+create or replace function public.crew_post_activity(
+  p_event_id uuid,
+  p_kind text,
+  p_message text,
+  p_point_id text default null,
+  p_meta jsonb default '{}'::jsonb
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  member public.attendee_crew_members%rowtype;
+  inserted public.attendee_crew_activities%rowtype;
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  if p_kind not in ('ping', 'safe', 'sos', 'poll', 'travel', 'message') then
+    raise exception 'Unsupported crew activity kind' using errcode = '22023';
+  end if;
+  if char_length(btrim(coalesce(p_message, ''))) not between 1 and 200 then
+    raise exception 'Message must be 1 to 200 characters' using errcode = '22023';
+  end if;
+  select * into member
+    from public.attendee_crew_members
+    where event_id = p_event_id and user_id = actor;
+  if not found then
+    raise exception 'Join or start a crew for this event first' using errcode = '42501';
+  end if;
+  insert into public.attendee_crew_activities(
+    event_id, crew_id, author_id, author_name, kind, message, point_id, meta
+  )
+  values (
+    p_event_id,
+    member.crew_id,
+    actor,
+    member.display_name,
+    p_kind,
+    btrim(p_message),
+    nullif(btrim(coalesce(p_point_id, '')), ''),
+    coalesce(p_meta, '{}'::jsonb)
+  )
+  returning * into inserted;
+
+  return jsonb_build_object(
+    'id', inserted.id,
+    'eventId', inserted.event_id,
+    'crewId', inserted.crew_id,
+    'authorId', inserted.author_id,
+    'authorName', inserted.author_name,
+    'kind', inserted.kind,
+    'message', inserted.message,
+    'pointId', inserted.point_id,
+    'meta', inserted.meta,
+    'createdAt', inserted.created_at
+  );
+end $$;
+revoke all on function public.crew_post_activity(uuid, text, text, text, jsonb) from public, anon;
+grant execute on function public.crew_post_activity(uuid, text, text, text, jsonb) to authenticated;
+
+create or replace function public.crew_vote_poll(
+  p_event_id uuid,
+  p_activity_id uuid,
+  p_option_index int
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  member public.attendee_crew_members%rowtype;
+  act public.attendee_crew_activities%rowtype;
+  votes jsonb;
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  select * into member
+    from public.attendee_crew_members
+    where event_id = p_event_id and user_id = actor;
+  if not found then
+    raise exception 'Crew membership required' using errcode = '42501';
+  end if;
+  select * into act
+    from public.attendee_crew_activities
+    where id = p_activity_id and crew_id = member.crew_id and kind = 'poll'
+    for update;
+  if not found then
+    raise exception 'Poll not found' using errcode = '22023';
+  end if;
+  if p_option_index < 0 or p_option_index >= jsonb_array_length(coalesce(act.meta->'options', '[]'::jsonb)) then
+    raise exception 'Invalid poll option' using errcode = '22023';
+  end if;
+  votes := coalesce(act.meta->'votes', '{}'::jsonb) || jsonb_build_object(actor::text, p_option_index);
+  update public.attendee_crew_activities
+    set meta = jsonb_set(coalesce(act.meta, '{}'::jsonb), '{votes}', votes, true)
+    where id = act.id
+    returning * into act;
+  return jsonb_build_object(
+    'id', act.id,
+    'meta', act.meta
+  );
+end $$;
+revoke all on function public.crew_vote_poll(uuid, uuid, int) from public, anon;
+grant execute on function public.crew_vote_poll(uuid, uuid, int) to authenticated;
+
+create or replace function public.crew_list_activities(p_event_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  my_crew uuid;
+begin
+  if actor is null then
+    return '[]'::jsonb;
+  end if;
+  select crew_id into my_crew
+    from public.attendee_crew_members
+    where event_id = p_event_id and user_id = actor;
+  if my_crew is null then
+    return '[]'::jsonb;
+  end if;
+  return coalesce(
+    (
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', a.id,
+          'eventId', a.event_id,
+          'crewId', a.crew_id,
+          'authorId', a.author_id,
+          'authorName', a.author_name,
+          'kind', a.kind,
+          'message', a.message,
+          'pointId', a.point_id,
+          'meta', a.meta,
+          'createdAt', a.created_at
+        )
+        order by a.created_at desc
+      )
+      from (
+        select * from public.attendee_crew_activities
+        where crew_id = my_crew and event_id = p_event_id
+        order by created_at desc
+        limit 40
+      ) a
+    ),
+    '[]'::jsonb
+  );
+end $$;
+revoke all on function public.crew_list_activities(uuid) from public, anon;
+grant execute on function public.crew_list_activities(uuid) to authenticated;
+
+-- 7. Organiser team collaborator roles
+create table if not exists public.organiser_team_members (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  member_email text not null check (char_length(btrim(member_email)) between 3 and 160),
+  role text not null default 'editor' check (role in ('editor', 'live_ops', 'viewer')),
+  created_at timestamptz not null default clock_timestamp(),
+  unique (owner_id, member_email)
+);
+alter table public.organiser_team_members enable row level security;
+revoke all on public.organiser_team_members from public, anon, authenticated;
+
+create or replace function public.manage_organiser_team_member(
+  p_action text,
+  p_email text,
+  p_role text default 'editor'
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  if p_action = 'remove' then
+    delete from public.organiser_team_members
+      where owner_id = actor and lower(btrim(member_email)) = lower(btrim(coalesce(p_email, '')));
+  elsif p_action = 'upsert' then
+    if p_role not in ('editor', 'live_ops', 'viewer') then
+      raise exception 'Invalid team role' using errcode = '22023';
+    end if;
+    insert into public.organiser_team_members(owner_id, member_email, role)
+      values (actor, lower(btrim(p_email)), p_role)
+      on conflict (owner_id, member_email) do update set role = excluded.role;
+  else
+    raise exception 'Unsupported team action' using errcode = '22023';
+  end if;
+  return coalesce(
+    (
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', t.id,
+          'email', t.member_email,
+          'role', t.role,
+          'createdAt', t.created_at
+        )
+        order by t.created_at asc
+      )
+      from public.organiser_team_members t
+      where t.owner_id = actor
+    ),
+    '[]'::jsonb
+  );
+end $$;
+revoke all on function public.manage_organiser_team_member(text, text, text) from public, anon;
+grant execute on function public.manage_organiser_team_member(text, text, text) to authenticated;
+
+create or replace function public.list_organiser_team_members()
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', t.id,
+        'email', t.member_email,
+        'role', t.role,
+        'createdAt', t.created_at
+      )
+      order by t.created_at asc
+    ),
+    '[]'::jsonb
+  )
+  from public.organiser_team_members t
+  where t.owner_id = auth.uid();
+$$;
+revoke all on function public.list_organiser_team_members() from public, anon;
+grant execute on function public.list_organiser_team_members() to authenticated;
+
+-- 8. Physical expiry cleanup function for expired landmark pins and invites
+create or replace function public.cleanup_expired_event_data()
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  cleared_pins int := 0;
+  cleared_invites int := 0;
+begin
+  update public.attendee_crew_members
+    set point_id = null,
+        expires_at = null,
+        updated_at = clock_timestamp()
+    where point_id is not null
+      and (expires_at is null or expires_at <= clock_timestamp());
+  get diagnostics cleared_pins = row_count;
+
+  delete from public.attendee_crew_invites
+    where expires_at <= clock_timestamp();
+  get diagnostics cleared_invites = row_count;
+
+  return jsonb_build_object(
+    'clearedPins', cleared_pins,
+    'clearedInvites', cleared_invites,
+    'cleanedAt', clock_timestamp()
+  );
+end $$;
+revoke all on function public.cleanup_expired_event_data() from public, anon;
+grant execute on function public.cleanup_expired_event_data() to authenticated;
+
 notify pgrst, 'reload schema';
 commit;

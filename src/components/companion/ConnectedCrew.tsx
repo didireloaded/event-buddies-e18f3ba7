@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCompanion, initials } from "./context";
+import { QrCameraScanner } from "./QrCameraScanner";
 import { Sheet } from "./Sheet";
 import { MeetingForm } from "./forms";
 import { eventTime } from "@/lib/attendee/schedule";
@@ -23,6 +24,7 @@ export function ConnectedCrew() {
   const [pendingInvite, setPendingInvite] = useState<string | null>(() => readPendingCrewInvite());
   const [pointId, setPointId] = useState(places[0]?.id ?? "");
   const [localError, setLocalError] = useState("");
+  const [scanningQr, setScanningQr] = useState(false);
   const crew = sync.crew;
   const self = crew?.members.find((m) => m.id === attendee.auth.user?.id);
   const waiting = Boolean(sync.pending);
@@ -49,6 +51,7 @@ export function ConnectedCrew() {
 
   function open(next: typeof mode) {
     setLocalError("");
+    setScanningQr(false);
     setMode(next);
   }
   async function shareInvite() {
@@ -248,7 +251,10 @@ export function ConnectedCrew() {
                       ? "Share a landmark"
                       : "Leave this crew?"
           }
-          onClose={() => setMode(null)}
+          onClose={() => {
+            setScanningQr(false);
+            setMode(null);
+          }}
         >
           {(mode === "create" || mode === "join") && (
             <form
@@ -286,6 +292,37 @@ export function ConnectedCrew() {
               <p className="text-[15px] text-muted-foreground">
                 One active private crew per event. Your profile name will be visible to its members.
               </p>
+              {mode === "join" && (
+                <div>
+                  <SecondaryButton
+                    onClick={() => {
+                      setLocalError("");
+                      setScanningQr((prev) => !prev);
+                    }}
+                  >
+                    {scanningQr ? "Close camera" : "Scan crew QR"}
+                  </SecondaryButton>
+                  {scanningQr && (
+                    <QrCameraScanner
+                      ariaLabel="Point your camera at a friend’s crew invite QR code"
+                      onCode={(scanned) => {
+                        setScanningQr(false);
+                        const parsed = extractCrewInviteCode(scanned);
+                        if (!parsed) {
+                          setLocalError("That QR code doesn’t contain a crew invite code.");
+                          return;
+                        }
+                        setCode(parsed);
+                        setLocalError("");
+                      }}
+                      onError={(message) => {
+                        setScanningQr(false);
+                        setLocalError(message);
+                      }}
+                    />
+                  )}
+                </div>
+              )}
               <label className="block font-medium">
                 {mode === "create" ? "Crew name" : "Crew code or invite link"}
                 <input

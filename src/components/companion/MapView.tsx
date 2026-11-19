@@ -254,7 +254,7 @@ function ExpandedMap() {
 }
 
 export function MapView() {
-  const { data, places, map, openSheet, crew, now } = useCompanion();
+  const { data, places, map, openSheet, crew, attendee, now } = useCompanion();
   const place = places.find((p) => p.id === map.selected);
   const term = map.query.trim();
   const listed = places
@@ -404,6 +404,16 @@ export function MapView() {
                     </div>
                   </div>
                   <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
+                  {(place.name.toLowerCase().includes("platinum") ||
+                    place.name.toLowerCase().includes("experience")) && (
+                    <p className="mt-2 rounded-lg bg-secondary px-3 py-2 text-[14px]">
+                      <strong>Ticket tier note:</strong>{" "}
+                      {attendee.preferences.ticketTier
+                        ? `Your Ticket Vault tier is recorded as ${attendee.preferences.ticketTier}. `
+                        : "You can record your pass tier in Ticket Vault for quick reference. "}
+                      Stewards check official Howler wristbands at zone entrances.
+                    </p>
+                  )}
                   {crew.crew?.members
                     .filter(
                       (m) =>

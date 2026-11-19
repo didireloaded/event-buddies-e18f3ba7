@@ -2,6 +2,7 @@ import { MessageCircle, MapPin, Dices } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
 import { ConnectedCrew } from "./ConnectedCrew";
+import { CrewCoordination } from "./CrewCoordination";
 import { CrewPeople } from "./CrewPeople";
 import { FestivalBump } from "./FestivalBump";
 import { FindMe } from "./FindMe";
@@ -27,6 +28,7 @@ export function CrewView() {
         </div>
       </div>
       <FestivalBump />
+      <CrewCoordination />
       <div className="ios-group ios-group-indent mx-4 mt-6">
         <button type="button" className="ios-row" onClick={() => openSheet({ kind: "play" })}>
           <IconTile icon={Dices} />

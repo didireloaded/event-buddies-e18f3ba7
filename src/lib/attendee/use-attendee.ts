@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DemoData } from "@/lib/event/types";
 import type { LocalMeeting } from "./meeting";
-import { readBump, type BumpPlan } from "./festival-bump";
+import { readBump, PROFILE_BADGES, type BumpPlan } from "./festival-bump";
 import { PREPARATION_ITEMS } from "./preparation";
 import { BINGO_ITEMS } from "./play";
 import { hapticTap } from "./haptics";
@@ -17,6 +17,26 @@ import {
 import { dayPlanSchema, type DayPlan } from "@/lib/day-plan/schema";
 
 export type { LocalMeeting };
+export type TicketTier = "general" | "experience" | "platinum";
+export type MedicalCard = {
+  contactName: string;
+  contactPhone: string;
+  notes: string;
+  bloodType: string;
+};
+export type CustomStamp = {
+  id: string;
+  label: string;
+  checked: boolean;
+};
+export type FestivalPrediction = {
+  firstStageId: string;
+  anthemArtistId: string;
+  note: string;
+};
+
+export const EVENT_COLLECTIONS = ["Going", "Wishlist", "Coastal Summer", "With Crew"] as const;
+
 export type Preferences = {
   dayPlan: DayPlan | null;
   bingo: string[];
@@ -25,6 +45,14 @@ export type Preferences = {
   saved: string[];
   savedArtists: string[];
   profile: { name: string; handle: string };
+  badges: string[];
+  reminders: string[];
+  ticketTier: TicketTier | null;
+  medicalCard: MedicalCard | null;
+  collections: string[];
+  followedOrganisers: string[];
+  customStamps: CustomStamp[];
+  predictions: FestivalPrediction | null;
   following: boolean;
   status: string;
   meeting: LocalMeeting | null;
@@ -51,6 +79,14 @@ export function defaultPreferences(data: DemoData): Preferences {
     saved: data.savedPerformanceIds,
     savedArtists: [],
     profile: { name: "Guest", handle: "guest" },
+    badges: [],
+    reminders: [],
+    ticketTier: null,
+    medicalCard: null,
+    collections: [],
+    followedOrganisers: [],
+    customStamps: [],
+    predictions: null,
     following: data.following,
     status: "Enjoying the music",
     meeting: null,
@@ -80,7 +116,28 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
   const meeting = stored["meeting"] as Record<string, unknown> | undefined;
   const ride = stored["ride"] as Record<string, unknown> | undefined;
   const here = stored["here"] as Record<string, unknown> | undefined;
+  const medicalRaw = stored["medicalCard"] as Record<string, unknown> | undefined;
+  const predRaw = stored["predictions"] as Record<string, unknown> | undefined;
   const placeIds = [...data.points, ...data.stages].map((point) => point.id);
+  const artistIds = data.festival.artists.map((artist) => artist.id);
+  const customStamps: CustomStamp[] = [];
+  if (Array.isArray(stored["customStamps"])) {
+    for (const entry of stored["customStamps"].slice(0, 12)) {
+      if (
+        entry &&
+        typeof entry === "object" &&
+        typeof (entry as Record<string, unknown>)["id"] === "string" &&
+        typeof (entry as Record<string, unknown>)["label"] === "string" &&
+        ((entry as Record<string, unknown>)["label"] as string).trim()
+      ) {
+        customStamps.push({
+          id: ((entry as Record<string, unknown>)["id"] as string).slice(0, 40),
+          label: ((entry as Record<string, unknown>)["label"] as string).trim().slice(0, 80),
+          checked: (entry as Record<string, unknown>)["checked"] === true,
+        });
+      }
+    }
+  }
   const sharedPlans: Preferences["sharedPlans"] = [];
   if (Array.isArray(stored["sharedPlans"])) {
     for (const entry of stored["sharedPlans"].slice(0, 10)) {
@@ -171,6 +228,63 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
       profile["name"].trim()
         ? { name: profile["name"].slice(0, 50), handle: profile["handle"].slice(0, 30) }
         : fallback.profile,
+    badges: [
+      ...new Set(
+        (strings(stored["badges"]) ?? []).filter((b) =>
+          (PROFILE_BADGES as readonly string[]).includes(b),
+        ),
+      ),
+    ],
+    reminders: [
+      ...new Set(
+        (strings(stored["reminders"]) ?? []).filter(
+          (id) => artistIds.includes(id) || data.performances.some((p) => p.id === id),
+        ),
+      ),
+    ],
+    ticketTier:
+      stored["ticketTier"] === "general" ||
+      stored["ticketTier"] === "experience" ||
+      stored["ticketTier"] === "platinum"
+        ? stored["ticketTier"]
+        : null,
+    medicalCard:
+      medicalRaw &&
+      typeof medicalRaw["contactName"] === "string" &&
+      typeof medicalRaw["contactPhone"] === "string" &&
+      typeof medicalRaw["notes"] === "string" &&
+      typeof medicalRaw["bloodType"] === "string"
+        ? {
+            contactName: medicalRaw["contactName"].slice(0, 60),
+            contactPhone: medicalRaw["contactPhone"].slice(0, 30),
+            notes: medicalRaw["notes"].slice(0, 240),
+            bloodType: medicalRaw["bloodType"].slice(0, 12),
+          }
+        : null,
+    collections: [
+      ...new Set(
+        (strings(stored["collections"]) ?? []).filter((c) =>
+          (EVENT_COLLECTIONS as readonly string[]).includes(c),
+        ),
+      ),
+    ],
+    followedOrganisers: [
+      ...new Set((strings(stored["followedOrganisers"]) ?? []).map((o) => o.slice(0, 80))),
+    ].slice(0, 12),
+    customStamps,
+    predictions:
+      predRaw &&
+      typeof predRaw["firstStageId"] === "string" &&
+      typeof predRaw["anthemArtistId"] === "string" &&
+      typeof predRaw["note"] === "string"
+        ? {
+            firstStageId: placeIds.includes(predRaw["firstStageId"]) ? predRaw["firstStageId"] : "",
+            anthemArtistId: artistIds.includes(predRaw["anthemArtistId"])
+              ? predRaw["anthemArtistId"]
+              : "",
+            note: predRaw["note"].slice(0, 140),
+          }
+        : null,
     following: typeof stored["following"] === "boolean" ? stored["following"] : fallback.following,
     status: typeof stored["status"] === "string" ? stored["status"].slice(0, 50) : fallback.status,
     meeting:

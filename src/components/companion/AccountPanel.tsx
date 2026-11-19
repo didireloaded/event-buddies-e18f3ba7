@@ -17,6 +17,8 @@ export function AccountPanel() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copyMeeting, setCopyMeeting] = useState(false);
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkNotice, setLinkNotice] = useState("");
   const [guest, setGuest] = useState<ReturnType<typeof parseStoredPreferences> | null>(null);
   function reviewImport() {
     try {
@@ -55,7 +57,55 @@ export function AccountPanel() {
         </p>
       ) : auth.user ? (
         <>
-          <p className="break-words text-[15px]">{auth.user.email ?? "Signed in"}</p>
+          <p className="break-words text-[15px]">{auth.user.email ?? "Guest cloud session"}</p>
+          {!auth.user.email && (
+            <form
+              className="space-y-2 rounded-xl bg-secondary p-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!linkEmail.trim() || busy) return;
+                setBusy(true);
+                setError("");
+                setLinkNotice("");
+                try {
+                  const { error: linkErr } = await supabase.auth.updateUser({
+                    email: linkEmail.trim(),
+                  });
+                  if (linkErr)
+                    setError("Couldn’t link that email. Check the address and try again.");
+                  else setLinkNotice("Check your inbox to confirm and keep this cloud account.");
+                } catch {
+                  setError("Couldn’t link your email right now.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <label className="block text-[14px] font-medium">
+                Link an email to keep this guest cloud account
+                <input
+                  type="email"
+                  required
+                  className="ios-field mt-1"
+                  placeholder="you@example.com"
+                  value={linkEmail}
+                  onChange={(e) => setLinkEmail(e.target.value)}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={busy || !linkEmail.trim()}
+                className="min-h-11 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                Link email
+              </button>
+              {linkNotice && (
+                <p role="status" className="text-[13px] text-muted-foreground">
+                  {linkNotice}
+                </p>
+              )}
+            </form>
+          )}
           <p role="status" className="text-[15px] text-muted-foreground">
             {sync.status === "checking" || sync.status === "guest"
               ? "Syncing favourites and meeting plan…"

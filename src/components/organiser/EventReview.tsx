@@ -673,12 +673,72 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     </button>
                   )}
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    aria-label={`Zone ${idx + 1} access tier`}
+                    className="ios-field"
+                    value={zone.accessTier}
+                    onChange={(e) =>
+                      setZones((prev) =>
+                        prev.map((z, i) =>
+                          i === idx
+                            ? { ...z, accessTier: e.target.value as ZoneItem["accessTier"] }
+                            : z,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="all">All attendees</option>
+                    <option value="experience">Experience tier</option>
+                    <option value="platinum">Platinum tier</option>
+                    <option value="vip">VIP tier</option>
+                  </select>
+                  <select
+                    aria-label={`Zone ${idx + 1} status`}
+                    className="ios-field"
+                    value={zone.status}
+                    onChange={(e) =>
+                      setZones((prev) =>
+                        prev.map((z, i) =>
+                          i === idx ? { ...z, status: e.target.value as ZoneItem["status"] } : z,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="open">Open</option>
+                    <option value="busy">Busy</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+                <input
+                  aria-label={`Zone ${idx + 1} vendor or facility note`}
+                  className="ios-field"
+                  maxLength={200}
+                  value={zone.vendorNote}
+                  placeholder="Menu, payment methods (card/cashless), or access notes…"
+                  onChange={(e) =>
+                    setZones((prev) =>
+                      prev.map((z, i) => (i === idx ? { ...z, vendorNote: e.target.value } : z)),
+                    )
+                  }
+                />
               </div>
             ))}
 
             <SecondaryButton
               onClick={() =>
-                setZones((prev) => [...prev, { name: "", type: "stage", x: null, y: null }])
+                setZones((prev) => [
+                  ...prev,
+                  {
+                    name: "",
+                    type: "stage",
+                    x: null,
+                    y: null,
+                    accessTier: "all",
+                    vendorNote: "",
+                    status: "open",
+                  },
+                ])
               }
             >
               <Plus size={18} /> Add point

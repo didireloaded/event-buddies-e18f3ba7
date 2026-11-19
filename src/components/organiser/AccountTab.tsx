@@ -5,8 +5,11 @@ import { dbError, signedUrl, uploadOwnFile } from "@/lib/organiser/data";
 import {
   deleteMyAccountData,
   listAdminVerifications,
+  listOrganiserTeamMembers,
+  manageOrganiserTeamMember,
   reviewOrganiserVerification,
   type AdminVerificationRow,
+  type OrganiserTeamMember,
 } from "@/lib/organiser/cloud-extensions";
 import {
   IMAGE_TYPES,
@@ -27,12 +30,19 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
   const [error, setError] = useState("");
   const [adminRows, setAdminRows] = useState<AdminVerificationRow[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [team, setTeam] = useState<OrganiserTeamMember[]>([]);
+  const [teamEmail, setTeamEmail] = useState("");
+  const [teamRole, setTeamRole] = useState<OrganiserTeamMember["role"]>("editor");
 
   useEffect(() => {
     let active = true;
-    void listAdminVerifications().then((rows) => {
-      if (active) setAdminRows(rows);
-    });
+    void Promise.all([listAdminVerifications(), listOrganiserTeamMembers(userId)]).then(
+      ([rows, members]) => {
+        if (!active) return;
+        setAdminRows(rows);
+        setTeam(members);
+      },
+    );
     return () => {
       active = false;
     };
@@ -258,6 +268,72 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
           <p className="text-[13px] text-muted-foreground">
             PDF, JPG, PNG or WebP up to 10 MB. Approval requires an administrator review.
           </p>
+        </div>
+      </Section>
+
+      <Section title="Team roles & collaborators" id="org-team">
+        <div className="ios-card space-y-3 p-4">
+          <p className="text-[14px] text-muted-foreground">
+            Your account is the workspace owner. Assign team roles for event editors, live
+            operations staff or read-only reviewers.
+          </p>
+          <form
+            className="space-y-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!teamEmail.trim()) return;
+              const next = await manageOrganiserTeamMember(userId, "upsert", teamEmail, teamRole);
+              setTeam(next);
+              setTeamEmail("");
+            }}
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="email"
+                required
+                aria-label="Collaborator email"
+                className="ios-field"
+                placeholder="teammate@example.com"
+                value={teamEmail}
+                onChange={(e) => setTeamEmail(e.target.value)}
+              />
+              <select
+                aria-label="Collaborator role"
+                className="ios-field"
+                value={teamRole}
+                onChange={(e) => setTeamRole(e.target.value as OrganiserTeamMember["role"])}
+              >
+                <option value="editor">Editor (drafts & zones)</option>
+                <option value="live_ops">Live ops (schedule & issues)</option>
+                <option value="viewer">Viewer (read-only)</option>
+              </select>
+            </div>
+            <SecondaryButton type="submit" disabled={!teamEmail.trim()}>
+              Assign team role
+            </SecondaryButton>
+          </form>
+          {team.length > 0 && (
+            <ul className="divide-y divide-border pt-2 text-[14px]">
+              {team.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-2 py-2">
+                  <span>
+                    <strong>{m.email}</strong> ·{" "}
+                    <span className="uppercase text-primary">{m.role}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="min-h-10 px-2 text-[13px] font-semibold text-destructive"
+                    onClick={async () => {
+                      const next = await manageOrganiserTeamMember(userId, "remove", m.email);
+                      setTeam(next);
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Section>
 

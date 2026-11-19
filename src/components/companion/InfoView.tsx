@@ -66,10 +66,53 @@ export function InfoView() {
       </Section>
       <Section title="Coastal conditions" id="info-coast">
         <p className="text-[16px]">Weather, sunset and tide information pending.</p>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Astronomical daylight for Langstrand (22.82°S, 14.54°E) on 28 December: golden hour
+          ~19:00–19:45 CAT · astronomical sunset ~19:45 CAT. Live wind, mist and tide readings
+          require on-site verification.
+        </p>
         <p className="mt-2 text-[16px]">
           Bring warm layers for the evening. Check beach conditions with the on-site team.
         </p>
       </Section>
+      <details className="mt-4 rounded-xl bg-popover px-4">
+        <summary className="min-h-12 cursor-pointer content-center text-[17px] font-semibold">
+          Local phrase guide (EN · AF · OW · DE)
+        </summary>
+        <div className="space-y-2 pb-4 pt-1 text-[14px]">
+          <p className="text-muted-foreground">
+            Common greetings and festival phrases used along the Erongo coast (Swakopmund,
+            Langstrand and Walvis Bay):
+          </p>
+          <ul className="divide-y divide-border">
+            <li className="py-2">
+              <strong>Hello / How are you?</strong>
+              <span className="block text-muted-foreground">
+                AF: Hallo, hoe gaan dit? · OW: Wa lalapo? / Onawa? · DE: Hallo, wie geht’s?
+              </span>
+            </li>
+            <li className="py-2">
+              <strong>Where is first aid / medic?</strong>
+              <span className="block text-muted-foreground">
+                AF: Waar is noodhulp? · OW: Openi oshipangelo / ekwatho? · DE: Wo ist die Erste
+                Hilfe?
+              </span>
+            </li>
+            <li className="py-2">
+              <strong>Meet me at the main gate</strong>
+              <span className="block text-muted-foreground">
+                AF: Ontmoet my by die hoofhek · DE: Triff mich am Haupteingang
+              </span>
+            </li>
+            <li className="py-2">
+              <strong>Thank you / Safe travels home</strong>
+              <span className="block text-muted-foreground">
+                AF: Dankie, veilig ry · OW: Tangi unene, enda nawa · DE: Danke, gute Heimfahrt
+              </span>
+            </li>
+          </ul>
+        </div>
+      </details>
       <a
         className="mt-6 flex min-h-12 items-center font-semibold"
         href={data.festival.ticketUrl}

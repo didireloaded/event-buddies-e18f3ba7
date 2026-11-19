@@ -101,6 +101,24 @@ function Login() {
     }
   }
 
+  async function guestSession() {
+    if (busy || !accountConfigured) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error)
+        setMsg(
+          "Guest cloud sessions aren’t enabled on this server yet. Use an email sign-in link or password.",
+        );
+      else window.location.assign(next);
+    } catch {
+      setMsg("Couldn’t start a guest session. Check your connection and retry.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-5 py-10">
       <h1 className="text-3xl font-bold text-foreground">
@@ -177,6 +195,14 @@ function Login() {
         className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
       >
         Continue with Lovable
+      </button>
+      <button
+        type="button"
+        disabled={busy || !accountConfigured}
+        onClick={() => void guestSession()}
+        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
+      >
+        Continue with guest cloud session
       </button>
       <button
         type="button"

@@ -522,3 +522,34 @@ test("crew invite deep link is retained and login supports magic-link mode", asy
   await expect(page.getByRole("heading", { name: "Email sign-in link" })).toBeVisible();
   await expect(page.getByLabel("Password")).toHaveCount(0);
 });
+
+test("crew coordination pings, polls, trivia predictions and private medical card work end-to-end", async ({
+  page,
+}) => {
+  await guest(page);
+  await page.goto("/#crew");
+
+  // 1. Safe check-in ping & Crew poll
+  await page.getByRole("button", { name: "I’m safe" }).click();
+  await expect(page.getByText("I’m safe and checked in")).toBeVisible();
+
+  await page.getByRole("button", { name: "Crew poll" }).click();
+  await page.getByRole("button", { name: "Post poll" }).click();
+  await expect(page.getByText("Which stage next?")).toBeVisible();
+
+  // 2. Festival extras -> Trivia & picks -> Save predictions
+  await page.getByRole("button", { name: /Festival extras/ }).click();
+  await page.getByRole("button", { name: "Trivia & picks" }).click();
+  await expect(page.getByText("Sound of Summer facts quiz")).toBeVisible();
+  await page.getByRole("button", { name: "Save my predictions" }).click();
+  await page.getByRole("button", { name: "Done" }).click();
+
+  // 3. Emergency & first aid -> private medical card
+  await page.getByRole("button", { name: "Emergency and first aid" }).click();
+  await page.getByRole("button", { name: "Add private medical & ICE card" }).click();
+  await page.getByLabel("Emergency contact name").fill("Maya");
+  await page.getByLabel("Blood type (optional)").fill("O+");
+  await page.getByRole("button", { name: "Save on this phone" }).click();
+  await expect(page.getByText("ICE contact:")).toBeVisible();
+  await expect(page.getByText("O+")).toBeVisible();
+});

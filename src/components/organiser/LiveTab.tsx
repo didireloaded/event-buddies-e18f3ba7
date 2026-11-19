@@ -3,13 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { dbError } from "@/lib/organiser/data";
 import {
+  cleanupExpiredEventData,
   getOrganiserEventAggregates,
   listEventBroadcasts,
   sendOrganiserBroadcast,
   type OrganiserBroadcast,
   type OrganiserEventAggregates,
 } from "@/lib/organiser/cloud-extensions";
-import { BROADCAST_LIMIT, parseProgram, type ProgramItem } from "@/lib/organiser/schema";
+import {
+  BROADCAST_LIMIT,
+  parseProgram,
+  parseZones,
+  type ProgramItem,
+  type ZoneItem,
+} from "@/lib/organiser/schema";
 import { PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
 import type { OrgCtx } from "./OrganiserApp";
 
@@ -18,6 +25,31 @@ type ChangeEntry = {
   summary: string;
   previousProgram: ProgramItem[];
 };
+
+type VenueIssue = {
+  id: string;
+  zone: string;
+  note: string;
+  resolved: boolean;
+  createdAt: string;
+};
+
+function readIssues(eventId: string): VenueIssue[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(`event-buddies:org-issues:${eventId}`) ?? "[]");
+    return Array.isArray(raw) ? (raw as VenueIssue[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeIssues(eventId: string, list: VenueIssue[]) {
+  try {
+    localStorage.setItem(`event-buddies:org-issues:${eventId}`, JSON.stringify(list));
+  } catch {
+    /* Ignore quota failures. */
+  }
+}
 
 export function LiveTab({ ctx }: { ctx: OrgCtx }) {
   const published = ctx.events.filter((e) => e.status === "published");
@@ -38,9 +70,14 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
   const [broadcastBusy, setBroadcastBusy] = useState(false);
   const [broadcastNotice, setBroadcastNotice] = useState("");
   const [aggregates, setAggregates] = useState<OrganiserEventAggregates | null>(null);
+  const [issues, setIssues] = useState<VenueIssue[]>(() => (active ? readIssues(active.id) : []));
+  const [issueZone, setIssueZone] = useState("");
+  const [issueNote, setIssueNote] = useState("");
+  const [cleanupNotice, setCleanupNotice] = useState("");
 
   useEffect(() => {
     if (!active) return;
+    setIssues(readIssues(active.id));
     let mounted = true;
     void Promise.all([listEventBroadcasts(active.id), getOrganiserEventAggregates(active.id)]).then(
       ([bList, aggs]) => {
@@ -443,6 +480,136 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               enable counts-only summaries. Individual attendee profiles and locations are never
               exposed to organisers.
             </p>
+          )}
+          <div className="border-t border-border pt-3">
+            <SecondaryButton
+              onClick={async () => {
+                setCleanupNotice("");
+                const res = await cleanupExpiredEventData();
+                if (!res) {
+                  setCleanupNotice("Expired pins and invites are filtered automatically on read.");
+                } else {
+                  setCleanupNotice(
+                    `Cleared ${res.clearedPins} expired landmark pins and ${res.clearedInvites} expired invites.`,
+                  );
+                }
+              }}
+            >
+              Purge expired landmark pins & invites
+            </SecondaryButton>
+            {cleanupNotice && (
+              <p role="status" className="mt-2 text-[13px] text-muted-foreground">
+                {cleanupNotice}
+              </p>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Venue operations & issue log" id="org-live-issues">
+        <div className="ios-card space-y-3 p-4">
+          {parseZones(active.zones).length > 0 && (
+            <div className="space-y-2 border-b border-border pb-3">
+              <p className="text-[14px] font-semibold">Live zone status</p>
+              {parseZones(active.zones).map((z, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 text-[14px]">
+                  <span className="font-medium">
+                    {z.name} <span className="text-muted-foreground">({z.type})</span>
+                  </span>
+                  <select
+                    aria-label={`${z.name} live status`}
+                    className="ios-field w-auto py-1 text-[14px]"
+                    value={z.status}
+                    onChange={async (e) => {
+                      const nextStatus = e.target.value as ZoneItem["status"];
+                      const nextZones = parseZones(active.zones).map((item, i) =>
+                        i === idx ? { ...item, status: nextStatus } : item,
+                      );
+                      await supabase
+                        .from("organiser_events")
+                        .update({ zones: nextZones as unknown as Json })
+                        .eq("id", active.id);
+                      await ctx.reload();
+                    }}
+                  >
+                    <option value="open">Open</option>
+                    <option value="busy">Busy</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!issueNote.trim()) return;
+              const entry: VenueIssue = {
+                id: crypto.randomUUID(),
+                zone: issueZone.trim() || "General venue",
+                note: issueNote.trim(),
+                resolved: false,
+                createdAt: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              };
+              const next = [entry, ...issues];
+              setIssues(next);
+              writeIssues(active.id, next);
+              setIssueZone("");
+              setIssueNote("");
+            }}
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                aria-label="Issue zone or point"
+                className="ios-field"
+                maxLength={60}
+                placeholder="Zone (e.g. North Gate, Bar 2)"
+                value={issueZone}
+                onChange={(e) => setIssueZone(e.target.value)}
+              />
+              <input
+                aria-label="Operational issue description"
+                className="ios-field"
+                maxLength={140}
+                placeholder="Restock ice, queue support…"
+                value={issueNote}
+                onChange={(e) => setIssueNote(e.target.value)}
+              />
+            </div>
+            <SecondaryButton type="submit" disabled={!issueNote.trim()}>
+              Log venue issue
+            </SecondaryButton>
+          </form>
+
+          {issues.length > 0 && (
+            <ul className="divide-y divide-border pt-2 text-[14px]">
+              {issues.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-2 py-2">
+                  <span className={item.resolved ? "line-through text-muted-foreground" : ""}>
+                    <strong>{item.zone}</strong> · {item.note}{" "}
+                    <span className="text-[12px] text-muted-foreground">({item.createdAt})</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="min-h-10 px-2 text-[13px] font-semibold text-primary"
+                    onClick={() => {
+                      const next = issues.map((row) =>
+                        row.id === item.id ? { ...row, resolved: !row.resolved } : row,
+                      );
+                      setIssues(next);
+                      writeIssues(active.id, next);
+                    }}
+                  >
+                    {item.resolved ? "Reopen" : "Resolve"}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </Section>

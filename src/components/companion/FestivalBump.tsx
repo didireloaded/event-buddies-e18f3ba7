@@ -1,84 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { bumpLink, readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
 import { eventTime } from "@/lib/attendee/schedule";
 import { useCompanion } from "./context";
+import { QrCameraScanner } from "./QrCameraScanner";
 import { Sheet } from "./Sheet";
 import { PrimaryButton, SecondaryButton, Section } from "./ui";
-
-function CameraScanner({
-  onCode,
-  onError,
-}: {
-  onCode: (code: string) => void;
-  onError: (message: string) => void;
-}) {
-  const video = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    let stopped = false;
-    let stream: MediaStream | undefined;
-    let frame = 0;
-    let decode: typeof import("jsqr").default | undefined;
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const scan = () => {
-      const el = video.current;
-      if (el && ctx && decode && el.readyState >= 2) {
-        canvas.width = 640;
-        canvas.height = Math.round((640 * el.videoHeight) / el.videoWidth);
-        ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = decode(pixels.data, pixels.width, pixels.height);
-        if (code) {
-          onCode(code.data);
-          return;
-        }
-      }
-      frame = requestAnimationFrame(scan);
-    };
-    void import("jsqr")
-      .then(async (module) => {
-        decode = module.default;
-        if (stopped) return null;
-        if (!navigator.mediaDevices) throw new Error("Camera unavailable");
-        return navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false,
-        });
-      })
-      .then(async (media) => {
-        if (!media) return;
-        if (stopped) {
-          media.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        stream = media;
-        if (video.current) {
-          video.current.srcObject = media;
-          await video.current.play();
-        }
-        frame = requestAnimationFrame(scan);
-      })
-      .catch(() => {
-        if (!stopped) onError("Camera unavailable. Paste your friend’s sharing code below.");
-      });
-    return () => {
-      stopped = true;
-      cancelAnimationFrame(frame);
-      stream?.getTracks().forEach((track) => track.stop());
-    };
-  }, [onCode, onError]);
-  return (
-    <video
-      ref={video}
-      autoPlay
-      muted
-      playsInline
-      className="aspect-square w-full rounded-xl bg-muted object-cover"
-      aria-label="Point your camera at your friend’s QR code"
-    />
-  );
-}
 
 export function FestivalBump() {
   const { data, attendee, places } = useCompanion();
@@ -97,6 +24,7 @@ export function FestivalBump() {
     name: attendee.preferences.profile.name,
     artists: attendee.preferences.savedArtists.slice(0, 3),
     meeting: attendee.preferences.meeting,
+    ...(attendee.preferences.badges.length ? { badges: attendee.preferences.badges } : {}),
     ...(contact.name && contact.phone ? { contact } : {}),
   });
   const receive = useCallback(
@@ -249,7 +177,7 @@ export function FestivalBump() {
                 Start camera
               </SecondaryButton>
               {scanning && (
-                <CameraScanner
+                <QrCameraScanner
                   onCode={receive}
                   onError={(message) => {
                     setError(message);
@@ -300,6 +228,11 @@ export function FestivalBump() {
                       .map((id) => data.festival.artists.find((a) => a.id === id)?.name)
                       .join(" · ") || "No favourites included"}
                   </p>
+                  {incoming.badges && incoming.badges.length > 0 && (
+                    <p className="mt-2 text-[14px] text-primary">
+                      Interests · {incoming.badges.join(" · ")}
+                    </p>
+                  )}
                   {incoming.contact && (
                     <p className="mt-2">
                       Emergency contact · {incoming.contact.name} · {incoming.contact.phone}

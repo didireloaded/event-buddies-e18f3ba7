@@ -36,6 +36,9 @@ export const zoneItem = z.object({
   /** Position on the uploaded site plan, as 0–100 percentages. */
   x: z.number().min(0).max(100).nullable().default(null),
   y: z.number().min(0).max(100).nullable().default(null),
+  accessTier: z.enum(["all", "experience", "platinum", "vip"]).default("all"),
+  vendorNote: z.string().trim().max(200).default(""),
+  status: z.enum(["open", "busy", "closed"]).default("open"),
 });
 export type ZoneItem = z.infer<typeof zoneItem>;
 

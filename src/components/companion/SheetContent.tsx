@@ -188,6 +188,8 @@ export function SheetContent({
 
     case "artist": {
       const saved = preferences.savedArtists.includes(sheet.artist.id);
+      const reminded = preferences.reminders.includes(sheet.artist.id);
+      const q = encodeURIComponent(sheet.artist.name);
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-4 pt-2">
@@ -213,25 +215,79 @@ export function SheetContent({
             {saved ? <Check size={19} /> : <Heart size={19} />}
             {saved ? "Saved to favourites" : "Save to favourites"}
           </PrimaryButton>
+          <SecondaryButton
+            disabled={!ready}
+            onClick={() => {
+              const nextReminders = reminded
+                ? preferences.reminders.filter((id) => id !== sheet.artist.id)
+                : [...preferences.reminders, sheet.artist.id];
+              if (update({ reminders: nextReminders })) {
+                if (
+                  !reminded &&
+                  typeof Notification !== "undefined" &&
+                  Notification.permission === "default"
+                ) {
+                  void Notification.requestPermission();
+                }
+                notify(
+                  reminded
+                    ? "In-app reminder turned off"
+                    : "In-app reminder saved for when set times are published",
+                );
+              }
+            }}
+          >
+            <Bell size={18} />
+            {reminded ? "Reminder saved on this phone" : "Remind me when set time publishes"}
+          </SecondaryButton>
           {sheet.artist.stageId && (
             <SecondaryButton onClick={() => openPlace(sheet.artist.stageId!)}>
               <MapIcon size={18} /> Find the stage
             </SecondaryButton>
           )}
-          <a
-            href={`https://open.spotify.com/search/${encodeURIComponent(sheet.artist.name)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="ios-row rounded-xl bg-secondary font-semibold"
-          >
-            Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
-            <span className="sr-only"> Opens in a new tab</span>
-          </a>
+          <div className="ios-group">
+            <a
+              href={`https://open.spotify.com/search/${q}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ios-row font-semibold"
+            >
+              Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
+              <span className="sr-only"> Opens in a new tab</span>
+            </a>
+            <a
+              href={`https://music.apple.com/search?term=${q}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ios-row font-semibold"
+            >
+              Apple Music search <ArrowUpRight size={18} className="ml-auto" />
+              <span className="sr-only"> Opens in a new tab</span>
+            </a>
+            <a
+              href={`https://music.youtube.com/search?q=${q}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ios-row font-semibold"
+            >
+              YouTube Music search <ArrowUpRight size={18} className="ml-auto" />
+              <span className="sr-only"> Opens in a new tab</span>
+            </a>
+            <a
+              href={`https://soundcloud.com/search?q=${q}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ios-row font-semibold"
+            >
+              SoundCloud sets <ArrowUpRight size={18} className="ml-auto" />
+              <span className="sr-only"> Opens in a new tab</span>
+            </a>
+          </div>
           <p className="text-[13px] text-muted-foreground">
             {sheet.artist.avatarUrl
               ? "Artist and stage billing from the supplied 2026 announcement posts."
               : "Announced on the organiser’s website and Howler."}{" "}
-            Reminders need confirmed set times.
+            External music links open the artist search. Reminders need confirmed set times.
           </p>
         </div>
       );
@@ -240,6 +296,7 @@ export function SheetContent({
     case "performance": {
       const p = sheet.performance;
       const saved = preferences.saved.includes(p.id);
+      const reminded = preferences.reminders.includes(p.id);
       return (
         <div className="space-y-4">
           <div className="ios-group ios-group-indent">
@@ -269,6 +326,29 @@ export function SheetContent({
           >
             {saved ? "Remove from my lineup" : "Add to my lineup"}
           </PrimaryButton>
+          <SecondaryButton
+            disabled={!ready || p.status === "cancelled"}
+            onClick={() => {
+              const nextReminders = reminded
+                ? preferences.reminders.filter((id) => id !== p.id)
+                : [...preferences.reminders, p.id];
+              if (update({ reminders: nextReminders })) {
+                if (
+                  !reminded &&
+                  typeof Notification !== "undefined" &&
+                  Notification.permission === "default"
+                ) {
+                  void Notification.requestPermission();
+                }
+                notify(
+                  reminded ? "Set reminder turned off" : "Set reminder saved (15m before start)",
+                );
+              }
+            }}
+          >
+            <Bell size={18} />
+            {reminded ? "15m reminder saved" : "Remind me 15m before set"}
+          </SecondaryButton>
           <SecondaryButton onClick={() => openPlace(p.stageId)}>
             <MapIcon size={18} /> Find the stage
           </SecondaryButton>
@@ -311,10 +391,11 @@ export function SheetContent({
       return (
         <ProfileForm
           initial={preferences.profile}
+          initialBadges={preferences.badges}
           disabled={!ready}
           savedCount={savedCount}
-          onSave={(profile) => {
-            if (update({ profile, hasName: true })) {
+          onSave={(profile, badges) => {
+            if (update({ profile, badges: badges ?? preferences.badges, hasName: true })) {
               notify("Profile saved on this device");
               closeSheet();
             }

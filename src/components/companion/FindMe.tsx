@@ -2,32 +2,81 @@ import { useEffect, useRef, useState } from "react";
 import { initials, useCompanion } from "./context";
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { countdownLabel, eventPhase } from "@/lib/attendee/event-clock";
+import { saveMemory } from "@/lib/attendee/memories";
 import { Segmented } from "./ui";
 
 function SignalScreen({ onClose }: { onClose: () => void }) {
   const { data, attendee, places, now } = useCompanion();
   const dialog = useRef<HTMLDialogElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [mode, setMode] = useState<"name" | "message" | "countdown" | "timer">("name");
   const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [useCameraSnap, setUseCameraSnap] = useState(false);
+  const [snapStatus, setSnapStatus] = useState("");
   const [message, setMessage] = useState("Meet me here");
   const [light, setLight] = useState(false);
   const here = attendee.preferences.here;
   const pointId =
     activeLandmarkPin(data, here, now)?.pointId ?? attendee.preferences.meeting?.pointId;
   const place = places.find((p) => p.id === pointId);
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, []);
+
   useEffect(() => {
     if (timerEndsAt === null || mode !== "timer") return;
     let interval: number | undefined;
+    let snapped = false;
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
       setSecondsLeft(remaining);
-      if (remaining === 0) window.clearInterval(interval);
+      if (remaining === 0) {
+        window.clearInterval(interval);
+        if (useCameraSnap && !snapped && videoRef.current && videoRef.current.videoWidth > 0) {
+          snapped = true;
+          const el = videoRef.current;
+          const canvas = document.createElement("canvas");
+          canvas.width = el.videoWidth;
+          canvas.height = el.videoHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) return;
+                void saveMemory({
+                  id: crypto.randomUUID(),
+                  eventId: data.event.id,
+                  createdAt: Date.now(),
+                  caption: `${attendee.preferences.profile.name}’s 5s crew snap`,
+                  pointId: pointId ?? null,
+                  photo: blob,
+                })
+                  .then(() => {
+                    setSnapStatus("Photo saved to your private Photo Diary.");
+                    attendee.notify("Group photo saved to your Photo Diary");
+                  })
+                  .catch(() => {
+                    setSnapStatus("Couldn’t save photo to storage.");
+                  });
+              },
+              "image/jpeg",
+              0.9,
+            );
+          }
+        }
+      }
     };
     tick();
     if (timerEndsAt > Date.now()) interval = window.setInterval(tick, 250);
     return () => window.clearInterval(interval);
-  }, [timerEndsAt, mode]);
+  }, [timerEndsAt, mode, useCameraSnap, data.event.id, attendee, pointId]);
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
     const el = dialog.current;
@@ -111,13 +160,68 @@ function SignalScreen({ onClose }: { onClose: () => void }) {
           )}
           {mode === "timer" && (
             <>
-              <button
-                type="button"
-                className="min-h-12 rounded-xl border border-current px-4 text-[17px] font-semibold"
-                onClick={() => setTimerEndsAt(Date.now() + 5000)}
-              >
-                Start 5-second countdown
-              </button>
+              {useCameraSnap && (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="mx-auto max-h-44 w-44 rounded-xl bg-muted object-cover"
+                  aria-label="Group photo camera preview"
+                />
+              )}
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  className="min-h-12 rounded-xl border border-current px-4 text-[17px] font-semibold"
+                  onClick={() => {
+                    setSnapStatus("");
+                    setTimerEndsAt(Date.now() + 5000);
+                  }}
+                >
+                  Start 5-second countdown
+                </button>
+                <button
+                  type="button"
+                  className="min-h-12 rounded-xl border border-current px-4 text-[16px] font-semibold"
+                  onClick={async () => {
+                    setSnapStatus("");
+                    if (useCameraSnap) {
+                      streamRef.current?.getTracks().forEach((t) => t.stop());
+                      streamRef.current = null;
+                      setUseCameraSnap(false);
+                      return;
+                    }
+                    try {
+                      if (!navigator.mediaDevices?.getUserMedia) throw new Error("No camera");
+                      const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "user" },
+                        audio: false,
+                      });
+                      streamRef.current = stream;
+                      setUseCameraSnap(true);
+                      window.setTimeout(() => {
+                        if (videoRef.current) {
+                          videoRef.current.srcObject = stream;
+                          void videoRef.current.play();
+                        }
+                      }, 50);
+                      setTimerEndsAt(Date.now() + 5000);
+                    } catch {
+                      setSnapStatus(
+                        "Camera unavailable. Use the screen countdown with your camera app.",
+                      );
+                    }
+                  }}
+                >
+                  {useCameraSnap ? "Close camera" : "5s camera auto-snap"}
+                </button>
+              </div>
+              {snapStatus && (
+                <p role="status" className="text-[14px] font-medium">
+                  {snapStatus}
+                </p>
+              )}
               <p className="text-[14px]">
                 A countdown for your group photo. Open your camera to take the picture.
               </p>

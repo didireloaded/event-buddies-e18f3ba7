@@ -3,6 +3,7 @@ import { CalendarDays, MapPin, Clock, ArrowUpRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
+import { EVENT_COLLECTIONS } from "@/lib/attendee/use-attendee";
 import {
   listPublishedOrganiserEvents,
   type PublishedOrganiserEvent,
@@ -190,6 +191,30 @@ export function EventSelection() {
               {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT
             </p>
             <p className="text-[15px] text-muted-foreground">18+ · Physical ID required</p>
+            <div>
+              <p className="mb-1.5 text-[14px] font-semibold">Save to collection</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Event collections">
+                {EVENT_COLLECTIONS.map((col) => {
+                  const active = attendee.preferences.collections.includes(col);
+                  return (
+                    <button
+                      key={col}
+                      type="button"
+                      className="ios-chip"
+                      aria-pressed={active}
+                      onClick={() => {
+                        const next = active
+                          ? attendee.preferences.collections.filter((c) => c !== col)
+                          : [...attendee.preferences.collections, col];
+                        attendee.update({ collections: next });
+                      }}
+                    >
+                      {col}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <button
               type="button"
               className="min-h-11 text-[17px] font-semibold underline"
@@ -210,6 +235,54 @@ export function EventSelection() {
           </div>
         </Sheet>
       )}
+      <section className="mt-6 space-y-3" aria-label="Organiser and related coastal event">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[18px] font-semibold">From {data.festival.organiser}</h2>
+          <button
+            type="button"
+            aria-pressed={attendee.preferences.followedOrganisers.includes(data.festival.organiser)}
+            onClick={() => {
+              const followed = attendee.preferences.followedOrganisers.includes(
+                data.festival.organiser,
+              );
+              const next = followed
+                ? attendee.preferences.followedOrganisers.filter(
+                    (o) => o !== data.festival.organiser,
+                  )
+                : [...attendee.preferences.followedOrganisers, data.festival.organiser];
+              if (attendee.update({ followedOrganisers: next })) {
+                attendee.notify(
+                  followed
+                    ? `Unfollowed ${data.festival.organiser}`
+                    : `Following ${data.festival.organiser} on this device`,
+                );
+              }
+            }}
+            className="ios-chip text-[14px]"
+          >
+            {attendee.preferences.followedOrganisers.includes(data.festival.organiser)
+              ? "Following organiser"
+              : "Follow organiser"}
+          </button>
+        </div>
+        <div className="ios-card p-4">
+          <p className="text-[13px] font-semibold uppercase text-primary">
+            Same organiser · Coastal weekend
+          </p>
+          <p className="mt-1 text-[17px] font-semibold">{data.festival.relatedEvent.name}</p>
+          <p className="text-[14px] text-muted-foreground">
+            {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
+          </p>
+          <a
+            href={data.festival.relatedEvent.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
+          >
+            Official details on Howler <ArrowUpRight size={16} />
+          </a>
+        </div>
+      </section>
       {extraEvents.length > 0 && (
         <section className="mt-6 space-y-3" aria-label="Additional published events">
           <h2 className="text-[18px] font-semibold">Also published</h2>

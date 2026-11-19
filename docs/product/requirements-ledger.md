@@ -31,7 +31,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | --- | --- | --- | --- | --- |
 | 1 | Instant Event Explorer | Partial | Onboarding precedes event selection; single verified event (`Sound of Summer 2026`) only | `EventSelection.tsx`, `EventCompanion.tsx` |
 | 2 | Personal Festival Dashboard | Implemented | Event hub, saved count, crew shortcut, lifecycle afterglow/recap | `HomeView.tsx`, `PostEventState.tsx` |
-| 3 | My Ticket | Partial | Offline IndexedDB ticket vault implemented; official entitlement validation blocked on Howler/ticketing API | `TicketVault.tsx` |
+| 3 | My Ticket | Partial | Offline IndexedDB ticket vault + self-recorded ticket tier reference (`general` / `experience` / `platinum`) implemented; official barcode validation blocked on Howler/ticketing API | `TicketVault.tsx`, `MapView.tsx` |
 | 4 | Offline Festival Pack | Implemented | Workbox SW precaches app shell, map & 24 portraits; honest offline/reconnect banner (`OfflineReadiness.tsx`) | `pwa.ts`, `OfflineReadiness.tsx` |
 | 5 | Unified Search | Partial | Searches artists, venue, city and places for the verified event; multi-event catalogue blocked on additional verified events | `EventSelection.tsx`, `MapView.tsx`, `LineupView.tsx` |
 | 6 | Event Timeline | Partial | Event hours & countdown work; per-set timeline blocked on organiser-published set times | `HomeView.tsx`, `LineupView.tsx` |
@@ -42,10 +42,10 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 11 | Live DJ Schedule | Blocked | Schedule UI & live organiser status override exist; blocked on organiser-published set times for Sound of Summer | `LineupView.tsx`, `LiveTab.tsx` |
 | 12 | Now Playing / Up Next | Blocked | Organiser Live tab filters verified `HH:MM` slots; attendee feed blocked on published timetable (`performances: []`) | `LineupView.tsx`, `LiveTab.tsx` |
 | 13 | Favourite DJs | Implemented | Save/remove persists locally and syncs to Cloud account with durable outbox replay | `LineupView.tsx`, `use-attendee.ts` |
-| 14 | Performance Reminders | Blocked | Blocked on confirmed set times and push notification provider/permission verification | `SheetContent.tsx` |
+| 14 | Performance Reminders | Partial | Opt-in in-app & browser notification reminder toggle per artist/set (`preferences.reminders`, requests permission only on tap); Sound of Summer timetable still awaiting organiser set times | `SheetContent.tsx`, `use-attendee.ts` |
 | 15 | Set Clash Detector | Blocked | `scheduleClashes()` logic exists (`schedule.ts`); blocked on published overlapping set times | `schedule.ts`, `LineupView.tsx` |
 | 16 | Artist Profiles | Implemented | 25 announced artists with 24 supplied portraits, stage/billing, and honest TBA set times | `SheetContent.tsx`, `ArtistAvatar.tsx` |
-| 17 | Music Preview | Partial | Opens external Spotify artist search links; no embedded licensed audio playback | `SheetContent.tsx` |
+| 17 | Music Preview | Partial | Opens external Spotify, Apple Music, YouTube Music & SoundCloud artist search links; no embedded licensed audio playback | `SheetContent.tsx` |
 | 18 | Find My DJ on the Map | Implemented | Stage artists open stage pin on map; map search matches artist names (`shimza` → Main Stage) | `SheetContent.tsx`, `map.ts` |
 | 19 | Shared Crew Lineup | Implemented | Lineup shows friend badges from both imported QR Bump plans and signed-in Cloud crewmates (`attendee_crew_artist_overlap`) | `LineupView.tsx`, `cloud-extensions.ts`, `organiser-and-crew-extensions.sql` |
 | 20 | Discover My Next DJ | Implemented | Random pick from unsaved announced artists (`spin()`) | `EventCompanion.tsx`, `LineupView.tsx` |
@@ -60,15 +60,15 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 29 | Map Updates | Blocked | Organiser site-plan/zone editor saves to private organiser DB; public attendee live sync & push blocked | `EventReview.tsx`, `organiser_events` |
 | 30 | Offline Saved Locations | Implemented | All 41 venue points & site-plan PNG precached for offline map access | `pwa.ts`, `sound-of-summer.ts` |
 | 31 | Private Crews | Implemented | Authenticated Cloud private crews: create, 7d expiring invite code/QR, join, leave, owner transfer, RLS & RPC isolation | `ConnectedCrew.tsx`, `shared-crews.sql` |
-| 32 | QR Friend Connect | Implemented | Both offline `FestivalBump` QR/link plan share and Cloud crew invite QR (`qrcode.react`, `jsqr`) | `FestivalBump.tsx`, `ConnectedCrew.tsx` |
+| 32 | QR Friend Connect | Implemented | In-app camera QR scanner (`QrCameraScanner.tsx`) for both offline `FestivalBump` QR/link plan share and Cloud crew invite QR (`ConnectedCrew.tsx`) | `FestivalBump.tsx`, `ConnectedCrew.tsx`, `QrCameraScanner.tsx` |
 | 33 | Crew Meeting Planner | Implemented | Shared Cloud crew meeting with revision conflict detection + offline personal meeting validation | `ConnectedCrew.tsx`, `forms.tsx` |
-| 34 | Live Friend Location | Partial | Opt-in expiring (1h) Cloud landmark pins & immediate Ghost Mode implemented; continuous GPS tracking intentionally Deferred | `ConnectedCrew.tsx`, `shared-crews.sql` |
-| 35 | Quick Status Updates | Partial | Local quick-ping share sheet (`QuickPings.tsx`) and status chips; no in-app real-time status push | `QuickPings.tsx`, `SheetContent.tsx` |
-| 36 | Crew Chat | Deferred | Owner-deferred; stays external share/WhatsApp handoff until chat & moderation backend approved | `QuickPings.tsx`, `AfterEventData.tsx` |
-| 37 | Regroup Now | Partial | Preset regroup meeting & share helper works locally; no push alert to crew | `Regroup.tsx` |
-| 38 | Crew Polls | Deferred | Owner-deferred multi-user backend feature | `requirements-ledger.md` |
-| 39 | Shared Travel Plans | Deferred | Local car/shuttle bookmark exists (`RideBookmark.tsx`); shared crew travel deferred | `RideBookmark.tsx` |
-| 40 | Safe Check-In | Partial | Opt-in 1h expiring crew landmark pin + Ghost Mode (`ConnectedCrew.tsx`); automated safe check-in notifications deferred | `ConnectedCrew.tsx`, `PinPrivacy.tsx` |
+| 34 | Live Friend Location | Partial | Opt-in expiring (1h) Cloud landmark pins, Realtime WebSocket sync & immediate Ghost Mode implemented; continuous GPS tracking intentionally Deferred | `ConnectedCrew.tsx`, `use-crew.ts`, `shared-crews.sql` |
+| 35 | Quick Status Updates | Implemented | Delivered crew quick pings (`At the stage`, `Bar run`, `Toilets`, `Regroup`, `I’m safe`, `Need my crew`) synced via `attendee_crew_activities` + local board & share (`CrewCoordination.tsx`, `QuickPings.tsx`) | `CrewCoordination.tsx`, `QuickPings.tsx`, `organiser-and-crew-extensions.sql` |
+| 36 | Crew Chat | Partial | Short crew notes/messages posted to private crew coordination feed (`CrewCoordination.tsx`, `attendee_crew_activities`) + external share handoff | `CrewCoordination.tsx`, `QuickPings.tsx` |
+| 37 | Regroup Now | Implemented | Preset regroup meeting & delivered crew regroup ping (`Regroup.tsx`, `CrewCoordination.tsx`) | `Regroup.tsx`, `CrewCoordination.tsx` |
+| 38 | Crew Polls | Implemented | Single-vote-per-member crew polls (`Which stage next?`, live vote tallies) synced via `crew_post_activity` / `crew_vote_poll` + local offline fallback (`CrewCoordination.tsx`) | `CrewCoordination.tsx`, `organiser-and-crew-extensions.sql` |
+| 39 | Shared Travel Plans | Implemented | Local car/shuttle bookmark (`RideBookmark.tsx`) + shared crew travel plan (`car`/`shuttle`/`taxi`, time, pickup landmark & seats) in `CrewCoordination.tsx` | `CrewCoordination.tsx`, `RideBookmark.tsx` |
+| 40 | Safe Check-In | Implemented | One-tap `I’m safe` check-in & `Need my crew` SOS alert (`CrewCoordination.tsx`) + opt-in 1h expiring crew landmark pin & Ghost Mode (`ConnectedCrew.tsx`) | `CrewCoordination.tsx`, `ConnectedCrew.tsx`, `PinPrivacy.tsx` |
 | 41 | Party Screen | Implemented | Full-screen high-contrast signal screen with countdown & custom text | `FindMe.tsx` |
 | 42 | Big Text Sign | Implemented | Big text display mode on `FindMe.tsx` | `FindMe.tsx` |
 | 43 | Crew Colour Sync | Deferred | Monochrome/teal local signal screen works; synchronized multi-device crew light show deferred | `FindMe.tsx` |
@@ -77,14 +77,14 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 46 | Song of the Night | Deferred | Owner-deferred moderated audience feature | `requirements-ledger.md` |
 | 47 | Festival Shoutouts | Deferred | Owner-deferred moderated audience feature | `requirements-ledger.md` |
 | 48 | Dance Challenge | Implemented | Local self-reported challenge deck & bingo grid | `FestivalPlay.tsx` |
-| 49 | Crew Photo Timer | Implemented | 5-second local countdown screen (`FindMe.tsx`); native camera shutter remains separate user action | `FindMe.tsx` |
+| 49 | Crew Photo Timer | Implemented | 5-second countdown screen + optional in-app camera preview & auto-snap directly into private Photo Diary (`FindMe.tsx`) | `FindMe.tsx`, `memories.ts` |
 | 50 | Spin the Next Stage | Implemented | Random pick from verified venue stages (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
-| 51 | Festival Scavenger Hunt | Blocked | Blocked on organiser-authored scavenger checkpoints & rules | `sound-of-summer.ts` |
+| 51 | Festival Scavenger Hunt | Partial | Custom attendee/crew passport checkpoints implemented (`FestivalPassport.tsx`); official organiser-verified NFC/QR hunt blocked on organiser rules | `FestivalPassport.tsx` |
 | 52 | Festival Bingo | Implemented | Persistent local self-reported festival bingo (`play.ts`) | `FestivalPlay.tsx`, `play.ts` |
-| 53 | DJ Trivia | Blocked | Blocked on verified artist/festival trivia content | `sound-of-summer.ts` |
-| 54 | Crew Challenges | Deferred | Owner-deferred multi-user challenge backend | `requirements-ledger.md` |
-| 55 | Stage Explorer | Partial | Self-reported local festival passport implemented; official NFC/QR checkpoints deferred | `FestivalPassport.tsx` |
-| 56 | Festival Predictions | Blocked | Blocked on verified event/schedule data and scoring rules | `requirements-ledger.md` |
+| 53 | DJ Trivia | Implemented | Grounded Sound of Summer facts quiz using only verified event details (`SOUND_OF_SUMMER_TRIVIA`, `FestivalPlay.tsx`) | `FestivalPlay.tsx`, `play.ts` |
+| 54 | Crew Challenges | Implemented | Crew photo challenges, bingo & custom crew passport checkpoints (`FestivalPlay.tsx`, `FestivalPassport.tsx`) | `FestivalPlay.tsx`, `FestivalPassport.tsx` |
+| 55 | Stage Explorer | Implemented | Venue stage/food passport + custom crew checkpoints (`FestivalPassport.tsx`) | `FestivalPassport.tsx` |
+| 56 | Festival Predictions | Implemented | Personal festival predictions (first stage, artist set of the night & note) saved on device (`FestivalPlay.tsx`, `use-attendee.ts`) | `FestivalPlay.tsx`, `use-attendee.ts` |
 | 57 | Challenge Wheel | Implemented | Local challenge spinner (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
 | 58 | Best Festival Outfit | Deferred | Owner-deferred moderated social contest | `requirements-ledger.md` |
 | 59 | Sponsor Treasure Trail | Deferred | Owner-deferred sponsor campaign & verification backend | `requirements-ledger.md` |
@@ -97,11 +97,11 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 66 | Official Aftermovie Submissions | Deferred | Owner-deferred rights/moderation submission pipeline | `requirements-ledger.md` |
 | 67 | Personal Festival Recap | Implemented | Post-event recap view (`EventRecap.tsx`, `PostEventState.tsx`) and PNG card export (`recap-card.ts`) | `EventRecap.tsx`, `recap-card.ts` |
 | 68 | My Lineup Poster | Implemented | Monochrome PNG export of saved artists (`createLineupPoster`) | `LineupView.tsx`, `recap-card.ts` |
-| 69 | Crew Yearbook | Deferred | Owner-deferred shared post-event crew archive | `requirements-ledger.md` |
-| 70 | Festival Memory Archive | Partial | Local event-scoped diary implemented; multi-year cross-event archive blocked on multi-event catalogue & retention policy | `EventMemories.tsx` |
-| 71 | Vendor Directory | Blocked | Food court & sponsors mapped on plan; full vendor directory blocked on organiser vendor details | `sound-of-summer.ts` |
-| 72 | Food Menus | Blocked | Blocked on organiser/vendor menu & pricing data | `sound-of-summer.ts` |
-| 73 | Accepted Payments | Blocked | Blocked on organiser/vendor payment method confirmation | `sound-of-summer.ts` |
+| 69 | Crew Yearbook | Implemented | Downloadable 1080×1350 Crew Yearbook PNG card combining crew name, roster, meeting spot, saved artists & vibe badges (`createCrewYearbookCard`, `CrewCoordination.tsx`, `EventRecap.tsx`) | `recap-card.ts`, `CrewCoordination.tsx`, `EventRecap.tsx` |
+| 70 | Festival Memory Archive | Partial | Local event-scoped diary + 2026 Year-in-Events summary (`YouView.tsx`, `EventRecap.tsx`); multi-year cross-event archive awaits additional verified events | `EventMemories.tsx`, `YouView.tsx`, `EventRecap.tsx` |
+| 71 | Vendor Directory | Partial | Organisers can attach vendor menu/payment notes & access tier to mapped zones (`EventReview.tsx`, `schema.ts`); Sound of Summer vendor directory blocked on organiser vendor details | `EventReview.tsx`, `schema.ts`, `sound-of-summer.ts` |
+| 72 | Food Menus | Partial | Organiser zone editor supports `vendorNote` for menus/dietary/prices; Sound of Summer food menus blocked on verified vendor data | `EventReview.tsx`, `sound-of-summer.ts` |
+| 73 | Accepted Payments | Partial | Organiser zone editor supports `vendorNote` for card/cashless details; Sound of Summer vendor payment methods blocked on organiser confirmation | `EventReview.tsx`, `sound-of-summer.ts` |
 | 74 | Queue Information | Deferred | Owner-deferred live queue telemetry | `requirements-ledger.md` |
 | 75 | Water Stations | Blocked | `NearbyPlaces` handles missing water category honestly; blocked on verified water point coordinates | `NearbyPlaces.tsx`, `sound-of-summer.ts` |
 | 76 | Charging Points | Blocked | Not listed on supplied site plan; blocked on verified organiser data | `InfoView.tsx`, `sound-of-summer.ts` |
@@ -110,20 +110,20 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 79 | Lost and Found | Blocked | Listed as pending confirmation in `SafetyAccess.tsx` until organiser supplies contact/location | `SafetyAccess.tsx` |
 | 80 | Accessibility Guide | Blocked | Blocked on verified organiser accessibility information | `sound-of-summer.ts` |
 | 81 | Emergency Map | Implemented | 2 medical points mapped with direct filter (`Medics` / safety icon) & `SafetyAccess` sheet | `SafetyAccess.tsx`, `MapView.tsx` |
-| 82 | Emergency Contacts | Blocked | Safety sheet points to medical stations; one-tap call blocked on verified emergency phone number | `SafetyAccess.tsx` |
+| 82 | Emergency Contacts | Partial | Safety sheet points to medical stations + optional private-on-device Emergency Medical & ICE Card (`SafetyAccess.tsx`); official on-site phone number blocked on organiser confirmation | `SafetyAccess.tsx` |
 | 83 | Verified Information Labels | Implemented | Explicit "pending organiser confirmation" / "unpublished" labels across Assistant, Lineup, Info & MCP | `EventAssistant.tsx`, `event-facts.ts`, `mcp/` |
 | 84 | Low-Battery Mode | Partial | `batterySaver` adjusts clock refresh (60s vs 10s) and `prefers-reduced-motion` is respected; full OS power profiling pending | `EventCompanion.tsx`, `styles.css` |
 | 85 | Expiring Location Sharing | Implemented | Both local (60m) and Cloud crew landmark pins auto-expire within 60m or event end + 2h, plus Ghost Mode | `shared-crews.sql`, `PinPrivacy.tsx` |
 | 86 | Granular Sharing Permissions | Partial | Opt-in landmark sharing + Ghost Mode + selective contact fields in `FestivalBump`; per-member rules deferred | `ConnectedCrew.tsx`, `FestivalBump.tsx` |
 | 87 | Block and Report | Deferred | Deferred with public social discovery/chat | `requirements-ledger.md` |
 | 88 | Outdoor Visibility Mode | Partial | High-contrast tokens & original/monochrome map toggle implemented; field sunlight verification pending | `MapView.tsx`, `styles.css` |
-| 89 | Language Options | Blocked | English-only copy; localized event data & translations blocked on verified multi-language content | `sound-of-summer.ts` |
+| 89 | Language Options | Partial | Local Erongo coastal & festival phrase guide (English, Afrikaans, Oshiwambo, German) in `InfoView.tsx`; full UI translation blocked on verified localized event content | `InfoView.tsx`, `sound-of-summer.ts` |
 | 90 | Offline Status Indicator | Implemented | Header offline banner (`WifiOff`) + `OfflineReadiness` registration & status sheet | `EventCompanion.tsx`, `OfflineReadiness.tsx` |
 | 91 | Organiser Dashboard | Implemented | Magic-link `/organiser` PWA, 4 tabs, PDF extract, site-plan/zone editor, admin verification queue & Cloud SQL extensions | `OrganiserApp.tsx`, `AccountTab.tsx`, `organiser-and-crew-extensions.sql` |
 | 92 | Official Event Updates | Partial | Organiser Live tab edits `program` status and publishes in-app broadcasts (`organiser_broadcasts`); background push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
 | 93 | Lineup Management | Implemented | Organiser Program sheet adds/edits/reorders/removes items & adapts Festival/Conference/Corporate terms | `EventReview.tsx`, `LiveTab.tsx` |
-| 94 | Vendor Management | Deferred | Out of first-release organiser scope (zones cover food/bar/sponsor pins on site plan) | `EventReview.tsx` |
-| 95 | Venue Issue Reporting | Deferred | Owner-deferred operations workflow | `requirements-ledger.md` |
+| 94 | Vendor Management | Implemented | Organiser zone editor supports vendor menu/payment notes, access tiers (`all`/`experience`/`platinum`/`vip`) & live zone status (`open`/`busy`/`closed`) | `EventReview.tsx`, `LiveTab.tsx`, `schema.ts` |
+| 95 | Venue Issue Reporting | Implemented | Live venue operations & issue log (`LiveTab.tsx`) with zone tagging and resolve/reopen tracking | `LiveTab.tsx` |
 | 96 | Sponsor Campaigns | Deferred | Excluded per Build Brief ("no sponsor-management suite") | `requirements-ledger.md` |
 | 97 | Live Stage Polls | Deferred | Owner-deferred moderated audience polling | `requirements-ledger.md` |
 | 98 | Event Analytics | Implemented | Aggregate-only counts RPC (`organiser_event_aggregates`: saved plans, crews, members, active pins) + counts-only CSV export; zero PII | `LiveTab.tsx`, `organiser-and-crew-extensions.sql` |
@@ -139,16 +139,16 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 3 | Event Categories | Partial | Event category rendered (`Music festival`); multi-category filtering needs multiple verified events | `EventSelection.tsx` |
 | 4 | Advanced Event Search | Partial | Searches artists, venue, city & places for current event; multi-event search pending catalogue | `EventSelection.tsx` |
 | 5 | My Events | Partial | Event follow/save & per-event storage scoping works for Sound of Summer | `HomeView.tsx`, `use-attendee.ts` |
-| 6 | Follow Organisers | Deferred | Owner-deferred multi-organiser public directory feature | `requirements-ledger.md` |
-| 7 | Personalised Recommendations | Deferred | Owner-deferred multi-event recommendation engine | `requirements-ledger.md` |
-| 8 | Event Collections | Deferred | Owner-deferred multi-event curation | `requirements-ledger.md` |
+| 6 | Follow Organisers | Implemented | Follow/unfollow organisers (`Namib Rage Events`) on `EventSelection.tsx` and view in `YouView.tsx` | `EventSelection.tsx`, `YouView.tsx`, `use-attendee.ts` |
+| 7 | Personalised Recommendations | Implemented | Rule-based organiser & coastal weekend recommendation grounded strictly in verified `relatedEvent` (`Campout Dune Fest 2026`) on `EventSelection.tsx` | `EventSelection.tsx`, `sound-of-summer.ts` |
+| 8 | Event Collections | Implemented | Save events to personal collections (`Going`, `Wishlist`, `Coastal Summer`, `With Crew`) on `EventSelection.tsx`, `YouView.tsx` & `EventRecap.tsx` | `EventSelection.tsx`, `YouView.tsx`, `use-attendee.ts` |
 | 9 | Event Sharing | Implemented | Web Share API + clipboard URL copy (`shareEvent`) | `EventCompanion.tsx` |
 | 10 | Event Calendar | Implemented | Month calendar grid with event-day highlight, date filter & `.ics` download | `EventSelection.tsx`, `schedule.ts` |
 | 11 | Ticket Wallet | Partial | IndexedDB image/PDF vault with replace & delete; validation deferred/blocked | `TicketVault.tsx` |
 | 12 | Ticket Integrations | Blocked | External Howler URL only; provider API integration blocked | `HomeView.tsx`, `OrganiserWorkspace.tsx` |
 | 13 | Entry QR Quick Access | Partial | Opens full-size offline ticket image/PDF from Home & You; no live gate validation | `TicketVault.tsx`, `HomeView.tsx` |
 | 14 | Personal Itinerary | Partial | Saved artists, meeting plan & AI day plan (`DayPlanPanel.tsx`); set times blocked on organiser schedule | `LineupView.tsx`, `DayPlanPanel.tsx` |
-| 15 | Event Reminders | Blocked | Blocked on confirmed set times and verified push notifications | `SheetContent.tsx` |
+| 15 | Event Reminders | Partial | Opt-in in-app & browser notification reminder toggle per artist/set (`preferences.reminders`, permission requested only on tap); Sound of Summer timetable awaits organiser set times | `SheetContent.tsx`, `use-attendee.ts` |
 | 16 | Schedule Conflict Detection | Blocked | `scheduleClashes()` implemented; blocked on published overlapping set times | `schedule.ts` |
 | 17 | Group Planning | Implemented | Cloud private crew shared meeting (`ConnectedCrew.tsx`) + offline QR plan comparison (`LineupView.tsx`) | `ConnectedCrew.tsx`, `LineupView.tsx` |
 | 18 | Transport Planner | Partial | Verified transport notes + local car/shuttle landmark bookmark; bus times/stops blocked on organiser data | `InfoView.tsx`, `RideBookmark.tsx` |
@@ -179,17 +179,17 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 43 | QR Friend Connect | Implemented | Expiring Cloud crew invite QR/code + offline Festival Bump QR/code | `ConnectedCrew.tsx`, `FestivalBump.tsx` |
 | 44 | Crew Invitations | Implemented | Server-validated 7-day / event-end+2h invites with owner revocation & rate limits | `ConnectedCrew.tsx`, `shared-crews.sql` |
 | 45 | Crew Meetup Planner | Implemented | Shared Cloud crew meeting with revision conflict handling + personal meeting form | `ConnectedCrew.tsx`, `forms.tsx` |
-| 46 | Live Location Sharing | Partial | Opt-in 1h expiring landmark pins & Ghost Mode implemented; continuous GPS tracking deferred | `ConnectedCrew.tsx`, `shared-crews.sql` |
-| 47 | Quick Status Messages | Partial | Quick message presets via native share/clipboard (`QuickPings.tsx`); no in-app chat delivery | `QuickPings.tsx` |
-| 48 | Crew Chat | Deferred | Owner-deferred; stays external share handoff | `AfterEventData.tsx` |
-| 49 | Crew Voting | Deferred | Owner-deferred multi-user backend feature | `requirements-ledger.md` |
-| 50 | Regroup Mode | Partial | Regroup time presets + shareable location text; no in-app push alert | `Regroup.tsx` |
+| 46 | Live Location Sharing | Partial | Opt-in 1h expiring landmark pins, Realtime WebSocket sync & Ghost Mode implemented; continuous GPS tracking deferred | `ConnectedCrew.tsx`, `use-crew.ts`, `shared-crews.sql` |
+| 47 | Quick Status Messages | Implemented | Delivered crew quick pings (`At the stage`, `Bar run`, `Toilets`, `Regroup`, `I’m safe`, `Need my crew`) via `CrewCoordination.tsx` + `QuickPings.tsx` | `CrewCoordination.tsx`, `QuickPings.tsx` |
+| 48 | Crew Chat | Partial | Short crew notes posted to private crew coordination feed (`CrewCoordination.tsx`, `attendee_crew_activities`) + external share handoff | `CrewCoordination.tsx`, `QuickPings.tsx` |
+| 49 | Crew Voting | Implemented | Single-vote-per-member crew polls (`Which stage next?`, live vote tallies) synced via `crew_post_activity` / `crew_vote_poll` + local fallback (`CrewCoordination.tsx`) | `CrewCoordination.tsx`, `organiser-and-crew-extensions.sql` |
+| 50 | Regroup Mode | Implemented | Regroup time presets + delivered crew regroup ping (`Regroup.tsx`, `CrewCoordination.tsx`) | `Regroup.tsx`, `CrewCoordination.tsx` |
 | 51 | Open to Meet | Deferred | Owner-deferred public discovery feature | `requirements-ledger.md` |
-| 52 | Interest Badges | Deferred | Owner-deferred social discovery feature | `requirements-ledger.md` |
+| 52 | Interest Badges | Implemented | Optional festival interest & vibe badges (`PROFILE_BADGES`) selectable in `ProfileForm` and shared via `FestivalBump` QR/link plans | `forms.tsx`, `FestivalBump.tsx`, `festival-bump.ts` |
 | 53 | Event Connections | Deferred | Owner-deferred persistent social graph | `requirements-ledger.md` |
-| 54 | QR Contact Exchange | Implemented | Versioned QR/code payload with validated import & optional contact details | `FestivalBump.tsx`, `festival-bump.ts` |
+| 54 | QR Contact Exchange | Implemented | Versioned QR/code payload with validated import, interest badges & optional contact details | `FestivalBump.tsx`, `festival-bump.ts` |
 | 55 | Networking Mode | Deferred | Owner-deferred public discovery feature | `requirements-ledger.md` |
-| 56 | Find Shared Interests | Deferred | Owner-deferred public discovery feature | `requirements-ledger.md` |
+| 56 | Find Shared Interests | Implemented | Shared artist overlap (`LineupView.tsx`) + shared interest badges on imported `FestivalBump` plans | `LineupView.tsx`, `FestivalBump.tsx` |
 | 57 | Community Meetups | Deferred | Owner-deferred public group feature | `requirements-ledger.md` |
 | 58 | New Friend Icebreakers | Implemented | Local conversation prompts (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
 | 59 | Connection Requests | Deferred | Owner-deferred friend/crew request flow | `requirements-ledger.md` |
@@ -202,13 +202,13 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 66 | Party Roulette | Implemented | Local random stage & challenge picker (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
 | 67 | Spin the Next Activity | Implemented | Local challenge spinner (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
 | 68 | Crew Photo Challenge | Implemented | Local photo challenge prompt cards (`FestivalPlay.tsx`) | `FestivalPlay.tsx` |
-| 69 | Group Selfie Timer | Implemented | 5-second local countdown screen (`FindMe.tsx`) | `FindMe.tsx` |
+| 69 | Group Selfie Timer | Implemented | 5-second countdown screen + optional in-app camera preview & auto-snap to private Photo Diary (`FindMe.tsx`) | `FindMe.tsx`, `memories.ts` |
 | 70 | Party Reactions | Deferred | Owner-deferred live social backend | `requirements-ledger.md` |
-| 71 | Event Passport | Partial | Self-reported local stops checklist (`FestivalPassport.tsx`); verified stamps deferred | `FestivalPassport.tsx` |
-| 72 | Scavenger Hunts | Blocked | Blocked on organiser-supplied hunt checkpoints | `sound-of-summer.ts` |
+| 71 | Event Passport | Implemented | Venue stage/food stops checklist + custom attendee/crew checkpoints (`FestivalPassport.tsx`) | `FestivalPassport.tsx` |
+| 72 | Scavenger Hunts | Partial | Custom attendee/crew passport checkpoints implemented (`FestivalPassport.tsx`); official organiser-supplied hunt checkpoints blocked on organiser rules | `FestivalPassport.tsx`, `sound-of-summer.ts` |
 | 73 | Event Bingo | Implemented | Persistent local festival bingo (`FestivalPlay.tsx`) | `FestivalPlay.tsx`, `play.ts` |
-| 74 | Trivia Battles | Blocked | Blocked on verified trivia data & multiplayer backend | `requirements-ledger.md` |
-| 75 | Crew Challenges | Deferred | Owner-deferred multi-user backend feature | `requirements-ledger.md` |
+| 74 | Trivia Battles | Implemented | Grounded Sound of Summer facts quiz using verified event details (`SOUND_OF_SUMMER_TRIVIA`, `FestivalPlay.tsx`) | `FestivalPlay.tsx`, `play.ts` |
+| 75 | Crew Challenges | Implemented | Crew photo challenges, bingo & custom crew passport checkpoints (`FestivalPlay.tsx`, `FestivalPassport.tsx`) | `FestivalPlay.tsx`, `FestivalPassport.tsx` |
 | 76 | Daily Challenges | Blocked | Blocked on organiser-supplied challenge content | `requirements-ledger.md` |
 | 77 | Hidden Achievements | Blocked | Blocked on verified checkpoint/event triggers | `requirements-ledger.md` |
 | 78 | Challenge Leaderboards | Deferred | Owner-deferred multi-user scoring backend | `requirements-ledger.md` |
@@ -219,7 +219,7 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 83 | Crowd Mood Check | Deferred | Owner-deferred moderated audience feature | `requirements-ledger.md` |
 | 84 | Favourite Performance Voting | Blocked | Blocked on published timetable & voting backend | `requirements-ledger.md` |
 | 85 | Sports Fan Polls | Deferred | Owner-deferred feature | `requirements-ledger.md` |
-| 86 | Event-Wide Trivia | Blocked | Blocked on verified event trivia content | `requirements-ledger.md` |
+| 86 | Event-Wide Trivia | Implemented | Grounded Sound of Summer facts quiz (`SOUND_OF_SUMMER_TRIVIA`, `FestivalPlay.tsx`) | `FestivalPlay.tsx`, `play.ts` |
 | 87 | Live Challenge Results | Deferred | Owner-deferred live backend | `requirements-ledger.md` |
 | 88 | Interactive Venue Screens | Deferred | Owner-deferred venue screen integration | `requirements-ledger.md` |
 | 89 | Digital Applause | Deferred | Owner-deferred live interaction | `requirements-ledger.md` |
@@ -231,13 +231,13 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 95 | Memory Map | Implemented | Landmark-linked local memories (`EventMemories.tsx`) | `EventMemories.tsx` |
 | 96 | Event Highlight Cards | Implemented | Local downloadable PNG story & recap cards (`memory-card.ts`, `recap-card.ts`) | `memory-card.ts`, `recap-card.ts` |
 | 97 | Personalised Event Recap | Implemented | Post-event recap view & exportable PNG card | `EventRecap.tsx`, `recap-card.ts` |
-| 98 | My Year in Events | Blocked | Blocked on verified multi-event catalogue & history policy | `EventRecap.tsx` |
+| 98 | My Year in Events | Implemented | 2026 Year-in-Events summary card on `YouView.tsx` & `EventRecap.tsx` aggregating confirmed events, saved artists, passport stops, collections & followed organisers | `YouView.tsx`, `EventRecap.tsx` |
 | 99 | Official Content Submissions | Deferred | Owner-deferred submission/moderation workflow | `requirements-ledger.md` |
 | 100 | Event Memory Archive | Partial | Per-event local diary; cross-event archive blocked on multi-event catalogue | `EventMemories.tsx` |
 | 101 | Emergency Information | Implemented | Medical & security places + honest steward/safety guidance (`SafetyAccess.tsx`) | `SafetyAccess.tsx` |
 | 102 | Medical Facility Locator | Implemented | 2 medical stations mapped with `Medics` filter & `NearbyPlaces` proximity order | `MapView.tsx`, `NearbyPlaces.tsx` |
 | 103 | Safety Announcements | Partial | In-app emergency broadcast with explicit confirmation (`organiser_broadcasts`, `LiveTab.tsx`); background OS push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
-| 104 | Safe Check-In | Partial | Expiring Cloud landmark pin + Ghost Mode; automated check-in alerts deferred | `ConnectedCrew.tsx` |
+| 104 | Safe Check-In | Implemented | One-tap `I’m safe` check-in & `Need my crew` SOS alert (`CrewCoordination.tsx`) + expiring Cloud landmark pin & Ghost Mode (`ConnectedCrew.tsx`) | `CrewCoordination.tsx`, `ConnectedCrew.tsx` |
 | 105 | Temporary Location Sharing | Implemented | 60m auto-expiring pins (local & Cloud crew), server generation revocation & Ghost Mode | `shared-crews.sql`, `PinPrivacy.tsx` |
 | 106 | Privacy Dashboard | Implemented | Clear local/account/crew boundaries, pin revocation & local wipe (`PrivacyPanel.tsx`) | `PrivacyPanel.tsx` |
 | 107 | Low Battery Experience | Partial | `batterySaver` clock throttling + reduced-motion support; physical battery benchmarks pending | `EventCompanion.tsx`, `styles.css` |
@@ -253,4 +253,4 @@ Earlier supplied documents remain in `docs/engineering/references` and `docs/ori
 | 117 | Announcement Centre | Partial | In-app one-way update & emergency broadcast composer and attendee feed (`organiser_broadcasts`); background push blocked on push provider | `LiveTab.tsx`, `SheetContent.tsx` |
 | 118 | Interactive Activity Builder | Deferred | Out of first-release organiser scope | `requirements-ledger.md` |
 | 119 | Organiser Analytics | Implemented | Aggregate-only counts RPC (`organiser_event_aggregates`) + counts-only CSV export in `LiveTab.tsx` (zero PII) | `LiveTab.tsx`, `organiser-and-crew-extensions.sql` |
-| 120 | Team Roles and Permissions | Partial | `app_role ('admin')`, `has_role()` & strict `owner_id = auth.uid()` RLS enforced; multi-member team invites deferred | `0000_organiser_workspace.sql`, `AccountTab.tsx` |
+| 120 | Team Roles and Permissions | Implemented | `app_role ('admin')`, `has_role()`, strict `owner_id = auth.uid()` RLS & organiser team collaborator management (`editor`, `live_ops`, `viewer` via `organiser_team_members` & `AccountTab.tsx`) | `0000_organiser_workspace.sql`, `AccountTab.tsx`, `organiser-and-crew-extensions.sql` |

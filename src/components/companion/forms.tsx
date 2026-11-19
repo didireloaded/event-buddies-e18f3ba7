@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PROFILE_BADGES } from "@/lib/attendee/festival-bump";
 import {
   localDateTime,
   toMeeting,
@@ -132,16 +133,19 @@ export function validateProfile(name: string, handle: string) {
 
 export function ProfileForm({
   initial,
+  initialBadges = [],
   disabled,
   savedCount,
   onSave,
 }: {
   initial: { name: string; handle: string };
+  initialBadges?: string[] | undefined;
   disabled: boolean;
   savedCount: number;
-  onSave: (profile: { name: string; handle: string }) => void;
+  onSave: (profile: { name: string; handle: string }, badges?: string[]) => void;
 }) {
   const [name, setName] = useState(initial.name);
+  const [badges, setBadges] = useState<string[]>(initialBadges);
   const [error, setError] = useState<string | null>(null);
   return (
     <form
@@ -156,7 +160,7 @@ export function ProfileForm({
               ? "Use 50 characters or fewer."
               : null;
         setError(problem);
-        if (!problem) onSave({ ...initial, name: name.trim() });
+        if (!problem) onSave({ ...initial, name: name.trim() }, badges);
       }}
     >
       <AvatarPicker fallbackLabel={initials(name) || "?"} altName={name.trim()} size="md" />
@@ -178,6 +182,29 @@ export function ProfileForm({
           aria-describedby={error ? "profile-error" : undefined}
           onChange={(event) => setName(event.target.value)}
         />
+      </div>
+      <div>
+        <p className="mb-2 text-[15px] font-semibold">Festival interests & badges (optional)</p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Festival interest badges">
+          {PROFILE_BADGES.map((badge) => {
+            const active = badges.includes(badge);
+            return (
+              <button
+                key={badge}
+                type="button"
+                className="ios-chip"
+                aria-pressed={active}
+                onClick={() =>
+                  setBadges((prev) =>
+                    prev.includes(badge) ? prev.filter((item) => item !== badge) : [...prev, badge],
+                  )
+                }
+              >
+                {badge}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {error && (
         <p id="profile-error" role="alert" className="text-[15px] font-medium text-destructive">

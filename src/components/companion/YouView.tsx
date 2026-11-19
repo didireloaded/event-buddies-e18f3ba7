@@ -13,8 +13,10 @@ import { AfterEventData } from "./AfterEventData";
 import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
 
 export function YouView() {
-  const { attendee, avatar, openSheet, offlineStatus } = useCompanion();
+  const { data, attendee, avatar, openSheet, offlineStatus } = useCompanion();
   const { preferences } = attendee;
+  const totalCheckpoints =
+    preferences.stamps.length + preferences.customStamps.filter((s) => s.checked).length;
   return (
     <div className="px-4">
       <h1 className="ios-large-title pt-2">You</h1>
@@ -41,9 +43,33 @@ export function YouView() {
           <span className="mt-1 block text-[15px] text-muted-foreground">
             Edit name · {preferences.savedArtists.length} saved artists
           </span>
+          {preferences.badges.length > 0 && (
+            <span className="mt-1.5 block text-[13px] font-medium text-primary">
+              {preferences.badges.join(" · ")}
+            </span>
+          )}
         </span>
         <Chevron />
       </button>
+      <Section title="My year in events · 2026" id="you-year-summary">
+        <div className="ios-card space-y-2 p-4 text-[14px]">
+          <p className="text-[16px] font-semibold">{data.event.name}</p>
+          <p className="text-muted-foreground">
+            {preferences.savedArtists.length} saved artists · {totalCheckpoints} passport stops
+            checked · {preferences.sharedPlans.length} friend plans imported
+          </p>
+          {preferences.collections.length > 0 && (
+            <p>
+              <strong>Collections:</strong> {preferences.collections.join(", ")}
+            </p>
+          )}
+          {preferences.followedOrganisers.length > 0 && (
+            <p>
+              <strong>Followed organisers:</strong> {preferences.followedOrganisers.join(", ")}
+            </p>
+          )}
+        </div>
+      </Section>
       <Section title="Festival mode" id="you-preferences">
         <div className="ios-group ios-group-indent">
           <a href="#events" className="ios-row">
