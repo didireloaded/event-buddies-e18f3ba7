@@ -5,9 +5,11 @@ import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
 import {
   readStoredMapCalibration,
+  readStoredSitePlanZoomUrl,
   removeLocalPublishedEvent,
   saveLocalPublishedEvent,
   saveStoredMapCalibration,
+  saveStoredSitePlanZoomUrl,
 } from "@/lib/organiser/event-adapter";
 import {
   computeAffineCalibration,
@@ -205,8 +207,15 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       setUploadProgress({ percent: 85, label: "Uploading optimized map…" });
       const path = await uploadOwnFile(ctx.userId, optimized.displayFile, "site-plans");
       if (optimized.zoomFile) {
-        // Upload high-res zoom variant alongside display version (best-effort)
-        void uploadOwnFile(ctx.userId, optimized.zoomFile, "site-plans-zoom").catch(() => {});
+        // Upload high-res zoom variant alongside display version (best-effort) and store signed URL
+        void uploadOwnFile(ctx.userId, optimized.zoomFile, "site-plans-zoom")
+          .then((zoomPath) => signedUrl(zoomPath))
+          .then((zoomSigned) => {
+            if (zoomSigned) saveStoredSitePlanZoomUrl(event.id, zoomSigned);
+          })
+          .catch(() => {});
+      } else {
+        saveStoredSitePlanZoomUrl(event.id, null);
       }
       await savePatch({ site_plan_path: path });
       setSitePlanRotation(0);
@@ -1214,6 +1223,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     zones,
                     sitePlanPath: event.site_plan_path,
                     sitePlanUrl,
+                    sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
                     publishedAt: new Date().toISOString(),
                   });
                   setSheet(null);

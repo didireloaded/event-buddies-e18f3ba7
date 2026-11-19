@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowUpRight, Bus, ClipboardCheck, HelpCircle, ShieldCheck, Ticket } from "lucide-react";
+import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
 import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
@@ -208,9 +209,11 @@ export function InfoView() {
                   Tickets · Buy from {provider}
                 </span>
                 <span className="block text-[13px] text-muted-foreground">
-                  {ticketUrl
-                    ? `External ticket listing on ${provider} · save your copy offline`
-                    : "No external ticket link published yet"}
+                  {data.event.ticketSalesClose
+                    ? `Sales close ${dateLabel(new Date(data.event.ticketSalesClose), data.event.timezone, { day: "numeric", month: "short", year: "numeric" })} · external link`
+                    : ticketUrl
+                      ? `External ticket listing on ${provider} · save your copy offline`
+                      : "No external ticket link published yet"}
                 </span>
               </span>
             </span>

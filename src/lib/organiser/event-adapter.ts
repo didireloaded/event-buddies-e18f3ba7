@@ -5,6 +5,27 @@ import type { PublishedOrganiserEvent } from "./cloud-extensions";
 
 export const LOCAL_PUBLISHED_EVENTS_KEY = "event-buddies:published-organiser-events";
 const MAP_CALIBRATION_KEY = (eventId: string) => `event-buddies:${eventId}:map-calibration:v1`;
+const SITE_PLAN_ZOOM_URL_KEY = (eventId: string) =>
+  `event-buddies:${eventId}:site-plan-zoom-url:v1`;
+
+export function readStoredSitePlanZoomUrl(eventId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(SITE_PLAN_ZOOM_URL_KEY(eventId)) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredSitePlanZoomUrl(eventId: string, url: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!url) localStorage.removeItem(SITE_PLAN_ZOOM_URL_KEY(eventId));
+    else localStorage.setItem(SITE_PLAN_ZOOM_URL_KEY(eventId), url);
+  } catch {
+    /* Ignore storage failures. */
+  }
+}
 
 export type StoredMapCalibration = {
   refs: CalibrationRefPoint[];
@@ -191,6 +212,8 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
   const venueParts = (ev.venue || "Venue").split(",").map((s) => s.trim());
   const venueName = venueParts[0] || ev.venue || "Venue";
   const city = venueParts[1] || venueName;
+  const calibration = readStoredMapCalibration(ev.id)?.transform ?? null;
+  const zoomUrl = ev.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(ev.id) ?? null;
 
   return {
     storageMode: "demo",
@@ -249,8 +272,8 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       longitude: null,
       heroImageUrl: ev.sitePlanUrl || "/images/sound-of-summer-hero.jpg",
       mapImageUrl: ev.sitePlanUrl ?? "",
-      mapZoomImageUrl: ev.sitePlanZoomUrl ?? null,
-      mapCalibration: readStoredMapCalibration(ev.id)?.transform ?? null,
+      mapZoomImageUrl: zoomUrl,
+      mapCalibration: calibration,
       ticketUrl: null,
       minTicketPrice: null,
       currency: "NAD",
@@ -262,7 +285,7 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       organiser: "Verified Organiser",
       sourceCheckedAt: (ev.publishedAt ?? new Date().toISOString()).slice(0, 10),
       timetablePublished: performances.length > 0,
-      mapGeoreferenced: false,
+      mapGeoreferenced: Boolean(calibration),
       mapNotice: ev.sitePlanUrl
         ? `Uploaded site plan for ${ev.name}.`
         : `Site plan for ${ev.name} will appear here once uploaded by the organiser.`,

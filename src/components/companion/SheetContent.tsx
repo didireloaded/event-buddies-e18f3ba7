@@ -185,6 +185,16 @@ export function SheetContent({
               does not run checkout or verify admission — once you buy, save your ticket copy here
               for offline gate access and map tier unlock.
             </p>
+            {data.event.ticketSalesClose && (
+              <p className="text-[14px] font-medium text-foreground">
+                Sales close{" "}
+                {dateLabel(new Date(data.event.ticketSalesClose), data.event.timezone, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            )}
           </div>
           {ticketUrl ? (
             <a
