@@ -1,4 +1,11 @@
-import { CalendarDays, CirclePlus, Radio, UserRound, LoaderCircle } from "lucide-react";
+import {
+  CalendarDays,
+  CirclePlus,
+  Radio,
+  UserRound,
+  LoaderCircle,
+  ArrowUpRight,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccountAuth } from "@/lib/account/use-auth";
@@ -82,8 +89,8 @@ export function OrganiserApp() {
 
   if (loading)
     return (
-      <div className="grid min-h-dvh place-items-center" role="status">
-        <LoaderCircle className="animate-spin text-muted-foreground" aria-label="Loading" />
+      <div className="grid min-h-dvh place-items-center bg-background" role="status">
+        <LoaderCircle className="animate-spin text-primary" aria-label="Loading" />
       </div>
     );
   if (!user) return <OrganiserSignIn />;
@@ -92,27 +99,36 @@ export function OrganiserApp() {
   const open = route.eventId ? ctx.events.find((e) => e.id === route.eventId) : null;
 
   return (
-    <div className="min-h-dvh bg-background pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] lg:pb-12">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Event Buddies · Organiser workspace
-            </p>
-            <p className="truncate text-[15px]">{profile?.organisation || user.email}</p>
+    <div className="min-h-dvh bg-background pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] text-foreground lg:pb-12">
+      <header className="eb-header sticky top-0 z-20 px-4 pb-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden
+              className="grid size-8 flex-none place-items-center rounded-md bg-primary text-[13px] font-extrabold text-primary-foreground"
+            >
+              EB
+            </span>
+            <div className="min-w-0">
+              <p className="eb-kicker text-[11px]">Event Buddies · Organiser Studio</p>
+              <p className="truncate text-[15px] font-semibold text-foreground">
+                {profile?.organisation || user.email}
+              </p>
+            </div>
           </div>
           <a
             href="/#events"
-            className="hidden min-h-11 items-center rounded-full bg-secondary px-4 text-[14px] font-semibold text-foreground lg:inline-flex"
+            className="hidden min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-[14px] font-semibold text-foreground hover:bg-secondary lg:inline-flex"
           >
-            Open Attendee App ↗
+            Attendee App <ArrowUpRight size={15} aria-hidden />
           </a>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:px-6 lg:pt-4">
-        {/* Desktop left navigation sidebar */}
+
+      <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[232px_minmax(0,1fr)] lg:gap-8 lg:px-6 lg:pt-6">
+        {/* Desktop left workspace sidebar */}
         <aside className="hidden lg:block" aria-label="Organiser desktop navigation">
-          <nav className="sticky top-20 space-y-1.5">
+          <nav className="sticky top-24 space-y-1">
             {TABS.map(({ id, label, icon: Icon }) => {
               const active = route.tab === id;
               return (
@@ -122,22 +138,32 @@ export function OrganiserApp() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold transition-colors",
-                    active ? "bg-favorite-soft text-primary" : "text-foreground hover:bg-popover",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-secondary",
                   )}
                 >
-                  <Icon size={19} aria-hidden />
+                  <Icon size={18} aria-hidden />
                   {label}
                 </a>
               );
             })}
+            <div className="mt-6 border-t border-separator pt-4 px-2">
+              <p className="text-[12px] text-muted-foreground">
+                Status:{" "}
+                <strong className="capitalize text-foreground">
+                  {profile?.verification_status ?? "unverified"}
+                </strong>
+              </p>
+            </div>
           </nav>
         </aside>
 
-        <main className="mx-auto w-full max-w-2xl px-4 lg:max-w-none lg:px-0">
+        <main className="mx-auto w-full max-w-3xl px-4 lg:max-w-none lg:px-0">
           {error && (
             <div
               role="alert"
-              className="mt-4 flex items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]"
+              className="mt-4 flex items-center gap-3 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-[15px]"
             >
               <span className="flex-1">{error}</span>
               <button
@@ -150,11 +176,11 @@ export function OrganiserApp() {
             </div>
           )}
           {events === null ? (
-            <div className="py-16 text-center" role="status">
-              <LoaderCircle
-                className="mx-auto animate-spin text-muted-foreground"
-                aria-label="Loading events"
-              />
+            <div className="space-y-3 py-10" role="status">
+              <div className="h-12 w-48 animate-pulse rounded-xl bg-secondary" />
+              <div className="h-24 w-full animate-pulse rounded-xl bg-secondary" />
+              <div className="h-24 w-full animate-pulse rounded-xl bg-secondary" />
+              <span className="sr-only">Loading events</span>
             </div>
           ) : open ? (
             <EventReview ctx={ctx} event={open} />
@@ -164,7 +190,7 @@ export function OrganiserApp() {
               <button
                 type="button"
                 onClick={() => go("events")}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-5 text-[15px] font-semibold text-foreground"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
               >
                 Back to all events
               </button>
@@ -180,11 +206,13 @@ export function OrganiserApp() {
           )}
         </main>
       </div>
+
+      {/* Mobile bottom workspace nav */}
       <nav
         aria-label="Organiser"
-        className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden"
+        className="companion-tabs fixed inset-x-0 bottom-0 z-30 px-2 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        <ul className="flex w-full max-w-md rounded-full bg-nav p-1.5 shadow-float">
+        <ul className="mx-auto flex max-w-md">
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = route.tab === id;
             return (
@@ -193,11 +221,11 @@ export function OrganiserApp() {
                   href={`#${id}`}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-12 flex-col items-center justify-center rounded-full text-[12px] font-medium",
-                    active ? "text-primary" : "text-nav-foreground/75",
+                    "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold",
+                    active ? "text-primary" : "text-nav-foreground",
                   )}
                 >
-                  <Icon size={20} aria-hidden />
+                  <Icon size={20} strokeWidth={active ? 2.3 : 1.8} aria-hidden />
                   {label}
                 </a>
               </li>

@@ -163,23 +163,42 @@ function Login() {
   const hasError = msg?.tone === "error";
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-5 py-10">
-      <h1 className="text-3xl font-bold text-foreground">
-        {mode === "in" ? "Sign in" : mode === "up" ? "Create account" : "Email sign-in link"}
-      </h1>
-      <a href={next} className="inline-flex min-h-11 items-center text-primary">
-        Back to Event Buddies
-      </a>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-5 py-10">
+      <div className="space-y-2 border-b border-separator pb-5">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="grid size-7 place-items-center rounded-md bg-primary text-[12px] font-extrabold text-primary-foreground"
+            >
+              EB
+            </span>
+            <span className="eb-display text-[15px]">Event Buddies</span>
+          </span>
+          <a
+            href={next}
+            className="inline-flex min-h-11 items-center text-[14px] font-semibold text-primary"
+          >
+            Back to Event Buddies
+          </a>
+        </div>
+        <h1 className="eb-page-title pt-2">
+          {mode === "in" ? "Sign in" : mode === "up" ? "Create account" : "Email sign-in link"}
+        </h1>
+        <p className="text-[15px] text-muted-foreground">
+          Sync saved favourites, meeting plans and private event crews across phones.
+        </p>
+      </div>
       {!accountConfigured && (
-        <p role="status" className="text-[15px] text-muted-foreground">
+        <p role="status" className="eb-panel p-3.5 text-[14px] text-muted-foreground">
           Account connection settings are pending. Your device saves remain available.
         </p>
       )}
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+      <form onSubmit={submit} className="flex flex-col gap-3.5">
+        <label className="flex flex-col gap-1.5 text-[14px] font-semibold text-foreground">
           Email
           <input
-            className="ios-field"
+            className="eb-field"
             type="email"
             required
             autoComplete="email"
@@ -190,12 +209,12 @@ function Login() {
           />
         </label>
         {mode !== "magic" && (
-          <div className="flex flex-col gap-1 text-sm font-medium text-foreground">
+          <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-foreground">
             <label htmlFor={passwordId}>Password</label>
             <div className="relative flex items-center">
               <input
                 id={passwordId}
-                className="ios-field pr-12"
+                className="eb-field pr-12"
                 type={showPassword ? "text" : "password"}
                 required
                 minLength={6}
@@ -222,7 +241,9 @@ function Login() {
             id={statusId}
             role={hasError ? "alert" : "status"}
             className={
-              hasError ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"
+              hasError
+                ? "text-[14px] font-medium text-destructive"
+                : "text-[14px] text-muted-foreground"
             }
           >
             {msg.text}
@@ -231,55 +252,59 @@ function Login() {
         <button
           type="submit"
           disabled={busy || !accountConfigured}
-          className="min-h-11 rounded-full bg-primary px-4 font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="eb-press min-h-12 rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {mode === "in" ? "Sign in" : mode === "up" ? "Sign up" : "Email me a link"}
         </button>
       </form>
-      <button
-        type="button"
-        onClick={() => {
-          setMsg(null);
-          setMode(mode === "magic" ? "in" : "magic");
-        }}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground"
-      >
-        {mode === "magic" ? "Use a password instead" : "Email me a sign-in link"}
-      </button>
-      <button
-        type="button"
-        disabled={busy || !accountConfigured}
-        onClick={() => social("google")}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Continue with Google
-      </button>
-      <button
-        type="button"
-        disabled={busy || !accountConfigured}
-        onClick={() => social("lovable")}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Continue with Lovable
-      </button>
-      <button
-        type="button"
-        disabled={busy || !accountConfigured}
-        onClick={() => void guestSession()}
-        className="min-h-11 rounded-full border border-border bg-background font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Continue with guest cloud session
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          setMsg(null);
-          setMode(mode === "in" ? "up" : "in");
-        }}
-        className="min-h-11 text-sm font-medium text-foreground underline"
-      >
-        {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
-      </button>
+      <div className="space-y-2.5 border-t border-separator pt-5">
+        <button
+          type="button"
+          onClick={() => {
+            setMsg(null);
+            setMode(mode === "magic" ? "in" : "magic");
+          }}
+          className="eb-press min-h-11 w-full rounded-full border border-border bg-card px-4 text-[14px] font-semibold text-foreground"
+        >
+          {mode === "magic" ? "Use a password instead" : "Email me a sign-in link"}
+        </button>
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            disabled={busy || !accountConfigured}
+            onClick={() => social("google")}
+            className="eb-press min-h-11 rounded-full border border-border bg-card px-3 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Continue with Google
+          </button>
+          <button
+            type="button"
+            disabled={busy || !accountConfigured}
+            onClick={() => social("lovable")}
+            className="eb-press min-h-11 rounded-full border border-border bg-card px-3 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Continue with Lovable
+          </button>
+        </div>
+        <button
+          type="button"
+          disabled={busy || !accountConfigured}
+          onClick={() => void guestSession()}
+          className="eb-press min-h-11 w-full rounded-full border border-border bg-card px-4 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Continue with guest cloud session
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMsg(null);
+            setMode(mode === "in" ? "up" : "in");
+          }}
+          className="min-h-11 w-full text-[14px] font-semibold text-foreground underline underline-offset-4"
+        >
+          {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
+        </button>
+      </div>
     </main>
   );
 }

@@ -1,5 +1,10 @@
 import type { DemoData, MapPointRecord, PerformanceRecord, StageRecord } from "@/lib/event/types";
 import type { AffineTransform, CalibrationRefPoint } from "@/lib/attendee/map-fit";
+import {
+  buildDefaultTemplateConfig,
+  EVENT_TEMPLATES,
+  readStoredTemplateConfig,
+} from "@/lib/templates/event-templates";
 import { EVENT_TYPES, parseProgram, parseZones, TYPE_TERMS, type EventType } from "./schema";
 import type { PublishedOrganiserEvent } from "./cloud-extensions";
 
@@ -227,6 +232,11 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
   const resolvedCalibration = cloudCalibration ?? localCalibration;
   const calibration = resolvedCalibration?.transform ?? null;
   const zoomUrl = ev.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(ev.id) ?? null;
+  const resolvedTemplateConfig =
+    ev.templateConfig ?? readStoredTemplateConfig(ev.id) ?? buildDefaultTemplateConfig(eventType);
+  const templateDef = EVENT_TEMPLATES[resolvedTemplateConfig.templateId];
+  const resolvedVisibility = ev.visibility ?? resolvedTemplateConfig.visibility ?? "public";
+  const heroUrl = resolvedTemplateConfig.heroImageUrl || ev.sitePlanUrl || "";
 
   return {
     storageMode: "demo",
@@ -239,7 +249,7 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
     crew: {
       id: `crew-${ev.id}`,
       eventId: ev.id,
-      name: `${ev.name} Crew`,
+      name: `${ev.name} ${templateDef.terms.crewLabel}`,
       ownerUserId: "self",
       inviteCode: ev.id,
     },
@@ -260,21 +270,12 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       id: ev.id,
       name: ev.name,
       slug: slugify(ev.name),
-      description: ev.venue
-        ? `${ev.name} at ${ev.venue}.`
-        : `${ev.name} — venue details to be confirmed by the organiser.`,
-      category:
-        {
-          festival: "Music festival",
-          concert: "Concert",
-          nightlife: "Nightlife",
-          conference: "Conference",
-          corporate: "Corporate event",
-          sports: "Sports",
-          expo: "Expo & market",
-          cultural: "Cultural event",
-          private: "Private event",
-        }[eventType] ?? "Event",
+      description: resolvedTemplateConfig.tagline
+        ? resolvedTemplateConfig.tagline
+        : ev.venue
+          ? `${ev.name} at ${ev.venue}.`
+          : `${ev.name} — venue details to be confirmed by the organiser.`,
+      category: templateDef.categoryLabel,
       status: "published",
       startAt,
       endAt,
@@ -288,7 +289,13 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       latitude: null,
       longitude: null,
       // Never inherit Sound of Summer artwork for another event; empty string renders a clean typographic fallback.
-      heroImageUrl: ev.sitePlanUrl ?? "",
+      heroImageUrl: heroUrl,
+      logoUrl: resolvedTemplateConfig.logoUrl ?? null,
+      templateConfig: {
+        ...resolvedTemplateConfig,
+        visibility: resolvedVisibility,
+      },
+      visibility: resolvedVisibility,
       mapImageUrl: ev.sitePlanUrl ?? "",
       mapZoomImageUrl: zoomUrl,
       mapCalibration: calibration,
@@ -298,7 +305,7 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       ticketUrl: null,
       minTicketPrice: null,
       currency: "NAD",
-      packageVersion: 1,
+      packageVersion: resolvedTemplateConfig.version ?? 1,
     },
     festival: {
       officialUrl: "",

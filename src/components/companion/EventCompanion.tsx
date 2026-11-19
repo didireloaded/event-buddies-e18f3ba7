@@ -6,6 +6,10 @@ import {
   Compass,
   Users,
   Music2,
+  CalendarRange,
+  Trophy,
+  Store,
+  Sparkles,
   WifiOff,
   Check,
   Info,
@@ -37,8 +41,12 @@ import { useAttendee } from "@/lib/attendee/use-attendee";
 import { useAttendeeAvatar } from "@/lib/attendee/avatar";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
+import {
+  buildTemplateCssVars,
+  resolveEventTemplate,
+  type LayoutFamily,
+} from "@/lib/templates/event-templates";
 import { cn } from "@/lib/utils";
-import { KonstaProvider } from "konsta/react";
 import { EventProvider, useEvent } from "@/context/EventContext";
 import { Companion, type CompanionContext, type Sheet as SheetState, type View } from "./context";
 const CrewView = lazy(() => import("./CrewView").then((module) => ({ default: module.CrewView })));
@@ -54,15 +62,23 @@ const MapView = lazy(() => import("./MapView").then((module) => ({ default: modu
 import { Sheet } from "./Sheet";
 import { SheetContent, sheetTitle } from "./SheetContent";
 
-const NAV: { id: View; label: string; icon: LucideIcon }[] = [
-  { id: "home", label: "Events", icon: House },
-  { id: "lineup", label: "Lineup", icon: Music2 },
-  { id: "map", label: "Map", icon: Compass },
-  { id: "crew", label: "Crew", icon: Users },
-];
+function programIconForFamily(family: LayoutFamily): LucideIcon {
+  switch (family) {
+    case "professional":
+      return CalendarRange;
+    case "competition":
+      return Trophy;
+    case "discovery":
+      return Store;
+    case "social":
+      return Sparkles;
+    default:
+      return Music2;
+  }
+}
 
 // Tabs are hash routes (#home, #lineup, #map, #crew) so browser Back,
-// refresh and deep links work, matching the original app's URLs.
+// refresh and deep links work cleanly across every event template.
 const subscribeToHash = (callback: () => void) => {
   window.addEventListener("hashchange", callback);
   return () => window.removeEventListener("hashchange", callback);
@@ -143,6 +159,16 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
   });
   const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("checking");
 
+  const resolvedTemplate = useMemo(
+    () =>
+      resolveEventTemplate({
+        category: data.event.category,
+        templateConfig: data.event.templateConfig,
+      }),
+    [data.event.category, data.event.templateConfig],
+  );
+  const { config: templateConfig, definition: templateDef } = resolvedTemplate;
+
   useEffect(() => {
     let active = true;
     setAllTickets(readAllSavedTickets());
@@ -220,6 +246,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
   const mainRef = useRef<HTMLElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     const header = headerRef.current;
     if (!header) return;
@@ -231,6 +258,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
     observer.observe(header);
     return () => observer.disconnect();
   }, []);
+
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const update = () =>
@@ -255,7 +283,6 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
     };
   }, []);
 
-  // Leaving the Map tab (including via browser Back) closes the full-screen map.
   useEffect(() => {
     if (view !== "map") setExpanded(false);
     if (typeof window.scrollTo === "function") window.scrollTo({ top: 0 });
@@ -356,55 +383,122 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
   const activeTab = view === "you" || view === "info" ? "home" : view;
   const message = attendee.message;
 
-  return (
-    <KonstaProvider theme="ios" dark materialTouchRipple={false} iosHoverHighlight={false}>
-      <Companion.Provider value={ctx}>
-        <div ref={shellRef} className="companion-shell min-h-dvh">
-          <a
-            href="#main-content"
-            onClick={(event) => {
-              event.preventDefault();
-              mainRef.current?.focus();
-            }}
-            className="sr-only z-50 rounded-lg bg-card px-4 py-3 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
-          >
-            Skip to content
-          </a>
+  // Global views (Discover / Onboarding / Profile) stay on the Warm Editorial Paper brand identity;
+  // hosted event screens adopt the event's template layout family, surface mode, palette and font preset.
+  const applyEventTheme = eventContent && view !== "you";
+  const shellThemeStyle = useMemo(
+    () =>
+      applyEventTheme ? (buildTemplateCssVars(templateConfig) as React.CSSProperties) : undefined,
+    [applyEventTheme, templateConfig],
+  );
 
-          <div className="min-w-0">
-            <header
-              ref={headerRef}
-              hidden={onboarding}
-              className="ios-bar sticky top-0 z-20 pt-safe"
-            >
-              <div className="mx-auto flex h-11 max-w-3xl items-center gap-1 px-safe">
+  const navItems: { id: View; label: string; icon: LucideIcon }[] = useMemo(
+    () => [
+      { id: "home", label: "Events", icon: House },
+      {
+        id: "lineup",
+        label: templateDef.terms.programLabel,
+        icon: programIconForFamily(templateConfig.layoutFamily),
+      },
+      { id: "map", label: "Map", icon: Compass },
+      { id: "crew", label: templateDef.terms.crewLabel, icon: Users },
+    ],
+    [templateConfig.layoutFamily, templateDef.terms.crewLabel, templateDef.terms.programLabel],
+  );
+
+  return (
+    <Companion.Provider value={ctx}>
+      <div
+        ref={shellRef}
+        data-app-scope={applyEventTheme ? "event" : "global"}
+        data-layout-family={applyEventTheme ? templateConfig.layoutFamily : "global"}
+        data-event-template={applyEventTheme ? templateConfig.templateId : "global"}
+        data-surface-mode={applyEventTheme ? templateConfig.surfaceMode : "light"}
+        style={shellThemeStyle}
+        className="companion-shell min-h-dvh bg-background text-foreground"
+      >
+        <a
+          href="#main-content"
+          onClick={(event) => {
+            event.preventDefault();
+            mainRef.current?.focus();
+          }}
+          className="sr-only z-50 rounded-lg bg-card px-4 py-3 text-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+        >
+          Skip to content
+        </a>
+
+        <div className="min-w-0">
+          <header
+            ref={headerRef}
+            hidden={onboarding}
+            className="eb-header sticky top-0 z-20 pt-safe"
+          >
+            <div className="mx-auto flex h-13 max-w-4xl items-center gap-1 px-safe">
+              {selecting ? (
                 <a
-                  href="#home"
-                  className="mr-auto flex min-h-11 items-center gap-1 text-[17px] font-semibold tracking-tight"
+                  href="#events"
+                  className="mr-auto flex min-h-11 items-center gap-2"
+                  aria-label="eventbuddies home"
+                >
+                  <span
+                    aria-hidden
+                    className="grid size-7 place-items-center rounded-md bg-primary text-[13px] font-extrabold tracking-tight text-primary-foreground"
+                  >
+                    EB
+                  </span>
+                  <span className="eb-display text-[17px] tracking-tight text-foreground">
+                    Event Buddies
+                  </span>
+                </a>
+              ) : (
+                <a
+                  href={view === "home" ? "#events" : "#home"}
+                  className="mr-auto flex min-h-11 min-w-0 items-center gap-1 text-[15px] font-semibold tracking-tight text-foreground"
                   aria-label="eventbuddies home"
                 >
                   {view === "lineup" || view === "info" || view === "you" ? (
                     <>
-                      <ChevronLeft size={24} strokeWidth={2} />
-                      <span>Events</span>
+                      <ChevronLeft size={21} strokeWidth={2} className="flex-none" />
+                      <span className="truncate">{data.event.name}</span>
                     </>
                   ) : scrolled ? (
-                    { home: "Events", map: "Map", crew: "Crew", you: "You", events: "Events" }[view]
+                    <span className="truncate eb-display text-[16px]">
+                      {
+                        {
+                          home: data.event.name,
+                          map: "Venue Map",
+                          crew: templateDef.terms.crewLabel,
+                          you: "Profile",
+                          events: "Event Buddies",
+                        }[view]
+                      }
+                    </span>
                   ) : (
                     <>
-                      <span className="text-favorite">Events</span>
+                      <ChevronLeft
+                        size={18}
+                        strokeWidth={2}
+                        className="flex-none text-muted-foreground"
+                      />
+                      <span className="truncate text-[14px] font-semibold text-muted-foreground">
+                        Discover
+                      </span>
                     </>
                   )}
                 </a>
+              )}
+
+              {!selecting && (
                 <button
                   type="button"
                   aria-label="My Tickets & Passes"
                   onClick={() =>
                     eventTickets.length > 0 ? openGateCard(0) : setSheet({ kind: "ticket" })
                   }
-                  className="ios-press relative grid size-11 place-items-center rounded-full text-foreground"
+                  className="eb-press relative grid size-11 place-items-center rounded-full text-foreground hover:bg-secondary/70"
                 >
-                  <Ticket size={21} aria-hidden />
+                  <Ticket size={20} aria-hidden />
                   {eventTickets.length > 0 && (
                     <span
                       aria-hidden
@@ -412,135 +506,149 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
                     />
                   )}
                 </button>
-                <button
-                  type="button"
-                  aria-label="Open your profile"
-                  onClick={() => navigate("you")}
-                  className="ios-press grid size-11 place-items-center rounded-full text-foreground"
-                >
-                  <UserRound size={22} />
-                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Open your profile"
+                onClick={() => navigate("you")}
+                className="eb-press grid size-11 place-items-center rounded-full text-foreground hover:bg-secondary/70"
+              >
+                {avatar?.url ? (
+                  <img
+                    src={avatar.url}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="size-7 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <UserRound size={20} />
+                )}
+              </button>
+              {!selecting && (
                 <button
                   type="button"
                   aria-label="Menu: profile, updates, rules and settings"
                   onClick={() => setSheet({ kind: "menu" })}
-                  className="ios-press grid size-11 place-items-center rounded-full text-foreground"
+                  className="eb-press grid size-11 place-items-center rounded-full text-foreground hover:bg-secondary/70"
                 >
-                  <Ellipsis size={23} />
+                  <Ellipsis size={21} />
                 </button>
-              </div>
-              <PinPrivacy />
-              {!online && (
-                <p
-                  role="status"
-                  className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium"
-                >
-                  <WifiOff size={14} aria-hidden /> Offline · showing the saved event
-                </p>
               )}
-            </header>
-
-            <main
-              id="main-content"
-              ref={mainRef}
-              tabIndex={-1}
-              className={cn(
-                "mx-auto max-w-3xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] pt-1 outline-none",
-                view === "map" && "lg:max-w-6xl",
-              )}
-            >
-              {onboarding && <Onboarding />}
-              {selecting && <EventSelection />}
-              {attendee.preferences.ride &&
-                now !== null &&
-                now >= +data.event.endAt - 30 * 60000 &&
-                now <= +data.event.endAt && (
-                  <button
-                    type="button"
-                    className="mx-4 mb-4 block min-h-11 rounded-xl bg-warning-soft p-3 text-left text-[15px]"
-                    onClick={() => ctx.openPlace(attendee.preferences.ride!.pointId)}
-                  >
-                    Heading home soon? Your {attendee.preferences.ride.kind} is bookmarked at{" "}
-                    {places.find((p) => p.id === attendee.preferences.ride?.pointId)?.name}. Show
-                    gate ↗
-                  </button>
-                )}
-              <Suspense
-                fallback={
-                  <p role="status" className="px-4 py-8 text-[17px] text-muted-foreground">
-                    Opening your event view…
-                  </p>
-                }
-              >
-                {eventContent && view === "home" && <HomeView onShare={shareEvent} />}
-                {eventContent && view === "lineup" && <LineupView searchRef={searchRef} />}
-                {eventContent && view === "map" && <MapView />}
-                {eventContent && view === "crew" && <CrewView />}
-                {eventContent && view === "you" && <YouView />}
-                {eventContent && view === "info" && <InfoView />}
-              </Suspense>
-            </main>
-          </div>
-
-          {showNavigation && (
-            <nav aria-label="Main" className="companion-navigation fixed inset-x-0 bottom-0 z-30">
-              <ul className="companion-tabs mx-auto flex min-h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-full bg-nav px-2 pb-[env(safe-area-inset-bottom)]">
-                {NAV.map(({ id, label, icon: Icon }) => (
-                  <li key={id} className="flex-1">
-                    <a
-                      href={`#${id}`}
-                      aria-current={activeTab === id ? "page" : undefined}
-                      className="relative flex min-h-14 h-full flex-col items-center justify-center gap-0.5 text-[13px] font-medium text-nav-foreground aria-[current=page]:text-favorite"
-                    >
-                      <Icon size={22} strokeWidth={activeTab === id ? 2.4 : 1.9} aria-hidden />
-                      {label}
-                      {id === "home" && savedCount > 0 && (
-                        <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-favorite px-1 text-center text-[11px] font-semibold leading-[1.125rem] text-primary-foreground">
-                          <span className="sr-only">, </span>
-                          {savedCount}
-                          <span className="sr-only"> saved</span>
-                        </span>
-                      )}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          )}
-
-          {message && (
-            <div
-              role={message.error ? "alert" : "status"}
-              className="companion-toast fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-xl bg-foreground px-4 py-3 text-[15px] font-medium text-card shadow-float"
-            >
-              {message.error ? <Info size={18} aria-hidden /> : <Check size={18} aria-hidden />}
-              {message.text}
             </div>
-          )}
+            <PinPrivacy />
+            {!online && (
+              <p
+                role="status"
+                className="flex items-center justify-center gap-2 bg-warning-soft px-4 py-1.5 text-[13px] font-medium text-foreground"
+              >
+                <WifiOff size={14} aria-hidden /> Offline · showing the saved event
+              </p>
+            )}
+          </header>
 
-          {sheet && (
-            <Sheet
-              title={sheetTitle(sheet, ctx)}
-              onClose={() => setSheet(null)}
-              key={
-                sheet.kind +
-                ("id" in sheet ? sheet.id : "") +
-                ("artist" in sheet ? sheet.artist.id : "")
+          <main
+            id="main-content"
+            ref={mainRef}
+            tabIndex={-1}
+            className={cn(
+              "mx-auto max-w-4xl pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] outline-none",
+              view === "map" && "lg:max-w-6xl",
+            )}
+          >
+            {onboarding && <Onboarding />}
+            {selecting && <EventSelection />}
+            {attendee.preferences.ride &&
+              now !== null &&
+              now >= +data.event.endAt - 30 * 60000 &&
+              now <= +data.event.endAt && (
+                <button
+                  type="button"
+                  className="mx-4 mb-4 mt-3 block min-h-11 rounded-xl border border-warning/35 bg-warning-soft p-3 text-left text-[15px] text-foreground"
+                  onClick={() => ctx.openPlace(attendee.preferences.ride!.pointId)}
+                >
+                  Heading home soon? Your {attendee.preferences.ride.kind} is bookmarked at{" "}
+                  {places.find((p) => p.id === attendee.preferences.ride?.pointId)?.name}. Show gate
+                  ↗
+                </button>
+              )}
+            <Suspense
+              fallback={
+                <div role="status" className="space-y-3 px-4 py-8">
+                  <div className="h-44 w-full animate-pulse rounded-2xl bg-secondary/70" />
+                  <div className="h-12 w-2/3 animate-pulse rounded-xl bg-secondary/70" />
+                  <p className="sr-only">Opening your event view…</p>
+                </div>
               }
             >
-              <SheetContent sheet={sheet} onShare={shareEvent} />
-            </Sheet>
-          )}
-          <GateCardModal
-            open={gateCard.open}
-            onClose={() => setGateCard({ open: false, index: 0, overrideTickets: null })}
-            tickets={gateCard.overrideTickets ?? eventTickets}
-            initialIndex={gateCard.index}
-            data={data}
-            online={online}
-          />
+              {eventContent && view === "home" && <HomeView onShare={shareEvent} />}
+              {eventContent && view === "lineup" && <LineupView searchRef={searchRef} />}
+              {eventContent && view === "map" && <MapView />}
+              {eventContent && view === "crew" && <CrewView />}
+              {eventContent && view === "you" && <YouView />}
+              {eventContent && view === "info" && <InfoView />}
+            </Suspense>
+          </main>
         </div>
-      </Companion.Provider>
-    </KonstaProvider>
+
+        {showNavigation && (
+          <nav aria-label="Main" className="companion-navigation fixed inset-x-0 bottom-0 z-30">
+            <ul className="companion-tabs mx-auto flex min-h-[calc(3.5rem+env(safe-area-inset-bottom))] max-w-full px-2 pb-[env(safe-area-inset-bottom)]">
+              {navItems.map(({ id, label, icon: Icon }) => (
+                <li key={id} className="flex-1">
+                  <a
+                    href={`#${id}`}
+                    aria-current={activeTab === id ? "page" : undefined}
+                    className="relative flex h-full min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-nav-foreground transition-colors aria-[current=page]:text-primary"
+                  >
+                    <Icon size={21} strokeWidth={activeTab === id ? 2.3 : 1.8} aria-hidden />
+                    <span className="max-w-full truncate px-1">{label}</span>
+                    {id === "home" && savedCount > 0 && (
+                      <span className="absolute left-1/2 top-1.5 ml-2 min-w-[1.125rem] rounded-full bg-primary px-1 text-center text-[11px] font-bold leading-[1.125rem] text-primary-foreground">
+                        <span className="sr-only">, </span>
+                        {savedCount}
+                        <span className="sr-only"> saved</span>
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        {message && (
+          <div
+            role={message.error ? "alert" : "status"}
+            className="companion-toast fixed inset-x-4 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] z-40 mx-auto flex max-w-sm items-center gap-2 rounded-full border border-border bg-foreground px-4 py-3 text-[14px] font-semibold text-background shadow-float"
+          >
+            {message.error ? <Info size={17} aria-hidden /> : <Check size={17} aria-hidden />}
+            {message.text}
+          </div>
+        )}
+
+        {sheet && (
+          <Sheet
+            title={sheetTitle(sheet, ctx)}
+            onClose={() => setSheet(null)}
+            key={
+              sheet.kind +
+              ("id" in sheet ? sheet.id : "") +
+              ("artist" in sheet ? sheet.artist.id : "")
+            }
+          >
+            <SheetContent sheet={sheet} onShare={shareEvent} />
+          </Sheet>
+        )}
+        <GateCardModal
+          open={gateCard.open}
+          onClose={() => setGateCard({ open: false, index: 0, overrideTickets: null })}
+          tickets={gateCard.overrideTickets ?? eventTickets}
+          initialIndex={gateCard.index}
+          data={data}
+          online={online}
+        />
+      </div>
+    </Companion.Provider>
   );
 }

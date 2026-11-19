@@ -1,28 +1,34 @@
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { useCompanion } from "./context";
 
 export function EventSections() {
-  const { view } = useCompanion();
+  const { view, data } = useCompanion();
+  const terms = getEventCategoryTerms(data.event.category, data.event.templateConfig);
   return (
-    <nav
-      className="mx-4 mb-4 mt-3 flex h-11 rounded-[12px] bg-fill p-[3px]"
-      aria-label="Event sections"
-    >
+    <nav className="mx-4 mb-5 mt-3 flex border-b border-separator" aria-label="Event sections">
       {(
         [
-          { id: "lineup", label: "Lineup" },
+          { id: "lineup", label: terms.programLabel },
           { id: "map", label: "Map" },
-          { id: "info", label: "Info" },
+          { id: "info", label: "Essentials" },
         ] as const
-      ).map(({ id, label }) => (
-        <a
-          key={id}
-          href={`#${id}`}
-          aria-current={view === id ? "page" : undefined}
-          className="flex h-full flex-1 items-center justify-center rounded-[10px] px-3 text-[15px] font-semibold aria-[current=page]:bg-popover aria-[current=page]:shadow-sm"
-        >
-          {label}
-        </a>
-      ))}
+      ).map(({ id, label }) => {
+        const active = view === id;
+        return (
+          <a
+            key={id}
+            href={`#${id}`}
+            aria-current={active ? "page" : undefined}
+            className={`relative flex min-h-11 flex-1 items-center justify-center px-3 text-[15px] transition-colors ${
+              active
+                ? "font-semibold text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2.5px] after:rounded-full after:bg-primary"
+                : "font-medium text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </a>
+        );
+      })}
     </nav>
   );
 }

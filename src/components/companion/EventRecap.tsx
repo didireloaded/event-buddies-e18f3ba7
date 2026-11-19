@@ -92,7 +92,7 @@ export function EventRecap() {
             ? "Your saved archive"
             : "Your recap is ready"}
       </p>
-      <h1 id="recap-title" className="ios-large-title mt-2">
+      <h1 id="recap-title" className="eb-page-title mt-2">
         Your {data.event.name}
       </h1>
       <p className="mt-2 text-[16px] text-muted-foreground">

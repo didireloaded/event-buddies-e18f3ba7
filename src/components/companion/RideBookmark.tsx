@@ -67,7 +67,7 @@ export function RideBookmark() {
             <label className="block">
               Ride type
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={kind}
                 onChange={(e) => setKind(e.target.value as "car" | "shuttle")}
               >
@@ -78,7 +78,7 @@ export function RideBookmark() {
             <label className="block">
               Gate landmark
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 required
                 value={pointId}
                 onChange={(e) => setPointId(e.target.value)}
@@ -97,7 +97,7 @@ export function RideBookmark() {
             <label className="block">
               Parking or pickup note
               <textarea
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={300}
                 placeholder="Row, vehicle, landmark or pickup details"
                 value={note}

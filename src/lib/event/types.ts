@@ -1,6 +1,7 @@
 // Plain data shapes for the database-free demo. They replace the Drizzle
 // `$inferSelect` types used by the original Next.js app (see LOVABLE.md).
 import type { BarMenuConfig } from "@/lib/attendee/bar-menu";
+import type { EventTemplateConfig, EventVisibility } from "@/lib/templates/event-templates";
 import type { FestivalInfo } from "./sound-of-summer";
 
 export type EventRecord = {
@@ -25,6 +26,9 @@ export type EventRecord = {
   latitude: number | null;
   longitude: number | null;
   heroImageUrl: string;
+  logoUrl?: string | null;
+  templateConfig?: EventTemplateConfig | null;
+  visibility?: EventVisibility;
   mapImageUrl: string;
   mapZoomImageUrl?: string | null;
   mapCalibration?: {

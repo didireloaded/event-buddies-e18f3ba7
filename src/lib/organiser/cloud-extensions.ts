@@ -2,6 +2,11 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { accountConfigured } from "@/lib/account/use-auth";
 import { barMenuConfigSchema, type BarMenuConfig } from "@/lib/attendee/bar-menu";
+import {
+  eventTemplateConfigSchema,
+  type EventTemplateConfig,
+  type EventVisibility,
+} from "@/lib/templates/event-templates";
 
 type UntypedRpc = (
   fn: string,
@@ -81,6 +86,8 @@ export const publishedEventSchema = z.object({
   sitePlanZoomUrl: z.string().nullable().optional(),
   barMenus: z.array(barMenuConfigSchema).optional(),
   mapCalibration: publishedMapCalibrationSchema.nullable().optional(),
+  templateConfig: eventTemplateConfigSchema.nullable().optional(),
+  visibility: z.enum(["public", "private_invite"]).optional(),
   publishedAt: z.string().nullable(),
 });
 export type PublishedOrganiserEvent = z.infer<typeof publishedEventSchema>;
@@ -459,6 +466,8 @@ export async function cleanupExpiredEventData(): Promise<{
 export async function getOrganiserEventExtras(eventId: string): Promise<{
   barMenus: BarMenuConfig[];
   mapCalibration: PublishedMapCalibration | null;
+  templateConfig: EventTemplateConfig | null;
+  visibility: EventVisibility;
 } | null> {
   if (!accountConfigured || !eventId) return null;
   try {
@@ -473,9 +482,14 @@ export async function getOrganiserEventExtras(eventId: string): Promise<{
       return parsed.success ? [parsed.data] : [];
     });
     const calParsed = publishedMapCalibrationSchema.safeParse(rec["mapCalibration"]);
+    const tplParsed = eventTemplateConfigSchema.safeParse(rec["templateConfig"]);
+    const visibility: EventVisibility =
+      rec["visibility"] === "private_invite" ? "private_invite" : "public";
     return {
       barMenus,
       mapCalibration: calParsed.success ? calParsed.data : null,
+      templateConfig: tplParsed.success ? tplParsed.data : null,
+      visibility,
     };
   } catch {
     return null;
@@ -486,6 +500,8 @@ export async function saveOrganiserEventExtras(input: {
   eventId: string;
   barMenus?: BarMenuConfig[] | undefined;
   mapCalibration?: PublishedMapCalibration | null | undefined;
+  templateConfig?: EventTemplateConfig | null | undefined;
+  visibility?: EventVisibility | undefined;
 }): Promise<{ ok: true } | { ok: false; cloudUnavailable: boolean; error: string }> {
   if (!accountConfigured) {
     return {
@@ -495,11 +511,14 @@ export async function saveOrganiserEventExtras(input: {
     };
   }
   try {
-    const { error } = await callRpc("save_organiser_event_extras", {
+    const args: Record<string, unknown> = {
       p_event_id: input.eventId,
       p_bar_menus: input.barMenus !== undefined ? input.barMenus : null,
       p_map_calibration: input.mapCalibration !== undefined ? input.mapCalibration : null,
-    });
+    };
+    if (input.templateConfig !== undefined) args["p_template_config"] = input.templateConfig;
+    if (input.visibility !== undefined) args["p_visibility"] = input.visibility;
+    const { error } = await callRpc("save_organiser_event_extras", args);
     if (error) {
       const missingRpc =
         error.message.includes("save_organiser_event_extras") ||

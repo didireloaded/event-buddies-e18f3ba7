@@ -184,7 +184,7 @@ export function GateCardModal({
           type="button"
           onClick={onClose}
           aria-label="Close ticket"
-          className="ios-press grid size-11 place-items-center rounded-full bg-popover text-foreground shadow-sm ring-1 ring-border"
+          className="eb-press grid size-11 place-items-center rounded-full bg-popover text-foreground shadow-sm ring-1 ring-border"
         >
           <X size={22} aria-hidden />
         </button>

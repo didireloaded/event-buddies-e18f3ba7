@@ -118,7 +118,7 @@ export function Regroup() {
     <>
       <button
         type="button"
-        className="ios-press min-h-11 rounded-full bg-secondary px-4 text-[15px] font-semibold"
+        className="eb-press min-h-11 rounded-full bg-secondary px-4 text-[15px] font-semibold"
         disabled={!attendee.ready}
         onClick={() => {
           setOpen(true);
@@ -189,7 +189,7 @@ export function Regroup() {
                 <label className="mt-3 block text-[15px]">
                   Regroup link
                   <input
-                    className="ios-field mt-1"
+                    className="eb-field mt-1"
                     readOnly
                     value={link}
                     onFocus={(e) => e.target.select()}

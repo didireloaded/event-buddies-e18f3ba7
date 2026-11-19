@@ -71,7 +71,7 @@ export function MeetingForm({
         </label>
         <select
           id="meeting-place"
-          className="ios-field"
+          className="eb-field"
           value={pointId}
           aria-invalid={field === "place"}
           aria-describedby={field === "place" ? "meeting-error" : undefined}
@@ -91,7 +91,7 @@ export function MeetingForm({
         <input
           id="meeting-at"
           type="datetime-local"
-          className="ios-field"
+          className="eb-field"
           value={at}
           min={localDateTime(eventStart, timezone)}
           max={localDateTime(eventEnd, timezone)}
@@ -174,7 +174,7 @@ export function ProfileForm({
         </label>
         <input
           id="profile-name"
-          className="ios-field"
+          className="eb-field"
           value={name}
           maxLength={50}
           autoComplete="nickname"
@@ -192,7 +192,7 @@ export function ProfileForm({
               <button
                 key={badge}
                 type="button"
-                className="ios-chip"
+                className="eb-chip"
                 aria-pressed={active}
                 onClick={() =>
                   setBadges((prev) =>

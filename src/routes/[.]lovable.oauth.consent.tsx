@@ -133,39 +133,46 @@ export function Consent({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-5 py-10 text-foreground">
-      <h1 className="text-2xl font-bold">Connect {client} to Event Buddies</h1>
-      <p>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-10 text-foreground">
+      <div className="border-b border-separator pb-4">
+        <p className="eb-kicker text-primary">Event Buddies · Assistant access</p>
+        <h1 className="eb-page-title mt-2 text-[28px]">Connect {client} to Event Buddies</h1>
+      </div>
+      <p className="text-[15px] leading-relaxed">
         {client} will be able to read public Sound of Summer event info, the lineup and venue
         places, plus your synced saved artists, meeting plan and private crew.
       </p>
-      {email && <p className="text-sm text-muted-foreground">Signed in as {email}</p>}
-      {host && <p className="text-sm text-muted-foreground">Returns to {host}</p>}
-      <p className="text-sm text-muted-foreground">
-        Shares your basic profile, email and read-only access to your synced event plan and crew.
-        Your local ticket copy and photo diary stay on your phone.
-      </p>
+      <div className="eb-panel space-y-1.5 p-4 text-[14px] text-muted-foreground">
+        {email && <p>Signed in as {email}</p>}
+        {host && <p>Returns to {host}</p>}
+        <p>
+          Shares your basic profile, email and read-only access to your synced event plan and crew.
+          Your local ticket copy and photo diary stay on your phone.
+        </p>
+      </div>
       {error && (
-        <p role="alert" className="text-sm">
+        <p role="alert" className="text-[14px] font-medium text-destructive">
           {error}
         </p>
       )}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void decide(true)}
-        className="min-h-11 rounded-full bg-primary font-semibold text-primary-foreground disabled:opacity-50"
-      >
-        Approve
-      </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void decide(false)}
-        className="min-h-11 rounded-full border border-border font-semibold"
-      >
-        Cancel connection
-      </button>
+      <div className="space-y-2.5">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void decide(true)}
+          className="eb-press min-h-12 w-full rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void decide(false)}
+          className="eb-press min-h-12 w-full rounded-full border border-border bg-card px-5 text-[15px] font-semibold text-foreground disabled:opacity-50"
+        >
+          Cancel connection
+        </button>
+      </div>
     </main>
   );
 }

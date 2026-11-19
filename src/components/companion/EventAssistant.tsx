@@ -36,7 +36,7 @@ export function EventAssistant() {
 
   return (
     <section className="mx-4 mt-6 border-y border-border py-4" aria-labelledby="assistant-title">
-      <h2 id="assistant-title" className="ios-section-title">
+      <h2 id="assistant-title" className="eb-kicker">
         Ask about {data.event.name}
       </h2>
       <p className="mb-3 text-[15px] text-muted-foreground">
@@ -84,7 +84,7 @@ export function EventAssistant() {
         <label className="block text-[15px] font-semibold">
           Your question
           <input
-            className="ios-field my-2"
+            className="eb-field my-2"
             value={question}
             maxLength={400}
             onChange={(event) => setQuestion(event.target.value)}

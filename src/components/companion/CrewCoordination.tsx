@@ -311,13 +311,13 @@ export function CrewCoordination() {
 
   return (
     <Section title="Quick pings & check-in" id="crew-coordination" className="px-4">
-      <div className="ios-card space-y-3 p-4">
+      <div className="eb-panel space-y-3.5 p-4">
         <label className="flex items-center gap-2 text-[14px] font-semibold">
           <MapPin size={16} className="flex-none text-primary" aria-hidden />
           <span className="sr-only">My current or target landmark</span>
           <select
             aria-label="My current or target landmark"
-            className="ios-field flex-1"
+            className="eb-field flex-1"
             value={pointId}
             onChange={(e) => setPointId(e.target.value)}
           >
@@ -329,7 +329,7 @@ export function CrewCoordination() {
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Quick crew pings">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Quick crew pings">
           {QUICK_PINGS.map((ping) => {
             const PingIcon = ping.icon;
             return (
@@ -340,10 +340,10 @@ export function CrewCoordination() {
                 onClick={() => void postActivity(ping.kind, ping.message, pointId || null)}
                 className={
                   ping.kind === "sos"
-                    ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-2.5 text-[13px] font-semibold text-destructive-foreground sm:px-3 sm:text-[14px]"
+                    ? "eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-destructive px-3.5 text-[13px] font-semibold text-destructive-foreground"
                     : ping.kind === "safe"
-                      ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:px-3 sm:text-[14px]"
-                      : "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary px-2.5 text-[13px] font-semibold text-foreground sm:px-3 sm:text-[14px]"
+                      ? "eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground"
+                      : "eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-[13px] font-semibold text-foreground"
                 }
               >
                 <PingIcon size={15} className="flex-none" aria-hidden />
@@ -353,29 +353,29 @@ export function CrewCoordination() {
           })}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 pt-0.5">
+        <div className="flex flex-wrap gap-2 border-t border-separator pt-3">
           <button
             type="button"
             onClick={() => setSheet("poll")}
-            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+            className="eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-favorite-soft px-4 text-[13px] font-semibold text-primary"
           >
-            <HelpCircle size={18} className="flex-none" aria-hidden />
+            <HelpCircle size={15} className="flex-none" aria-hidden />
             <span>Crew poll</span>
           </button>
           <button
             type="button"
             onClick={() => setSheet("travel")}
-            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+            className="eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-favorite-soft px-4 text-[13px] font-semibold text-primary"
           >
-            <Car size={18} className="flex-none" aria-hidden />
+            <Car size={15} className="flex-none" aria-hidden />
             <span>Travel plan</span>
           </button>
           <button
             type="button"
             onClick={() => setSheet("note")}
-            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+            className="eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-favorite-soft px-4 text-[13px] font-semibold text-primary"
           >
-            <MessageSquare size={18} className="flex-none" aria-hidden />
+            <MessageSquare size={15} className="flex-none" aria-hidden />
             <span>Crew note</span>
           </button>
         </div>
@@ -392,7 +392,7 @@ export function CrewCoordination() {
             type="button"
             disabled={exportingCard}
             onClick={() => void exportYearbook()}
-            className="ios-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-[13px] font-semibold text-foreground disabled:opacity-50"
+            className="eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-[13px] font-semibold text-foreground disabled:opacity-50"
           >
             <Download size={14} className="flex-none" aria-hidden />
             {exportingCard ? "Creating card…" : "Download crew yearbook card"}
@@ -490,7 +490,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Question
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={120}
                 required
                 value={pollQuestion}
@@ -500,7 +500,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Option 1
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={60}
                 required
                 value={pollOptionA}
@@ -510,7 +510,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Option 2
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={60}
                 required
                 value={pollOptionB}
@@ -520,7 +520,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Option 3 (optional)
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={60}
                 value={pollOptionC}
                 onChange={(e) => setPollOptionC(e.target.value)}
@@ -557,7 +557,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Transport mode
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={travelKind}
                 onChange={(e) => setTravelKind(e.target.value as "car" | "shuttle" | "taxi")}
               >
@@ -570,7 +570,7 @@ export function CrewCoordination() {
               Departure time (CAT)
               <input
                 type="time"
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={travelTime}
                 onChange={(e) => setTravelTime(e.target.value)}
               />
@@ -578,7 +578,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Pickup landmark
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={pointId}
                 onChange={(e) => setPointId(e.target.value)}
               >
@@ -592,7 +592,7 @@ export function CrewCoordination() {
             <label className="block text-[15px] font-semibold">
               Seats or note (optional)
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={100}
                 placeholder="3 seats to Swakopmund"
                 value={travelNote}
@@ -624,7 +624,7 @@ export function CrewCoordination() {
                 rows={3}
                 maxLength={160}
                 required
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 placeholder="Heading to the sunset stage after the next set…"
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}

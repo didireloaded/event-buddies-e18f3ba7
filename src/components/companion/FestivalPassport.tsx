@@ -15,18 +15,22 @@ export function FestivalPassport() {
     attendee.preferences.stamps.includes(p.id),
   ).length;
 
+  const termsLabel = data.event.category.toLowerCase().includes("conference")
+    ? "Exhibitor & session checkpoints"
+    : data.event.category.toLowerCase().includes("market")
+      ? "Market tasting checkpoints"
+      : "Venue checkpoints";
+
   return (
     <Section title="Event Passport" id="crew-passport" className="px-4">
-      <div className="mb-4 rounded-2xl bg-popover p-4 ring-1 ring-border">
-        <p className="text-[12px] font-semibold uppercase tracking-wider text-primary">
-          Explore the experience
-        </p>
-        <p className="mt-1 text-[20px] font-bold">
+      <div className="mb-5 border-b border-separator pb-4">
+        <p className="eb-kicker text-primary">{termsLabel}</p>
+        <p className="eb-display mt-1 text-[24px]">
           {collectedCount} of {displayStops.length} stamps collected
         </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Self-reported check-ins saved on this phone for {data.event.name}. Verified QR checkpoints
-          depend on organiser setup.
+        <p className="mt-1.5 text-[14px] text-muted-foreground">
+          Self-reported check-ins saved on this phone for {data.event.name}. Verified organiser QR
+          checkpoints are marked separately when enabled.
         </p>
       </div>
 
@@ -37,10 +41,10 @@ export function FestivalPassport() {
           return (
             <div
               key={p.id}
-              className={`flex flex-col justify-between rounded-2xl border p-3.5 transition-colors ${
+              className={`flex flex-col justify-between rounded-xl border p-3.5 transition-colors ${
                 collected
-                  ? "border-primary bg-favorite-soft/70"
-                  : "border-dashed border-border bg-popover"
+                  ? "border-primary bg-favorite-soft"
+                  : "border-dashed border-border bg-card"
               }`}
             >
               <button
@@ -149,7 +153,7 @@ export function FestivalPassport() {
         >
           <input
             aria-label="New custom checkpoint"
-            className="ios-field flex-1"
+            className="eb-field flex-1"
             maxLength={80}
             placeholder="Add a personal or crew checkpoint…"
             value={customText}

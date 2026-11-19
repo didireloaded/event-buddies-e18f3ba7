@@ -101,7 +101,9 @@ grant execute on function public.list_event_broadcasts(uuid) to anon, authentica
 -- Ensure shared event columns exist before list_published_events() references them
 alter table public.organiser_events
   add column if not exists bar_menus jsonb not null default '[]'::jsonb,
-  add column if not exists map_calibration jsonb;
+  add column if not exists map_calibration jsonb,
+  add column if not exists template_config jsonb,
+  add column if not exists visibility text not null default 'public' check (visibility in ('public', 'private_invite'));
 
 -- 2. Published organiser events -> event_sync_catalogue trigger & public discovery RPC
 create or replace function public.sync_published_organiser_event()
@@ -160,6 +162,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
         'sitePlanPath', e.site_plan_path,
         'barMenus', coalesce(e.bar_menus, '[]'::jsonb),
         'mapCalibration', e.map_calibration,
+        'templateConfig', e.template_config,
+        'visibility', coalesce(e.visibility, 'public'),
         'publishedAt', e.published_at
       )
       order by e.start_date asc nulls last, e.published_at desc
@@ -167,7 +171,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     '[]'::jsonb
   )
   from public.organiser_events e
-  where e.status = 'published';
+  where e.status = 'published'
+    and coalesce(e.visibility, 'public') = 'public';
 $$;
 revoke all on function public.list_published_events() from public;
 grant execute on function public.list_published_events() to anon, authenticated;
@@ -945,7 +950,7 @@ create policy "self manages tickets"
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
--- 9. Shared organiser bar menus & versioned GPS map calibration
+-- 9. Shared organiser bar menus, versioned GPS map calibration, template config & visibility
 create or replace function public.get_organiser_event_extras(p_event_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -957,20 +962,30 @@ begin
     where id = p_event_id
       and (status = 'published' or owner_id = actor);
   if not found then
-    return jsonb_build_object('barMenus', '[]'::jsonb, 'mapCalibration', null);
+    return jsonb_build_object(
+      'barMenus', '[]'::jsonb,
+      'mapCalibration', null,
+      'templateConfig', null,
+      'visibility', 'public'
+    );
   end if;
   return jsonb_build_object(
     'barMenus', coalesce(ev.bar_menus, '[]'::jsonb),
-    'mapCalibration', ev.map_calibration
+    'mapCalibration', ev.map_calibration,
+    'templateConfig', ev.template_config,
+    'visibility', coalesce(ev.visibility, 'public')
   );
 end $$;
 revoke all on function public.get_organiser_event_extras(uuid) from public;
 grant execute on function public.get_organiser_event_extras(uuid) to anon, authenticated;
 
+drop function if exists public.save_organiser_event_extras(uuid, jsonb, jsonb);
 create or replace function public.save_organiser_event_extras(
   p_event_id uuid,
   p_bar_menus jsonb default null,
-  p_map_calibration jsonb default null
+  p_map_calibration jsonb default null,
+  p_template_config jsonb default null,
+  p_visibility text default null
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -980,23 +995,30 @@ begin
   if actor is null then
     raise exception 'Sign in required' using errcode = '42501';
   end if;
+  if p_visibility is not null and p_visibility not in ('public', 'private_invite') then
+    raise exception 'Invalid event visibility' using errcode = '22023';
+  end if;
   update public.organiser_events
     set bar_menus = case when p_bar_menus is not null then p_bar_menus else bar_menus end,
         map_calibration = case when p_map_calibration is not null then p_map_calibration else map_calibration end,
+        template_config = case when p_template_config is not null then p_template_config else template_config end,
+        visibility = case when p_visibility is not null then p_visibility else visibility end,
         updated_at = now()
     where id = p_event_id and owner_id = actor
     returning * into updated;
   if not found then
-    raise exception 'Only the event owner can update bar menus or map calibration' using errcode = '42501';
+    raise exception 'Only the event owner can update event settings' using errcode = '42501';
   end if;
   return jsonb_build_object(
     'ok', true,
     'barMenus', coalesce(updated.bar_menus, '[]'::jsonb),
-    'mapCalibration', updated.map_calibration
+    'mapCalibration', updated.map_calibration,
+    'templateConfig', updated.template_config,
+    'visibility', coalesce(updated.visibility, 'public')
   );
 end $$;
-revoke all on function public.save_organiser_event_extras(uuid, jsonb, jsonb) from public, anon;
-grant execute on function public.save_organiser_event_extras(uuid, jsonb, jsonb) to authenticated;
+revoke all on function public.save_organiser_event_extras(uuid, jsonb, jsonb, jsonb, text) from public, anon;
+grant execute on function public.save_organiser_event_extras(uuid, jsonb, jsonb, jsonb, text) to authenticated;
 
 -- 10. Protected shared crew photos & member profile avatars (private `crew-media` bucket)
 alter table public.attendee_crews

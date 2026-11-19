@@ -15,19 +15,20 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-5">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+        <p className="eb-kicker text-primary">Event Buddies</p>
+        <h1 className="eb-display mt-2 text-7xl text-foreground">404</h1>
+        <h2 className="mt-3 text-[20px] font-bold text-foreground">Page not found</h2>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          The page you’re looking for doesn’t exist or has been moved.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="eb-press inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-[15px] font-semibold text-primary-foreground"
           >
-            Go home
+            Back to Discover
           </Link>
         </div>
       </div>
@@ -43,28 +44,29 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-5">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <p className="eb-kicker text-destructive">Connection or render error</p>
+        <h1 className="eb-page-title mt-2 text-[28px] text-foreground">
           This page didn’t load
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-[15px] text-muted-foreground">
           Reload to try again, or head back to the event home.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             type="button"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="eb-press inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 text-[15px] font-semibold text-primary-foreground"
           >
             Try again
           </button>
           <a
             href="/"
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-input bg-background px-5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="eb-press inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-card px-6 text-[15px] font-semibold text-foreground"
           >
             Go home
           </a>

@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CheckCircle2, CircleDashed, FileText, Link2, PenLine } from "lucide-react";
+import { Check, CheckCircle2, CircleDashed, FileText, Link2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { dbError, uploadOwnFile } from "@/lib/organiser/data";
 import { extractEventFromPdf } from "@/lib/organiser/extract.functions";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
 import { EVENT_TYPES, validatePdf, type EventType } from "@/lib/organiser/schema";
+import {
+  buildDefaultTemplateConfig,
+  defaultTemplateIdForEventType,
+  EVENT_TEMPLATE_LIST,
+  EVENT_TEMPLATES,
+  LAYOUT_FAMILIES,
+  LAYOUT_FAMILY_META,
+  PALETTE_PRESET_META,
+  saveStoredTemplateConfig,
+  type EventTemplateId,
+  type LayoutFamily,
+} from "@/lib/templates/event-templates";
 import { PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
+import { cn } from "@/lib/utils";
 import type { OrgCtx } from "./OrganiserApp";
 
 type Step = "idle" | "draft" | "upload" | "extract" | "done" | "error";
@@ -22,6 +35,8 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
+  const [familyFilter, setFamilyFilter] = useState<LayoutFamily | "all">("all");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<EventTemplateId>("music_festival");
   const [manualType, setManualType] = useState<EventType>("festival");
   const [manualName, setManualName] = useState("");
   const [manualDate, setManualDate] = useState("");
@@ -39,6 +54,16 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
       cancelledRef.current = true;
     };
   }, []);
+
+  function pickTemplate(tplId: EventTemplateId) {
+    setSelectedTemplateId(tplId);
+    setManualType(EVENT_TEMPLATES[tplId].legacyEventType);
+  }
+
+  function handleLegacyTypeSelect(nextType: EventType) {
+    setManualType(nextType);
+    setSelectedTemplateId(defaultTemplateIdForEventType(nextType));
+  }
 
   async function processPdf(file: File) {
     const problem = validatePdf(file);
@@ -117,12 +142,13 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
     setError("");
     setManualBusy(true);
     try {
+      const chosenDef = EVENT_TEMPLATES[selectedTemplateId];
       const { data, error: insErr } = await supabase
         .from("organiser_events")
         .insert({
           owner_id: ctx.userId,
           status: "draft",
-          event_type: manualType,
+          event_type: chosenDef.legacyEventType,
           name: manualName.trim().slice(0, 160),
           start_date: manualDate || null,
           venue: manualVenue.trim().slice(0, 200),
@@ -133,6 +159,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
         setError(dbError(insErr?.message));
         return;
       }
+      saveStoredTemplateConfig(data.id, buildDefaultTemplateConfig(selectedTemplateId));
       await ctx.reload();
       ctx.go("events", data.id);
     } finally {
@@ -192,6 +219,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
         setError(dbError(insErr?.message));
         return;
       }
+      saveStoredTemplateConfig(data.id, buildDefaultTemplateConfig(selectedTemplateId));
       setExternalUrl("");
       await ctx.reload();
       ctx.go("events", data.id);
@@ -218,6 +246,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
         setError(dbError(insErr?.message));
         return;
       }
+      saveStoredTemplateConfig(data.id, buildDefaultTemplateConfig("custom_event"));
       await ctx.reload();
       ctx.go("events", data.id);
     } finally {
@@ -227,23 +256,30 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
 
   const busy = step === "draft" || step === "upload" || step === "extract";
   const order = ["draft", "upload", "extract", "done"];
+  const visibleTemplates =
+    familyFilter === "all"
+      ? EVENT_TEMPLATE_LIST
+      : EVENT_TEMPLATE_LIST.filter((t) => t.layoutFamily === familyFilter);
+  const chosenDef = EVENT_TEMPLATES[selectedTemplateId];
 
   return (
     <div className="py-4">
-      <h1 className="ios-large-title">Create event</h1>
-      <p className="mt-1 text-[16px] text-muted-foreground">
-        Upload an event PDF or start a blank draft. Everything stays private until you review and
-        publish.
+      <p className="eb-kicker text-primary">Organiser Studio</p>
+      <h1 className="eb-page-title mt-0.5">Create event</h1>
+      <p className="mt-1.5 max-w-2xl text-[15px] text-muted-foreground">
+        Start from one of 12 purpose-built event templates, extract details from an event PDF, or
+        record an official ticket listing URL. Drafts remain private until reviewed and published.
       </p>
 
-      <Section title="1. Upload a PDF" id="org-create-pdf">
-        <div className="ios-card space-y-4 p-4">
+      {/* 1. Upload PDF (kept first file input so automated tests & quick import work cleanly) */}
+      <Section title="Import from printed PDF" id="org-create-pdf">
+        <div className="eb-panel space-y-4 p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <FileText size={22} className="mt-0.5 flex-none text-primary" aria-hidden />
+            <FileText size={21} className="mt-0.5 flex-none text-primary" aria-hidden />
             <div className="min-w-0">
-              <p className="text-[16px] font-semibold">Lineup, programme or info sheet</p>
+              <p className="text-[16px] font-bold">Lineup, programme or info sheet</p>
               <p className="text-[14px] text-muted-foreground">
-                PDF only, up to 50 MB. Missing fields stay marked “Not found” for you to fill in.
+                PDF only, up to 50 MB. Missing fields stay marked “Not found” for human review.
               </p>
             </div>
           </div>
@@ -254,28 +290,37 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
             </p>
           )}
 
-          <label
-            className={`ios-press flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground ${
-              busy || offline ? "pointer-events-none opacity-50" : "cursor-pointer"
-            }`}
-          >
-            {busy ? "Working on PDF…" : "Choose PDF file"}
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              disabled={busy || offline}
-              className="sr-only"
-              onChange={(e) => {
-                const chosen = e.currentTarget.files?.[0];
-                e.currentTarget.value = "";
-                if (chosen) void processPdf(chosen);
-              }}
-            />
-          </label>
+          <div className="flex flex-wrap gap-2.5">
+            <label
+              className={`eb-press inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground ${
+                busy || offline ? "pointer-events-none opacity-50" : "cursor-pointer"
+              }`}
+            >
+              {busy ? "Working on PDF…" : "Choose PDF file"}
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                disabled={busy || offline}
+                className="sr-only"
+                onChange={(e) => {
+                  const chosen = e.currentTarget.files?.[0];
+                  e.currentTarget.value = "";
+                  if (chosen) void processPdf(chosen);
+                }}
+              />
+            </label>
+            <SecondaryButton
+              className="w-auto px-5"
+              disabled={busy || manualBusy || offline}
+              onClick={() => void createBlankDraft()}
+            >
+              {manualBusy ? "Creating…" : "Blank custom draft"}
+            </SecondaryButton>
+          </div>
 
           {fileName && step !== "idle" && (
-            <div className="space-y-2 border-t border-border pt-3">
-              <p className="truncate text-[14px] font-medium">{fileName}</p>
+            <div className="space-y-2 border-t border-separator pt-3">
+              <p className="truncate text-[14px] font-semibold">{fileName}</p>
               <ul className="space-y-1.5 text-[14px]">
                 {CHECKLIST.map((item) => {
                   const done = order.indexOf(step) > order.indexOf(item.key) || step === "done";
@@ -301,7 +346,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
               {busy && (
                 <button
                   type="button"
-                  className="min-h-11 text-[15px] font-semibold text-destructive"
+                  className="min-h-11 text-[14px] font-semibold text-destructive"
                   onClick={() => {
                     cancelledRef.current = true;
                     setStep("idle");
@@ -317,7 +362,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
           )}
 
           {step === "done" && createdId && (
-            <div role="status" className="space-y-3 border-t border-border pt-3">
+            <div role="status" className="space-y-3 border-t border-separator pt-3">
               <p className="text-[15px] font-semibold">Draft ready for human review.</p>
               {missing.length > 0 && (
                 <p className="text-[14px] text-muted-foreground">
@@ -331,7 +376,10 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
           )}
 
           {error && (
-            <div role="alert" className="space-y-2 rounded-xl bg-warning-soft p-3 text-[14px]">
+            <div
+              role="alert"
+              className="space-y-2 rounded-xl border border-warning/40 bg-warning-soft p-3 text-[14px]"
+            >
               <p>{error}</p>
               {createdId && (
                 <button
@@ -344,98 +392,179 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
               )}
             </div>
           )}
-
-          <SecondaryButton
-            disabled={busy || manualBusy || offline}
-            onClick={() => void createBlankDraft()}
-          >
-            {manualBusy ? "Creating draft…" : "Start blank draft instead"}
-          </SecondaryButton>
         </div>
       </Section>
 
-      <Section title="2. Manual event setup" id="org-create-manual">
-        <form onSubmit={(e) => void createGuidedDraft(e)} className="ios-card space-y-3 p-4">
-          <div className="flex items-start gap-3">
-            <PenLine size={20} className="mt-0.5 flex-none text-primary" aria-hidden />
-            <div>
-              <p className="text-[16px] font-semibold">Start with a template</p>
-              <p className="text-[14px] text-muted-foreground">
-                Create a festival, concert, conference, sports or corporate event draft directly.
-              </p>
-            </div>
-          </div>
-          <label className="block text-[14px] font-semibold">
-            Event template
-            <select
-              className="ios-field mt-1"
-              value={manualType}
-              onChange={(e) => setManualType(e.target.value as EventType)}
+      {/* 2. Visual 12-Template Event Studio Setup */}
+      <Section title="Choose a template & create draft" id="org-create-manual">
+        <div className="space-y-4">
+          <div
+            className="scrollbar-none flex gap-2 overflow-x-auto py-0.5"
+            role="group"
+            aria-label="Filter templates by layout family"
+          >
+            <button
+              type="button"
+              className="eb-chip text-[13px]"
+              aria-pressed={familyFilter === "all"}
+              onClick={() => setFamilyFilter("all")}
             >
-              {EVENT_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-[14px] font-semibold">
-            Event name
-            <input
-              className="ios-field mt-1"
-              maxLength={160}
-              placeholder="e.g. Windhoek Tech Summit 2026"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-            />
-          </label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className="block text-[14px] font-semibold">
-              Start date
-              <input
-                type="date"
-                className="ios-field mt-1"
-                value={manualDate}
-                onChange={(e) => setManualDate(e.target.value)}
-              />
-            </label>
-            <label className="block text-[14px] font-semibold">
-              Venue &amp; city
-              <input
-                className="ios-field mt-1"
-                maxLength={200}
-                placeholder="Safari Court, Windhoek"
-                value={manualVenue}
-                onChange={(e) => setManualVenue(e.target.value)}
-              />
-            </label>
+              All 12 templates
+            </button>
+            {LAYOUT_FAMILIES.map((fam) => (
+              <button
+                key={fam}
+                type="button"
+                className="eb-chip text-[13px]"
+                aria-pressed={familyFilter === fam}
+                onClick={() => setFamilyFilter(fam)}
+              >
+                {LAYOUT_FAMILY_META[fam].name}
+              </button>
+            ))}
           </div>
-          <PrimaryButton type="submit" disabled={busy || manualBusy || offline}>
-            {manualBusy ? "Creating draft…" : "Create manual draft"}
-          </PrimaryButton>
-        </form>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleTemplates.map((tpl) => {
+              const selected = selectedTemplateId === tpl.id;
+              const accent =
+                tpl.defaultSurface === "dark"
+                  ? PALETTE_PRESET_META[tpl.defaultPalette].darkHex
+                  : PALETTE_PRESET_META[tpl.defaultPalette].lightHex;
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => pickTemplate(tpl.id)}
+                  className={cn(
+                    "eb-press flex flex-col justify-between rounded-xl border p-3.5 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-favorite-soft"
+                      : "border-border bg-card hover:border-foreground/30",
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span
+                          aria-hidden
+                          className="size-2.5 rounded-full"
+                          style={{ backgroundColor: accent }}
+                        />
+                        {LAYOUT_FAMILY_META[tpl.layoutFamily].name}
+                      </span>
+                      {selected && (
+                        <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                          <Check size={12} aria-hidden />
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[15px] font-bold text-foreground">{tpl.name}</p>
+                    <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                      {tpl.description}
+                    </p>
+                  </div>
+                  <p className="mt-2.5 border-t border-separator pt-2 text-[11px] font-semibold text-primary">
+                    {tpl.terms.programLabel} · {tpl.terms.peopleLabel} ·{" "}
+                    {tpl.defaultVisibility === "private_invite" ? "Private invite" : "Public"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          <form
+            onSubmit={(e) => void createGuidedDraft(e)}
+            className="eb-panel space-y-3.5 p-4 sm:p-5"
+          >
+            <div className="flex items-start gap-2.5">
+              <Sparkles size={19} className="mt-0.5 flex-none text-primary" aria-hidden />
+              <div>
+                <p className="text-[15px] font-bold">
+                  Selected: {chosenDef.name} ({LAYOUT_FAMILY_META[chosenDef.layoutFamily].name}{" "}
+                  layout)
+                </p>
+                <p className="text-[13px] text-muted-foreground">{chosenDef.visualNotes}</p>
+              </div>
+            </div>
+
+            <label className="block text-[14px] font-semibold">
+              Event template
+              <select
+                className="eb-field mt-1"
+                value={manualType}
+                onChange={(e) => handleLegacyTypeSelect(e.target.value as EventType)}
+              >
+                {EVENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-[14px] font-semibold">
+              Event name
+              <input
+                className="eb-field mt-1"
+                maxLength={160}
+                placeholder="e.g. Windhoek Tech Summit 2026"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+              />
+            </label>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block text-[14px] font-semibold">
+                Start date
+                <input
+                  type="date"
+                  className="eb-field mt-1"
+                  value={manualDate}
+                  onChange={(e) => setManualDate(e.target.value)}
+                />
+              </label>
+              <label className="block text-[14px] font-semibold">
+                Venue &amp; city
+                <input
+                  className="eb-field mt-1"
+                  maxLength={200}
+                  placeholder="Safari Court, Windhoek"
+                  value={manualVenue}
+                  onChange={(e) => setManualVenue(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <PrimaryButton type="submit" disabled={busy || manualBusy || offline}>
+              {manualBusy ? "Creating draft…" : "Create manual draft"}
+            </PrimaryButton>
+          </form>
+        </div>
       </Section>
 
-      <Section title="3. Import from external listing URL" id="org-create-claim">
-        <div className="ios-card space-y-3 p-4">
+      {/* 3. External URL Reviewed Import */}
+      <Section title="Import from external listing URL" id="org-create-claim">
+        <div className="eb-panel space-y-3 p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <Link2 size={20} className="mt-0.5 flex-none text-primary" aria-hidden />
+            <Link2 size={19} className="mt-0.5 flex-none text-primary" aria-hidden />
             <div>
-              <p className="text-[16px] font-semibold">Partner event feeds unavailable</p>
+              <p className="text-[15px] font-bold">Partner event feeds unavailable</p>
               <p className="text-[14px] text-muted-foreground">
                 Authorized automated partner feeds for Webtickets, What’s On Namibia and All Things
-                Swakopmund aren’t connected yet. You can record an official listing URL below to
-                start a reviewed draft with duplicate protection — pages are never scraped without
+                Swakopmund aren’t connected yet. Record an official listing URL below to start a
+                reviewed draft with duplicate protection — pages are never scraped without
                 authorisation.
               </p>
             </div>
           </div>
-          <form onSubmit={(e) => void importExternalUrlDraft(e)} className="space-y-2.5 pt-1">
+          <form onSubmit={(e) => void importExternalUrlDraft(e)} className="space-y-3 pt-1">
             <label className="block text-[14px] font-semibold">
               Official ticket or event listing URL
               <input
                 type="url"
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 placeholder="https://www.webtickets.co.za/..."
                 value={externalUrl}
                 onChange={(e) => setExternalUrl(e.target.value)}

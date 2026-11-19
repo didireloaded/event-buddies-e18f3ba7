@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Music2, Users } from "lucide-react";
+import { ArrowRight, Compass, MapPin, Music2, Users } from "lucide-react";
 import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { AvatarPicker } from "./AvatarPicker";
 import { initials, useCompanion } from "./context";
@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from "./ui";
 
 export function Onboarding() {
   const { attendee, navigate, data } = useCompanion();
-  const terms = getEventCategoryTerms(data.event.category);
+  const terms = getEventCategoryTerms(data.event.category, data.event.templateConfig);
   const [step, setStep] = useState(attendee.preferences.onboardingDone ? 2 : 0);
   const [mode, setMode] = useState<"music" | "friends" | "both">(
     attendee.preferences.festivalMode ?? "both",
@@ -28,93 +28,136 @@ export function Onboarding() {
     )
       navigate("events");
   };
+
   return (
     <section
-      className="flex min-h-[calc(100dvh-9rem)] flex-col px-5 pb-8"
+      className="mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]"
       aria-label="Welcome to Event Buddies"
     >
-      <div className="flex min-h-12 items-center justify-between">
-        <span className="text-[14px] text-muted-foreground">{step + 1} of 3</span>
-        {step < 2 && (
-          <button
-            type="button"
-            className="min-h-12 px-3 font-semibold"
-            onClick={() => {
-              setMode("both");
-              setStep(2);
-            }}
+      <div className="flex min-h-12 items-center justify-between border-b border-separator pb-2">
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="grid size-7 place-items-center rounded-md bg-primary text-[12px] font-extrabold text-primary-foreground"
           >
-            Skip
-          </button>
-        )}
+            EB
+          </span>
+          <span className="eb-display text-[15px]">Event Buddies</span>
+        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] font-medium text-muted-foreground">{step + 1} of 3</span>
+          {step < 2 && (
+            <button
+              type="button"
+              className="min-h-11 px-2 text-[15px] font-semibold text-primary"
+              onClick={() => {
+                setMode("both");
+                setStep(2);
+              }}
+            >
+              Skip
+            </button>
+          )}
+        </div>
       </div>
+
       {step === 0 && (
-        <div className="flex flex-1 flex-col justify-center py-6">
-          <div className="mb-8 flex items-end gap-3 text-favorite" aria-hidden>
-            <MapPin size={72} />
-            <Users size={48} />
-          </div>
-          <h1 className="ios-large-title">
+        <div className="flex flex-1 flex-col justify-center py-8">
+          <p className="eb-kicker text-primary">Festivals · Conferences · Parties · Live Sports</p>
+          <h1 className="eb-page-title mt-3 text-[40px] leading-[1.02]">
             Find your people.
             <br />
-            <span className="text-favorite">Don’t lose them.</span>
+            <span className="text-primary">Don’t lose them.</span>
           </h1>
-          <p className="mt-5 max-w-sm text-[17px] text-muted-foreground">
-            Your {data.event.name} map, favourite {terms.peopleLabel.toLowerCase()} and one meeting
-            plan to share with friends.
+          <p className="mt-4 max-w-md text-[16px] leading-relaxed text-muted-foreground">
+            Discover events, keep tickets offline, navigate venue maps and coordinate with your crew
+            — adapted to every event you attend.
           </p>
+          <div className="mt-7 grid grid-cols-3 gap-3 border-t border-separator pt-5 text-[13px] text-muted-foreground">
+            <div>
+              <Compass size={18} className="text-primary" aria-hidden />
+              <p className="mt-1.5 font-semibold text-foreground">Live venue maps</p>
+            </div>
+            <div>
+              <Users size={18} className="text-primary" aria-hidden />
+              <p className="mt-1.5 font-semibold text-foreground">Private crews</p>
+            </div>
+            <div>
+              <MapPin size={18} className="text-primary" aria-hidden />
+              <p className="mt-1.5 font-semibold text-foreground">Offline passes</p>
+            </div>
+          </div>
         </div>
       )}
+
       {step === 1 && (
-        <div className="flex-1 py-6">
-          <h1 className="text-[30px] font-bold leading-tight">
+        <div className="flex-1 py-8">
+          <p className="eb-kicker text-primary">Personalise home</p>
+          <h1 className="eb-page-title mt-2">
             {terms.isConferenceLike ? "How do you want to explore?" : "What’s your festival mode?"}
           </h1>
           <p className="mt-2 text-[15px] text-muted-foreground">
-            This shapes what sits first on your Home screen. Nothing is hidden and you can switch
-            anytime.
+            Sets what sits first on your event screen. Nothing is hidden and you can switch anytime.
           </p>
-          <div className="mt-6 space-y-3">
+          <div className="eb-list mt-6">
             {(
               [
                 {
                   value: "music",
                   label: terms.isConferenceLike ? "Here for the sessions" : "Here for the music",
+                  detail: terms.isConferenceLike
+                    ? "Speakers and timed agenda first"
+                    : "Headliners, stages and lineup first",
                   icon: Music2,
                 },
                 {
                   value: "friends",
                   label: terms.isConferenceLike ? "Here for networking" : "Here to meet people",
+                  detail: "Crew meetups and live pins first",
                   icon: Users,
                 },
-                { value: "both", label: "A bit of both", icon: MapPin },
+                {
+                  value: "both",
+                  label: "A bit of both",
+                  detail: "Balanced view of programme, map and crew",
+                  icon: MapPin,
+                },
               ] as const
-            ).map(({ value, label, icon: Icon }) => (
+            ).map(({ value, label, detail, icon: Icon }) => (
               <button
                 key={value}
                 type="button"
-                className="vibe-choice flex min-h-20 w-full items-center gap-4 rounded-2xl border border-border bg-popover px-4 text-left text-[18px] font-semibold"
+                aria-label={label}
+                className="vibe-choice eb-row py-4"
                 onClick={() => {
                   setMode(value);
                   setStep(2);
                 }}
               >
-                <Icon size={26} className="text-favorite" aria-hidden />
-                {label}
+                <span className="grid size-11 flex-none place-items-center rounded-xl bg-favorite-soft text-primary">
+                  <Icon size={21} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[17px] font-bold text-foreground">{label}</span>
+                  <span className="block text-[14px] text-muted-foreground">{detail}</span>
+                </span>
+                <ArrowRight size={18} className="flex-none text-muted-foreground" aria-hidden />
               </button>
             ))}
           </div>
         </div>
       )}
+
       {step === 2 && (
         <form
-          className="flex flex-1 flex-col py-6"
+          className="flex flex-1 flex-col py-8"
           onSubmit={(event) => {
             event.preventDefault();
             if (name.trim().length >= 2) finish();
           }}
         >
-          <h1 className="text-[30px] font-bold">What should we call you?</h1>
+          <p className="eb-kicker text-primary">Quick profile</p>
+          <h1 className="eb-page-title mt-2">What should we call you?</h1>
           <div className="my-6">
             <AvatarPicker fallbackLabel={initials(name) || "?"} altName={name.trim()} size="lg" />
           </div>
@@ -123,7 +166,7 @@ export function Onboarding() {
           </label>
           <input
             id="welcome-name"
-            className="ios-field text-center"
+            className="eb-field text-center text-[17px] font-medium"
             autoComplete="nickname"
             autoFocus
             maxLength={50}
@@ -155,8 +198,9 @@ export function Onboarding() {
           </div>
         </form>
       )}
+
       {step === 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <PrimaryButton onClick={() => setStep(1)}>Continue</PrimaryButton>
           <SecondaryButton onClick={() => navigate("events")}>
             Browse events without signing in

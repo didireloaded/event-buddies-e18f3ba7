@@ -45,22 +45,22 @@ export function DayPlanPanel() {
   }
   return (
     <section
-      className="ios-card mx-4 mt-3 space-y-2.5 px-4 py-3.5"
+      className="eb-panel mx-4 mt-4 space-y-2.5 px-4 py-4"
       aria-labelledby="day-plan-heading"
       aria-busy={busy}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="mt-0.5 grid size-9 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
+          className="mt-0.5 grid size-9 flex-none place-items-center rounded-lg bg-favorite-soft text-primary"
         >
           <CalendarCheck2 size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 id="day-plan-heading" className="text-[16px] font-semibold leading-tight">
+          <h2 id="day-plan-heading" className="text-[16px] font-bold leading-tight">
             Your day plan
           </h2>
-          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+          <p className="mt-0.5 text-[14px] leading-snug text-muted-foreground">
             {empty
               ? `Save ${terms.isConferenceLike ? "a speaker" : "an artist"} using a heart below, or pick a meeting in Crew.`
               : "Suggested plans stay on this device."}
@@ -70,14 +70,14 @@ export function DayPlanPanel() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <button
           type="button"
-          className="ios-press inline-flex min-h-11 items-center rounded-full bg-favorite-soft px-4 text-[14px] font-semibold text-primary disabled:opacity-45"
+          className="eb-press inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground disabled:opacity-45"
           disabled={!ready || empty || busy}
           onClick={() => void suggest()}
         >
           {busy ? "Suggesting your day…" : "Suggest my day plan"}
         </button>
         {empty && (
-          <p className="text-[12px] text-muted-foreground">Suggested plans stay on this device.</p>
+          <p className="text-[13px] text-muted-foreground">Suggested plans stay on this device.</p>
         )}
       </div>
       {busy && (

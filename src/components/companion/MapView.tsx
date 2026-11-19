@@ -295,7 +295,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                   key={p.id}
                   type="button"
                   onClick={() => map.setSelected(p.id)}
-                  className="ios-chip text-[14px]"
+                  className="eb-chip text-[14px]"
                 >
                   {p.name}
                 </button>
@@ -321,7 +321,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
               setRetryKey((k) => k + 1);
               setImageState("loading");
             }}
-            className="ios-press mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-favorite-soft px-5 text-[15px] font-semibold text-primary"
+            className="eb-press mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-favorite-soft px-5 text-[15px] font-semibold text-primary"
           >
             <RefreshCw size={16} aria-hidden /> Try again
           </button>
@@ -506,7 +506,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
           type="button"
           onClick={() => map.setExpanded(!expanded)}
           aria-label={expanded ? "Close full-screen map" : "Open full-screen map"}
-          className="grid size-11 place-items-center rounded-full bg-white/95 text-foreground shadow-float backdrop-blur"
+          className="grid size-11 place-items-center rounded-full bg-white/95 text-[#121417] shadow-float ring-1 ring-black/10"
         >
           {expanded ? <X size={20} /> : <Maximize2 size={18} />}
         </button>
@@ -516,7 +516,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             onClick={() => setBearing(0)}
             aria-label="Reset north"
             data-testid="map-compass-btn"
-            className="grid size-11 place-items-center rounded-full bg-white/95 text-foreground shadow-float backdrop-blur"
+            className="grid size-11 place-items-center rounded-full bg-white/95 text-[#121417] shadow-float ring-1 ring-black/10"
           >
             <Compass size={19} style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden />
           </button>
@@ -525,7 +525,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
 
       {/* Bottom-left live sharing / crew peek pill */}
       {imageState === "loaded" && (
-        <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[68%] truncate rounded-full bg-white/92 px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm backdrop-blur ring-1 ring-black/5">
+        <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[68%] truncate rounded-full bg-white/95 px-3.5 py-1.5 text-[13px] font-semibold text-[#121417] shadow-float ring-1 ring-black/10">
           {activeCalibratedGpsPins.length > 0
             ? `${activeCalibratedGpsPins.length} of your crew live on calibrated map`
             : activeCrewPins > 0 && crewLeadPlace
@@ -539,7 +539,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
       {/* Bottom-right controls: Zoom + Recenter FAB (always visible, 48px) */}
       {imageState !== "empty" && imageState !== "error" && (
         <div className="absolute bottom-3 right-3 z-20 flex flex-col items-center gap-2">
-          <div className="flex flex-col overflow-hidden rounded-xl bg-white/95 text-foreground shadow-float backdrop-blur">
+          <div className="flex flex-col overflow-hidden rounded-xl bg-white/95 text-[#121417] shadow-float ring-1 ring-black/10">
             <button
               type="button"
               aria-label="Zoom in"
@@ -549,7 +549,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             >
               <Plus size={20} />
             </button>
-            <span className="mx-2 h-px bg-separator" aria-hidden />
+            <span className="mx-2 h-px bg-black/10" aria-hidden />
             <button
               type="button"
               aria-label="Zoom out"
@@ -565,7 +565,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             aria-label="Recenter map"
             data-testid="map-recenter-fab"
             onClick={recenter}
-            className="ios-press grid size-12 place-items-center rounded-full bg-white/95 text-foreground shadow-float backdrop-blur ring-1 ring-black/10"
+            className="eb-press grid size-12 place-items-center rounded-full bg-white/95 text-[#121417] shadow-float ring-1 ring-black/10"
           >
             <Crosshair size={21} aria-hidden />
           </button>
@@ -637,7 +637,7 @@ function BarMenuSection({
             type="button"
             aria-pressed={category === cat}
             onClick={() => setCategory(cat)}
-            className="ios-chip min-h-11 px-3 text-[13px]"
+            className="eb-chip min-h-11 px-3 text-[13px]"
           >
             {cat}
           </button>
@@ -690,15 +690,16 @@ export function MapView() {
 
   return (
     <div className="venue-map-page pb-4">
-      <div className="flex items-end justify-between gap-2 px-4 pt-2">
+      <div className="flex items-end justify-between gap-2 px-4 pt-3">
         <div className="min-w-0 flex-1">
-          <h1 className="ios-large-title">Map</h1>
+          <p className="eb-kicker text-primary">{data.event.venueName}</p>
+          <h1 className="eb-page-title mt-0.5">Map</h1>
         </div>
         <button
           type="button"
           aria-label="Find nearby facilities"
           onClick={() => openSheet({ kind: "nearby" })}
-          className="mb-1 grid size-11 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+          className="mb-1 grid size-11 flex-none place-items-center rounded-full border border-border bg-card text-foreground"
         >
           <Compass size={19} />
         </button>
@@ -706,7 +707,7 @@ export function MapView() {
           type="button"
           aria-label="Location privacy"
           onClick={() => openSheet({ kind: "privacy" })}
-          className="mb-1 grid size-11 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+          className="mb-1 grid size-11 flex-none place-items-center rounded-full border border-border bg-card text-foreground"
         >
           <EyeOff size={19} />
         </button>
@@ -719,7 +720,7 @@ export function MapView() {
             map.setFilter("safety");
             setCategoryCollapsed(false);
           }}
-          className="mb-1 grid size-11 flex-none place-items-center rounded-full bg-popover ring-1 ring-border"
+          className="mb-1 grid size-11 flex-none place-items-center rounded-full border border-border bg-card text-foreground"
         >
           <Shield size={19} />
         </button>
@@ -729,7 +730,7 @@ export function MapView() {
         <SearchField
           id="venue-search"
           label="Search venue places or artists"
-          placeholder="Stage, bar, toilet or artist"
+          placeholder="Stage, room, bar, toilet or speaker"
           value={map.query}
           onChange={(value) => {
             map.setQuery(value);
@@ -749,7 +750,7 @@ export function MapView() {
           <button
             key={id}
             type="button"
-            className="ios-chip"
+            className="eb-chip"
             aria-pressed={map.filter === id}
             aria-expanded={id !== "all" ? map.filter === id && !term : undefined}
             aria-controls={
@@ -762,9 +763,9 @@ export function MapView() {
               setCategoryCollapsed(false);
             }}
           >
-            <Icon size={16} aria-hidden /> {label}
+            <Icon size={15} aria-hidden /> {label}
             {id !== "all" && (
-              <span className="ml-0.5 text-[13px] text-muted-foreground">
+              <span className="ml-0.5 text-[12px] opacity-75">
                 {places.filter((p) => matchesFilter(p, id)).length}
               </span>
             )}
@@ -815,7 +816,7 @@ export function MapView() {
                   key={p.id}
                   type="button"
                   aria-pressed={p.id === map.selected}
-                  className="ios-row w-full border-b border-border last:border-b-0"
+                  className="eb-row w-full border-b border-border last:border-b-0"
                   onClick={() => map.setSelected(p.id)}
                 >
                   <IconTile icon={placeIcon(p.type)} tone={placeTone(p.type)} />
@@ -929,18 +930,24 @@ export function MapView() {
 
                   <p className="text-[16px] leading-relaxed">{place.description}</p>
 
-                  {/* Category-specific detail blocks */}
+                  {/* Category-specific detail blocks tailored to each venue location function */}
                   {place.type === "stage" && (
-                    <div className="space-y-2 rounded-2xl bg-popover p-3.5 ring-1 ring-border">
-                      <p className="text-[15px] font-semibold">
+                    <div className="eb-panel space-y-2 p-4">
+                      <p className="eb-kicker text-primary">
+                        {data.event.category.toLowerCase().includes("conference") ||
+                        data.event.category.toLowerCase().includes("corporate")
+                          ? "Conference room & speakers"
+                          : "Stage programme"}
+                      </p>
+                      <p className="text-[16px] font-bold">
                         {stageArtists.length
                           ? stageArtists.map((artist) => artist.name).join(" · ")
-                          : "Performers awaiting confirmation"}
+                          : "Programme awaiting confirmation"}
                       </p>
                       <p className="text-[13px] text-muted-foreground">
                         {data.festival.timetablePublished
-                          ? "Check full lineup for set times."
-                          : "Set times awaiting publication."}
+                          ? "Confirmed times are listed in the programme."
+                          : "Times awaiting organiser publication."}
                       </p>
                       <button
                         type="button"
@@ -950,7 +957,7 @@ export function MapView() {
                           navigate("lineup");
                         }}
                       >
-                        View full lineup <ArrowUpRight size={15} aria-hidden />
+                        View full programme <ArrowUpRight size={15} aria-hidden />
                       </button>
                     </div>
                   )}
@@ -964,17 +971,70 @@ export function MapView() {
                   )}
 
                   {place.type === "food" && (
-                    <p className="rounded-xl bg-secondary px-3.5 py-2.5 text-[14px]">
-                      <strong>Food area:</strong> Vendor menus and dietary details appear here once
-                      confirmed by the organiser.
-                    </p>
+                    <div className="eb-panel space-y-1.5 p-4 text-[14px]">
+                      <p className="eb-kicker text-primary">Food &amp; dining</p>
+                      <p>
+                        Vendor menus and dietary tags appear here once confirmed by the organiser.
+                      </p>
+                    </div>
+                  )}
+
+                  {place.type === "sponsor" && (
+                    <div className="eb-panel space-y-2 p-4 text-[14px]">
+                      <p className="eb-kicker text-primary">Partner &amp; sponsor activation</p>
+                      <p>
+                        Check in here with your Event Passport or visit on-site stewards for session
+                        and activation times.
+                      </p>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-primary"
+                        onClick={() => {
+                          map.setSelected(null);
+                          openSheet({ kind: "passport" });
+                        }}
+                      >
+                        Open Event Passport <ArrowUpRight size={15} aria-hidden />
+                      </button>
+                    </div>
+                  )}
+
+                  {place.type === "parking" && (
+                    <div className="eb-panel space-y-2 p-4 text-[14px]">
+                      <p className="eb-kicker text-primary">Parking &amp; pickup</p>
+                      <p>
+                        Save your bay, gate or shuttle note in Essentials so you can find your ride
+                        quickly at the end of the event.
+                      </p>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-primary"
+                        onClick={() => {
+                          map.setSelected(null);
+                          navigate("info");
+                        }}
+                      >
+                        Open Transport &amp; Parking <ArrowUpRight size={15} aria-hidden />
+                      </button>
+                    </div>
+                  )}
+
+                  {(place.type === "zone" || place.type === "tent") && (
+                    <div className="eb-panel space-y-1.5 p-4 text-[14px]">
+                      <p className="eb-kicker text-primary">Venue zone &amp; pavilion</p>
+                      <p>
+                        Access rules follow your ticket tier or badge. Check with stewards at the
+                        zone entrance if unsure.
+                      </p>
+                    </div>
                   )}
 
                   {place.type === "entrance" && (
-                    <div className="space-y-2 rounded-xl bg-secondary px-3.5 py-2.5 text-[14px]">
+                    <div className="eb-panel space-y-2.5 p-4 text-[14px]">
+                      <p className="eb-kicker text-primary">Gate &amp; arrival</p>
                       <p>
-                        <strong>Opens {getEventOpensTime(data)} CAT.</strong> Have your ticket and
-                        valid ID ready at the gate.
+                        <strong>Opens {getEventOpensTime(data)} CAT.</strong> Have your ticket pass
+                        and valid ID ready at the gate.
                       </p>
                       {eventTickets.length > 0 && (
                         <SecondaryButton
@@ -990,14 +1050,23 @@ export function MapView() {
                   )}
 
                   {(place.type === "first-aid" || place.type === "security") && (
-                    <SecondaryButton
-                      onClick={() => {
-                        map.setSelected(null);
-                        openSheet({ kind: "safety" });
-                      }}
-                    >
-                      <Shield size={17} aria-hidden /> Open Safety &amp; ICE medical card
-                    </SecondaryButton>
+                    <div className="space-y-2.5">
+                      <div className="eb-panel p-4 text-[14px]">
+                        <p className="eb-kicker text-destructive">On-site assistance</p>
+                        <p className="mt-1">
+                          Alert the nearest uniformed steward or head directly to this point for
+                          medical or safety support.
+                        </p>
+                      </div>
+                      <SecondaryButton
+                        onClick={() => {
+                          map.setSelected(null);
+                          openSheet({ kind: "safety" });
+                        }}
+                      >
+                        <Shield size={17} aria-hidden /> Open Safety &amp; ICE medical card
+                      </SecondaryButton>
+                    </div>
                   )}
 
                   {crew.crew?.members

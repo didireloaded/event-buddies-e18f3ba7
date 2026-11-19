@@ -257,28 +257,36 @@ export function ConnectedCrew() {
     }
   }
   return (
-    <section className="ios-card mx-4 mt-3 space-y-3 p-4" aria-labelledby="connected-crew-heading">
+    <section
+      className="eb-panel mx-4 mt-4 space-y-4 p-4 sm:p-5"
+      aria-labelledby="connected-crew-heading"
+    >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3.5">
           {crew && resolvedCrewPhotoUrl ? (
             <img
               src={resolvedCrewPhotoUrl}
               alt={`${crew.name} photo`}
-              width={44}
-              height={44}
+              width={56}
+              height={56}
               decoding="async"
-              className="size-11 flex-none rounded-xl object-cover ring-1 ring-border"
+              className="size-14 flex-none rounded-xl object-cover ring-1 ring-border"
             />
           ) : (
             <span
               aria-hidden
-              className="grid size-10 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
+              className="grid size-12 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
             >
-              <Users size={19} />
+              <Users size={21} />
             </span>
           )}
           <div className="min-w-0">
-            <h2 id="connected-crew-heading" className="truncate text-[18px] font-bold leading-snug">
+            <p className="eb-kicker text-[11px] text-primary">
+              {crew
+                ? `${crew.members.length} ${crew.members.length === 1 ? "member" : "members"}`
+                : "Private group"}
+            </p>
+            <h2 id="connected-crew-heading" className="eb-display mt-0.5 truncate text-[21px]">
               {crew?.name ?? "Your connected crew"}
             </h2>
             {!attendee.auth.user && (
@@ -289,7 +297,7 @@ export function ConnectedCrew() {
           </div>
         </div>
         {crew && self?.owner && (
-          <label className="ios-press inline-flex min-h-11 flex-none cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground">
+          <label className="eb-press inline-flex min-h-11 flex-none cursor-pointer items-center gap-1.5 rounded-full border border-border bg-secondary px-3.5 text-[13px] font-semibold text-foreground">
             <Camera size={14} aria-hidden />
             {resolvedCrewPhotoUrl ? "Change photo" : "Crew photo"}
             <input
@@ -366,7 +374,7 @@ export function ConnectedCrew() {
           {!pendingInvite && (
             <a
               href="/login?next=%2F%23crew"
-              className="ios-press flex min-h-11 w-full items-center justify-center rounded-xl bg-favorite-soft px-4 text-[15px] font-semibold text-primary"
+              className="eb-press flex min-h-11 w-full items-center justify-center rounded-xl bg-favorite-soft px-4 text-[15px] font-semibold text-primary"
             >
               Sign in for shared crews
             </a>
@@ -834,10 +842,10 @@ export function ConnectedCrew() {
                   )}
                 </div>
               )}
-              <label className="block font-medium">
+              <label className="block text-[14px] font-semibold">
                 {mode === "create" ? "Crew name" : "Crew code or invite link"}
                 <input
-                  className="ios-field mt-2"
+                  className="eb-field mt-1.5"
                   required
                   minLength={mode === "create" ? 2 : 36}
                   maxLength={mode === "create" ? 60 : 240}
@@ -848,6 +856,18 @@ export function ConnectedCrew() {
                   }
                 />
               </label>
+              {mode === "join" && sync.error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-[14px]"
+                >
+                  <p className="font-semibold text-destructive">Invite unavailable</p>
+                  <p className="mt-0.5 text-foreground">
+                    {sync.error} Invite links expire after 24 hours or when replaced by the crew
+                    owner — ask your friend to generate a fresh code.
+                  </p>
+                </div>
+              )}
               <PrimaryButton type="submit" disabled={waiting}>
                 {mode === "create" ? "Create private crew" : "Join crew"}
               </PrimaryButton>
@@ -855,10 +875,21 @@ export function ConnectedCrew() {
           )}
           {mode === "invite" && crew && (
             <div className="space-y-4">
-              <p className="text-[15px]">
-                Anyone with this code or link can join. Replacing the code revokes the previous
-                invite.
+              <p className="text-[14px] text-muted-foreground">
+                Anyone with this code or link can join. Replacing the code immediately revokes the
+                previous invite.
               </p>
+              {sync.invite && Date.parse(sync.invite.expiresAt) <= Date.now() && (
+                <div
+                  role="status"
+                  className="rounded-xl border border-warning/40 bg-warning-soft p-3 text-[14px]"
+                >
+                  <p className="font-semibold">Previous invite expired</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    Generate a fresh invite code below to share a new link and QR code.
+                  </p>
+                </div>
+              )}
               {sync.invite && Date.parse(sync.invite.expiresAt) > Date.now() && (
                 <>
                   <SecondaryButton onClick={() => void shareInvite()}>Share invite</SecondaryButton>
@@ -979,7 +1010,7 @@ export function ConnectedCrew() {
               <label className="block font-medium">
                 I’m at
                 <select
-                  className="ios-field mt-2"
+                  className="eb-field mt-2"
                   value={pointId}
                   onChange={(e) => setPointId(e.target.value)}
                 >

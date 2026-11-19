@@ -88,39 +88,37 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
     );
 
   return (
-    <div className="min-h-dvh pb-[max(2rem,env(safe-area-inset-bottom))]">
-      <header className="ios-bar sticky top-0 z-20 pt-safe">
-        <div className="mx-auto flex h-11 max-w-4xl items-center px-safe">
+    <div className="min-h-dvh bg-background pb-[max(2rem,env(safe-area-inset-bottom))] text-foreground">
+      <header className="eb-header sticky top-0 z-20 pt-safe">
+        <div className="mx-auto flex h-12 max-w-4xl items-center px-safe">
           <Link
             to="/"
             hash="home"
-            className="-ml-2 flex min-h-11 items-center gap-1 px-2 text-[17px] text-primary"
+            className="-ml-2 flex min-h-11 items-center gap-1 px-2 text-[15px] font-semibold text-primary"
           >
-            <ArrowLeft size={20} aria-hidden /> Attendee app
+            <ArrowLeft size={18} aria-hidden /> Attendee app
           </Link>
         </div>
       </header>
-      <main className="mx-auto max-w-4xl pt-2">
+      <main className="mx-auto max-w-4xl pt-4">
         <div className="px-4">
-          <p className="text-[15px] font-semibold uppercase tracking-wide text-warning">
-            Demo · read-only
-          </p>
-          <h1 className="ios-large-title">Organiser workspace</h1>
-          <p className="mt-2 text-[17px] text-muted-foreground">
+          <p className="eb-kicker text-warning">Demo · read-only</p>
+          <h1 className="eb-page-title mt-0.5">Organiser workspace</h1>
+          <p className="mt-2 text-[15px] text-muted-foreground">
             {data.event.name} 2026 · {data.organiser.name}. This preview shows the data the attendee
             app uses. Nothing here is published to attendees.
           </p>
         </div>
 
-        <div className="md:grid md:grid-cols-2 md:gap-x-6 md:px-4">
+        <div className="md:grid md:grid-cols-2 md:gap-x-8 md:px-4">
           <Section title="Readiness" id="org-readiness" className="px-4 md:px-0">
-            <ul className="ios-group">
+            <ul className="eb-list">
               {checks.map((c) => (
-                <li key={c.label} className="ios-row items-start py-3">
+                <li key={c.label} className="eb-row items-start py-3">
                   <span className="mt-0.5">{icon(c.state)}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[17px] font-medium">{c.label}</span>
-                    <span className="block text-[15px] text-muted-foreground">{c.detail}</span>
+                    <span className="block text-[15px] font-semibold">{c.label}</span>
+                    <span className="block text-[14px] text-muted-foreground">{c.detail}</span>
                   </span>
                 </li>
               ))}
@@ -129,12 +127,12 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
 
           <div>
             <Section title="Stages" id="org-stages" className="px-4 md:px-0">
-              <ul className="ios-group">
+              <ul className="eb-list">
                 {data.stages.map((s) => (
-                  <li key={s.id} className="ios-row py-3">
+                  <li key={s.id} className="eb-row py-3">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[17px] font-medium">{s.name}</span>
-                      <span className="block text-[15px] text-muted-foreground">
+                      <span className="block text-[15px] font-semibold">{s.name}</span>
+                      <span className="block text-[14px] text-muted-foreground">
                         {data.festival.artists
                           .filter((a) => a.stageId === s.id)
                           .map((a) => a.name)
@@ -148,11 +146,11 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
             </Section>
 
             <Section title="Map points by type" id="org-points" className="px-4 md:px-0">
-              <ul className="ios-group">
+              <ul className="eb-list">
                 {counts.map(([type, n]) => (
-                  <li key={type} className="ios-row justify-between">
-                    <span className="text-[17px]">{TYPE_LABELS[type] ?? type}</span>
-                    <span className="text-[17px] tabular-nums text-muted-foreground">{n}</span>
+                  <li key={type} className="eb-row justify-between">
+                    <span className="text-[15px]">{TYPE_LABELS[type] ?? type}</span>
+                    <span className="text-[15px] tabular-nums text-muted-foreground">{n}</span>
                   </li>
                 ))}
               </ul>
@@ -165,7 +163,7 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
               footer="Saved as a draft in this browser only. Sending to attendees needs a connected backend."
             >
               <form
-                className="ios-card space-y-3 p-4"
+                className="eb-panel space-y-3 p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (!draft.title.trim()) return setStatus("Add a title before saving.");
@@ -173,42 +171,42 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
                   setStatus("Draft saved on this device. Not sent.");
                 }}
               >
-                <label htmlFor="draft-title" className="block text-[15px] font-semibold">
+                <label htmlFor="draft-title" className="block text-[14px] font-semibold">
                   Title
                 </label>
                 <input
                   id="draft-title"
-                  className="ios-field"
+                  className="eb-field"
                   maxLength={80}
                   value={draft.title}
                   onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                 />
-                <label htmlFor="draft-body" className="block text-[15px] font-semibold">
+                <label htmlFor="draft-body" className="block text-[14px] font-semibold">
                   Message
                 </label>
                 <textarea
                   id="draft-body"
-                  className="ios-field min-h-24 py-2"
+                  className="eb-field min-h-24 py-2"
                   maxLength={500}
                   value={draft.body}
                   onChange={(e) => setDraft({ ...draft, body: e.target.value })}
                 />
                 {status && (
-                  <p role="status" className="text-[15px] text-muted-foreground">
+                  <p role="status" className="text-[14px] text-muted-foreground">
                     {status}
                   </p>
                 )}
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="submit"
-                    className="min-h-11 rounded-xl bg-secondary text-[17px] font-semibold text-secondary-foreground"
+                    className="min-h-11 rounded-full bg-secondary text-[15px] font-semibold text-secondary-foreground"
                   >
                     Save draft
                   </button>
                   <button
                     type="button"
                     disabled
-                    className="min-h-11 rounded-xl bg-fill text-[17px] font-semibold text-muted-foreground"
+                    className="min-h-11 rounded-full bg-fill text-[15px] font-semibold text-muted-foreground"
                     aria-describedby="send-unavailable"
                   >
                     Send
@@ -225,7 +223,7 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
         <div className="mt-6 flex flex-wrap gap-x-6 px-4">
           {data.festival.officialUrl && (
             <a
-              className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
+              className="flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
               href={data.festival.officialUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -235,7 +233,7 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
           )}
           {data.festival.ticketUrl && (
             <a
-              className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
+              className="flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
               href={data.festival.ticketUrl}
               target="_blank"
               rel="noopener noreferrer"

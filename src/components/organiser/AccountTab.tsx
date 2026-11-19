@@ -163,12 +163,13 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
 
   return (
     <div className="py-4">
-      <h1 className="ios-large-title">Organiser account</h1>
+      <p className="eb-kicker text-primary">Organiser Studio</p>
+      <h1 className="eb-page-title mt-0.5">Organiser account</h1>
 
       <Section title="Profile & logo" id="org-profile">
-        <form onSubmit={(e) => void saveBasics(e)} className="ios-card space-y-4 p-4">
+        <form onSubmit={(e) => void saveBasics(e)} className="eb-panel space-y-4 p-4 sm:p-5">
           <div className="flex items-center gap-4">
-            <div className="grid size-16 flex-none place-items-center overflow-hidden rounded-2xl bg-secondary text-[13px] font-semibold text-muted-foreground">
+            <div className="grid size-16 flex-none place-items-center overflow-hidden rounded-xl border border-border bg-secondary text-[13px] font-semibold text-muted-foreground">
               {logoUrl ? (
                 <img
                   src={logoUrl}
@@ -183,7 +184,7 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
               )}
             </div>
             <div className="flex flex-wrap gap-3">
-              <label className="ios-press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-secondary px-4 text-[15px] font-semibold">
+              <label className="eb-press inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border bg-secondary px-4 text-[14px] font-semibold">
                 {logoUrl ? "Replace logo" : "Upload logo"}
                 <input
                   type="file"
@@ -201,7 +202,7 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
                 <button
                   type="button"
                   disabled={busy}
-                  className="min-h-11 text-[15px] font-semibold text-destructive"
+                  className="min-h-11 text-[14px] font-semibold text-destructive"
                   onClick={async () => {
                     setBusy(true);
                     setError("");
@@ -222,20 +223,20 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
             </div>
           </div>
 
-          <label className="block text-[15px] font-semibold">
+          <label className="block text-[14px] font-semibold">
             Your name
             <input
-              className="ios-field mt-1"
+              className="eb-field mt-1"
               maxLength={80}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Alex Shikongo"
             />
           </label>
-          <label className="block text-[15px] font-semibold">
+          <label className="block text-[14px] font-semibold">
             Organisation name
             <input
-              className="ios-field mt-1"
+              className="eb-field mt-1"
               maxLength={120}
               value={organisation}
               onChange={(e) => setOrganisation(e.target.value)}
@@ -249,13 +250,13 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
       </Section>
 
       <Section title="Organisation verification" id="org-verification">
-        <div className="ios-card space-y-3 p-4">
-          <p className="text-[15px] font-semibold capitalize">Status: {verification}</p>
-          <p className="text-[15px] text-muted-foreground">
+        <div className="eb-panel space-y-3 p-4 sm:p-5">
+          <p className="text-[15px] font-bold capitalize">Status: {verification}</p>
+          <p className="text-[14px] text-muted-foreground">
             {verificationStatusCopy(verification)}
           </p>
           {verification !== "verified" && (
-            <label className="ios-press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-secondary px-4 text-[15px] font-semibold">
+            <label className="eb-press inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border bg-secondary px-4 text-[14px] font-semibold">
               {verification === "pending"
                 ? "Replace verification file"
                 : "Upload verification document"}
@@ -279,13 +280,13 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
       </Section>
 
       <Section title="Team roles & collaborators" id="org-team">
-        <div className="ios-card space-y-3 p-4">
+        <div className="eb-panel space-y-3.5 p-4 sm:p-5">
           <p className="text-[14px] text-muted-foreground">
             Your account is the workspace owner. Assign team roles for event editors, live
             operations staff or read-only reviewers.
           </p>
           <form
-            className="space-y-2"
+            className="space-y-2.5"
             onSubmit={async (e) => {
               e.preventDefault();
               if (busy || !teamEmail.trim()) return;
@@ -311,19 +312,19 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
                 type="email"
                 required
                 aria-label="Collaborator email"
-                className="ios-field"
+                className="eb-field"
                 placeholder="teammate@example.com"
                 value={teamEmail}
                 onChange={(e) => setTeamEmail(e.target.value)}
               />
               <select
                 aria-label="Collaborator role"
-                className="ios-field"
+                className="eb-field"
                 value={teamRole}
                 onChange={(e) => setTeamRole(e.target.value as OrganiserTeamMember["role"])}
               >
-                <option value="editor">Editor (drafts & zones)</option>
-                <option value="live_ops">Live ops (schedule & issues)</option>
+                <option value="editor">Editor (drafts &amp; zones)</option>
+                <option value="live_ops">Live ops (schedule &amp; issues)</option>
                 <option value="viewer">Viewer (read-only)</option>
               </select>
             </div>
@@ -332,12 +333,14 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
             </SecondaryButton>
           </form>
           {team.length > 0 && (
-            <ul className="divide-y divide-border pt-2 text-[14px]">
+            <ul className="divide-y divide-separator pt-2 text-[14px]">
               {team.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-2 py-2">
+                <li key={m.id} className="flex items-center justify-between gap-2 py-2.5">
                   <span className="min-w-0 break-all">
                     <strong>{m.email}</strong> ·{" "}
-                    <span className="uppercase text-primary">{m.role}</span>
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-primary">
+                      {m.role}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -371,22 +374,31 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
       </Section>
 
       {status && (
-        <p role="status" className="mt-4 rounded-xl bg-secondary px-4 py-3 text-[15px]">
+        <p
+          role="status"
+          className="mt-4 rounded-xl border border-border bg-secondary px-4 py-3 text-[15px]"
+        >
           {status}
         </p>
       )}
       {error && (
-        <p role="alert" className="mt-4 rounded-xl bg-warning-soft px-4 py-3 text-[15px]">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-[15px]"
+        >
           {error}
         </p>
       )}
 
       <Section title="Privacy & access" id="org-privacy">
-        <div className="ios-card space-y-3 p-4">
-          <p className="text-[15px] text-muted-foreground">
+        <div className="eb-panel space-y-3 p-4 sm:p-5">
+          <p className="text-[14px] text-muted-foreground">
             Drafts, uploaded files and event records are scoped to your account by database rules.
           </p>
-          <Link to="/" className="flex min-h-11 items-center font-semibold text-primary">
+          <Link
+            to="/"
+            className="flex min-h-11 items-center text-[15px] font-semibold text-primary"
+          >
             Open attendee app
           </Link>
           <SecondaryButton
@@ -409,13 +421,13 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
             <button
               type="button"
               disabled={busy}
-              className="min-h-11 text-[15px] font-semibold text-destructive"
+              className="min-h-11 text-[14px] font-semibold text-destructive"
               onClick={() => setConfirmDelete(true)}
             >
               Delete my synced account data
             </button>
           ) : (
-            <div className="space-y-2 border-t border-border pt-3">
+            <div className="space-y-2 border-t border-separator pt-3">
               <p className="text-[14px] text-muted-foreground">
                 Deletes your unpublished drafts and synced attendee data, transfers any crew you own
                 to the longest-standing member, and signs you out.
@@ -448,7 +460,7 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
 
       {adminRows && (
         <Section title="Admin verification queue" id="org-admin-queue">
-          <div className="ios-card divide-y divide-border p-4">
+          <div className="eb-panel divide-y divide-separator p-4 sm:p-5">
             {adminRows.length === 0 ? (
               <p className="text-[15px] text-muted-foreground">No organiser profiles submitted.</p>
             ) : (
