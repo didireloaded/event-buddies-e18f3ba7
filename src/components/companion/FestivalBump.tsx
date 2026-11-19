@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { QrCode, ScanLine, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { bumpLink, readBump, type BumpPlan } from "@/lib/attendee/festival-bump";
 import { eventTime } from "@/lib/attendee/schedule";
@@ -84,23 +85,25 @@ export function FestivalBump() {
   const meetingPlace = incoming?.meeting && places.find((p) => p.id === incoming.meeting?.pointId);
   return (
     <Section title="Share with a friend" id="crew-bump" className="px-4">
-      <div className="grid grid-cols-2 gap-2">
-        <PrimaryButton disabled={!attendee.ready} onClick={() => setMode("show")}>
-          Show QR
-        </PrimaryButton>
-        <SecondaryButton
-          onClick={() => {
-            setMode("scan");
-            setIncoming(null);
-            setError("");
-          }}
-        >
-          Scan friend
+      <div className="ios-card space-y-2 p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <PrimaryButton disabled={!attendee.ready} onClick={() => setMode("show")}>
+            <QrCode size={18} aria-hidden /> Show QR
+          </PrimaryButton>
+          <SecondaryButton
+            onClick={() => {
+              setMode("scan");
+              setIncoming(null);
+              setError("");
+            }}
+          >
+            <ScanLine size={18} aria-hidden /> Scan friend
+          </SecondaryButton>
+        </div>
+        <SecondaryButton disabled={!attendee.ready} onClick={sharePlan}>
+          <Share2 size={17} aria-hidden /> Share meetup link
         </SecondaryButton>
       </div>
-      <SecondaryButton className="mt-2" disabled={!attendee.ready} onClick={sharePlan}>
-        Share meetup link
-      </SecondaryButton>
       {shareLink && (
         <label className="mt-2 block text-[14px] text-muted-foreground">
           Anyone with this link can read the shared plan.

@@ -732,8 +732,21 @@ export function MapView() {
 
       <div className="mt-2 lg:px-4">
         <div>
-          <div className="mx-4 mb-2 flex items-center justify-between rounded-xl bg-popover px-3 py-2 text-[13px] text-muted-foreground">
-            <span>
+          <div className="mx-4 mb-2 flex items-center gap-2 rounded-full bg-popover px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground ring-1 ring-border/60">
+            <span
+              aria-hidden
+              className={cn(
+                "size-2 flex-none rounded-full",
+                (crew.crew?.members.some(
+                  (m) => m.pointId && m.expiresAt && Date.parse(m.expiresAt) > (now ?? Date.now()),
+                ) ??
+                  false) ||
+                  activeLandmarkPin(data, attendee.preferences.here, now)
+                  ? "bg-primary"
+                  : "bg-tertiary-foreground/60",
+              )}
+            />
+            <span className="truncate">
               {(() => {
                 const activeCrewPins =
                   crew.crew?.members.filter(
@@ -742,12 +755,12 @@ export function MapView() {
                   ).length ?? 0;
                 const localHere = Boolean(activeLandmarkPin(data, attendee.preferences.here, now));
                 if (activeCrewPins > 0) {
-                  return `${activeCrewPins} crew ${activeCrewPins === 1 ? "pin" : "pins"} live on the map`;
+                  return `${activeCrewPins} crew ${activeCrewPins === 1 ? "pin" : "pins"} live`;
                 }
                 if (localHere) {
-                  return "Your 60-minute landmark pin is active on this phone";
+                  return "60m landmark pin active on this phone";
                 }
-                return "You’re hidden · no active pins — tap any landmark to plan or drop a pin";
+                return "Ghost mode · Tap a pin to plan";
               })()}
             </span>
           </div>

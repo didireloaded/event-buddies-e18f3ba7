@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
 import { initials, useCompanion } from "./context";
@@ -6,7 +6,7 @@ import { Sheet } from "./Sheet";
 import { Avatar, PrimaryButton, Section } from "./ui";
 
 /** People are drawn only from plans actually imported on this phone. */
-export function CrewPeople() {
+export function CrewPeople({ action }: { action?: ReactNode } = {}) {
   const { attendee, avatar, places, openSheet, openPlace, view } = useCompanion();
   const plans = attendee.preferences.sharedPlans;
   const [selected, setSelected] = useState<number | null>(null);
@@ -14,11 +14,11 @@ export function CrewPeople() {
   const meeting = entry?.plan.meeting;
   const place = places.find((point) => point.id === meeting?.pointId);
   return (
-    <Section title="Your crew" id="crew-people" className="px-4">
-      <div className="scrollbar-none flex gap-4 overflow-x-auto rounded-xl bg-popover px-4 py-4">
+    <Section title="Your crew" id="crew-people" className="px-4" action={action}>
+      <div className="ios-card scrollbar-none flex gap-4 overflow-x-auto px-4 py-4">
         <button
           type="button"
-          className="flex min-w-16 flex-col items-center gap-2"
+          className="flex min-w-16 flex-col items-center gap-1.5"
           onClick={() => openSheet({ kind: "profile" })}
         >
           <Avatar
@@ -27,18 +27,18 @@ export function CrewPeople() {
             alt="Your profile photo"
             size="lg"
           />
-          <span className="text-[15px] font-medium">You</span>
+          <span className="text-[14px] font-semibold">You</span>
         </button>
         {plans.map(({ plan, receivedAt }, index) => (
           <button
             key={`${receivedAt}-${index}`}
             type="button"
-            className="flex w-20 flex-none flex-col items-center gap-2"
+            className="flex w-20 flex-none flex-col items-center gap-1.5"
             onClick={() => setSelected(index)}
             aria-label={`View ${plan.name}’s shared plan`}
           >
             <Avatar label={initials(plan.name)} index={index} size="lg" />
-            <span className="w-full truncate text-[15px] font-medium">{plan.name}</span>
+            <span className="w-full truncate text-[14px] font-medium">{plan.name}</span>
           </button>
         ))}
         <a
@@ -49,20 +49,20 @@ export function CrewPeople() {
               document.getElementById("crew-bump")?.scrollIntoView({ block: "center" });
             }
           }}
-          className="flex min-w-16 flex-col items-center gap-2"
+          className="flex min-w-16 flex-col items-center gap-1.5"
           aria-label="Share with a friend"
         >
-          <span className="grid size-14 place-items-center rounded-full bg-favorite-soft text-favorite">
+          <span className="grid size-16 place-items-center rounded-full border-2 border-dashed border-primary/35 bg-favorite-soft text-favorite">
             <Plus size={24} />
           </span>
-          <span className="text-[15px] font-medium">Add</span>
+          <span className="text-[14px] font-medium text-primary">Add</span>
         </a>
       </div>
-      <p className="mt-2 text-[14px] text-muted-foreground">
-        {plans.length
-          ? "Tap a friend to see their shared plan."
-          : "Bring a friend’s plan over by QR or link."}
-      </p>
+      {plans.length > 0 && (
+        <p className="mt-1.5 px-1 text-[13px] text-muted-foreground">
+          Tap a friend to view their meetup plan.
+        </p>
+      )}
       {entry && (
         <Sheet title={entry.plan.name} onClose={() => setSelected(null)}>
           <div className="space-y-4">

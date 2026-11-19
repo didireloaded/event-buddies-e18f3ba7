@@ -14,7 +14,7 @@ import { CrewPeople } from "./CrewPeople";
 import { FestivalBump } from "./FestivalBump";
 import { FindMe } from "./FindMe";
 import { Regroup } from "./Regroup";
-import { Avatar, Chevron, IconTile, PrimaryButton, RowText, Section } from "./ui";
+import { Avatar, PrimaryButton, Section } from "./ui";
 
 export { countdownLabel } from "@/lib/attendee/event-clock";
 
@@ -38,12 +38,7 @@ export function CrewView() {
       <CrewPeople />
 
       {/* Global Buddies — personal friend connections across events, separate from event crew */}
-      <Section
-        title="Your Buddies (across all events)"
-        id="global-buddies"
-        className="px-4"
-        footer="Personal friend list saved globally across events. Event crew membership is managed separately per event."
-      >
+      <Section title="Your Buddies" id="global-buddies" className="px-4">
         <div className="ios-card space-y-3 p-4">
           {buddies.length > 0 ? (
             <ul className="divide-y divide-border">
@@ -68,15 +63,26 @@ export function CrewView() {
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-[14px] text-muted-foreground">
-              Save close friends here so you can invite them quickly across concerts, festivals and
-              conferences.
-            </p>
-          )}
+          ) : !addingBuddy ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold">Friends across all events</p>
+                <p className="text-[13px] text-muted-foreground">
+                  Quick-invite across festivals &amp; shows
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddingBuddy(true)}
+                className="ios-press inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full bg-favorite-soft px-3.5 text-[14px] font-semibold text-primary"
+              >
+                <UserPlus size={16} aria-hidden /> Add a buddy
+              </button>
+            </div>
+          ) : null}
           {addingBuddy ? (
             <form
-              className="space-y-2.5 border-t border-border pt-3"
+              className="space-y-2.5 border-t border-border pt-3 first:border-t-0 first:pt-0"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (buddyName.trim().length < 2) return;
@@ -124,7 +130,7 @@ export function CrewView() {
                 </button>
               </div>
             </form>
-          ) : (
+          ) : buddies.length > 0 ? (
             <button
               type="button"
               onClick={() => setAddingBuddy(true)}
@@ -132,54 +138,77 @@ export function CrewView() {
             >
               <UserPlus size={17} aria-hidden /> Add a buddy
             </button>
-          )}
+          ) : null}
         </div>
       </Section>
 
       <div className="mx-4 mt-5">
         <h2 className="ios-section-title">Find each other</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-1 flex flex-wrap gap-2">
           <Regroup />
           <FindMe />
         </div>
       </div>
       <FestivalBump />
       <CrewCoordination />
-      <div className="ios-group ios-group-indent mx-4 mt-6">
-        <button type="button" className="ios-row" onClick={() => openSheet({ kind: "passport" })}>
-          <IconTile icon={Stamp} />
-          <RowText
-            title="Event Passport"
-            subtitle="Collectible stage & venue stops under Activities"
-          />
-          <Chevron />
-        </button>
-        <button type="button" className="ios-row" onClick={() => openSheet({ kind: "play" })}>
-          <IconTile icon={Dices} />
-          <RowText title="Festival extras" subtitle="Stage picks, photo challenges and bingo" />
-          <Chevron />
-        </button>
-        <button type="button" className="ios-row" onClick={() => openSheet({ kind: "pings" })}>
-          <IconTile icon={MessageCircle} />
-          <RowText title="Where are you?" subtitle="Share a quick message with your friend" />
-          <Chevron />
-        </button>
-        <button type="button" className="ios-row" onClick={() => openSheet({ kind: "meeting" })}>
-          <IconTile icon={MapPin} />
-          <RowText
-            title={place ? `Meet at ${place.name}` : "Choose a meetup spot"}
-            subtitle={
-              meeting
-                ? `${eventTime(meeting.at)} CAT · ${attendee.auth.user ? "private account plan" : "saved on this phone"}`
-                : undefined
-            }
-          />
-          <Chevron />
-        </button>
-      </div>
-      <p className="px-4 pt-4 text-[14px] text-muted-foreground">
-        QR and link sharing work offline with saved plans. Connected crews share meetings, expiring
-        landmark pins and optional active-session GPS when signed in.
+      <section className="mx-4 mt-5" aria-label="Activities and meetup">
+        <h2 className="ios-section-title">Activities &amp; meetup</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "passport" })}
+            className="ios-card ios-press flex flex-col items-start p-4 text-left"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-favorite-soft text-primary">
+              <Stamp size={20} aria-hidden />
+            </span>
+            <span className="mt-3 text-[16px] font-semibold leading-snug">Event Passport</span>
+            <span className="mt-0.5 text-[13px] text-muted-foreground">Venue stamps</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "play" })}
+            className="ios-card ios-press flex flex-col items-start p-4 text-left"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-favorite-soft text-primary">
+              <Dices size={20} aria-hidden />
+            </span>
+            <span className="mt-3 text-[16px] font-semibold leading-snug">Festival extras</span>
+            <span className="mt-0.5 text-[13px] text-muted-foreground">Picks &amp; bingo</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "pings" })}
+            className="ios-card ios-press flex flex-col items-start p-4 text-left"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-secondary text-foreground">
+              <MessageCircle size={20} aria-hidden />
+            </span>
+            <span className="mt-3 text-[16px] font-semibold leading-snug">Where are you?</span>
+            <span className="mt-0.5 text-[13px] text-muted-foreground">Quick message</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "meeting" })}
+            className="ios-card ios-press flex flex-col items-start p-4 text-left"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-secondary text-foreground">
+              <MapPin size={20} aria-hidden />
+            </span>
+            <span className="mt-3 text-[16px] font-semibold leading-snug">
+              {place ? `Meet at ${place.name}` : "Choose a meetup spot"}
+            </span>
+            <span
+              aria-hidden={!meeting || undefined}
+              className="mt-0.5 text-[13px] text-muted-foreground"
+            >
+              {meeting ? `${eventTime(meeting.at)} CAT` : "Set place & time"}
+            </span>
+          </button>
+        </div>
+      </section>
+      <p className="px-5 pt-4 text-[12px] text-muted-foreground">
+        QR &amp; links work offline · Connected crews sync when signed in.
       </p>
     </>
   );

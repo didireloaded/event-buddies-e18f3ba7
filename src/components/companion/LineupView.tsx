@@ -425,7 +425,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             <IconTile icon={Shuffle} tone="bg-favorite" />
             <RowText
               title={`Discover ${/^[aeiou]/i.test(terms.personSingular) ? "an" : "a"} ${terms.personSingular.toLowerCase()}`}
-              subtitle="Random pick from entries you haven’t saved"
+              subtitle="Pick someone new"
             />
             <Chevron />
           </button>
@@ -454,9 +454,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             <RowText
               title="Download my lineup poster"
               subtitle={
-                preferences.savedArtists.length
-                  ? "All your saved favourites, ready to share"
-                  : "Save a favourite to create your poster"
+                preferences.savedArtists.length ? "Shareable PNG card" : "Save favourites first"
               }
             />
             <Chevron />
@@ -477,9 +475,9 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
               subtitle={
                 hasTimetable
                   ? mine.length
-                    ? `${mine.length} saved ${mine.length === 1 ? "item" : "items"}`
-                    : "Save a scheduled item first"
-                  : "Unavailable until set times are published"
+                    ? `${mine.length} saved`
+                    : "Save scheduled items first"
+                  : "Set times pending"
               }
             />
             <ArrowUpRight size={17} className="text-muted-foreground" aria-hidden />
