@@ -59,7 +59,7 @@ export const askEvent = createServerFn({ method: "POST" })
                   factIds: {
                     type: "array",
                     maxItems: 4,
-                    items: { type: "string", enum: facts.map((fact) => fact.id) },
+                    items: { type: "string", enum: [...new Set(facts.map((fact) => fact.id))] },
                   },
                 },
                 required: ["factIds"],

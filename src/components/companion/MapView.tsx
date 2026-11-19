@@ -431,7 +431,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             onClick={() => setBearing(0)}
             aria-label="Reset north"
             data-testid="map-compass-btn"
-            className="grid size-10 place-items-center rounded-full bg-white/95 text-foreground shadow-float backdrop-blur"
+            className="grid size-11 place-items-center rounded-full bg-white/95 text-foreground shadow-float backdrop-blur"
           >
             <Compass size={19} style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden />
           </button>
@@ -539,7 +539,7 @@ function BarMenuSection({ eventId, barName }: { eventId: string; barName: string
             type="button"
             aria-pressed={category === cat}
             onClick={() => setCategory(cat)}
-            className="ios-chip min-h-9 px-3 text-[13px]"
+            className="ios-chip min-h-11 px-3 text-[13px]"
           >
             {cat}
           </button>
@@ -792,7 +792,7 @@ export function MapView() {
                       <div className="flex flex-wrap gap-3 pt-1">
                         <button
                           type="button"
-                          className="min-h-10 text-[14px] font-semibold text-primary"
+                          className="min-h-11 text-[14px] font-semibold text-primary"
                           onClick={() => {
                             map.setSelected(null);
                             openSheet({ kind: "ticket" });
@@ -803,7 +803,7 @@ export function MapView() {
                         {placeLocked && ticketUrl && (
                           <button
                             type="button"
-                            className="inline-flex min-h-10 items-center gap-1 text-[14px] font-semibold text-foreground underline"
+                            className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-foreground underline"
                             onClick={() => {
                               map.setSelected(null);
                               openSheet({ kind: "buy-tickets" });
@@ -833,7 +833,7 @@ export function MapView() {
                       </p>
                       <button
                         type="button"
-                        className="inline-flex min-h-10 items-center gap-1 text-[14px] font-semibold text-primary"
+                        className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-primary"
                         onClick={() => {
                           map.setSelected(null);
                           navigate("lineup");

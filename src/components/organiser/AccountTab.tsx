@@ -281,10 +281,22 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
             className="space-y-2"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!teamEmail.trim()) return;
-              const next = await manageOrganiserTeamMember(userId, "upsert", teamEmail, teamRole);
-              setTeam(next);
-              setTeamEmail("");
+              if (busy || !teamEmail.trim()) return;
+              setBusy(true);
+              setError("");
+              setStatus("");
+              try {
+                const res = await manageOrganiserTeamMember(userId, "upsert", teamEmail, teamRole);
+                if (!res.ok) {
+                  setError(res.error);
+                  return;
+                }
+                setTeam(res.members);
+                setTeamEmail("");
+                setStatus("Collaborator role saved.");
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <div className="grid grid-cols-2 gap-2">
@@ -308,7 +320,7 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
                 <option value="viewer">Viewer (read-only)</option>
               </select>
             </div>
-            <SecondaryButton type="submit" disabled={!teamEmail.trim()}>
+            <SecondaryButton type="submit" disabled={busy || !teamEmail.trim()}>
               Assign team role
             </SecondaryButton>
           </form>
@@ -316,16 +328,30 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
             <ul className="divide-y divide-border pt-2 text-[14px]">
               {team.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 py-2">
-                  <span>
+                  <span className="min-w-0 break-all">
                     <strong>{m.email}</strong> ·{" "}
                     <span className="uppercase text-primary">{m.role}</span>
                   </span>
                   <button
                     type="button"
-                    className="min-h-10 px-2 text-[13px] font-semibold text-destructive"
+                    disabled={busy}
+                    className="min-h-11 flex-none px-2 text-[13px] font-semibold text-destructive disabled:opacity-50"
                     onClick={async () => {
-                      const next = await manageOrganiserTeamMember(userId, "remove", m.email);
-                      setTeam(next);
+                      if (busy) return;
+                      setBusy(true);
+                      setError("");
+                      setStatus("");
+                      try {
+                        const res = await manageOrganiserTeamMember(userId, "remove", m.email);
+                        if (!res.ok) {
+                          setError(res.error);
+                          return;
+                        }
+                        setTeam(res.members);
+                        setStatus("Collaborator removed.");
+                      } finally {
+                        setBusy(false);
+                      }
                     }}
                   >
                     Remove

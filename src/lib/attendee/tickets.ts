@@ -261,7 +261,9 @@ export async function removeSavedTicket(ticketId: string, eventId: string): Prom
   const target = all.find((t) => t.id === ticketId && t.eventId === eventId);
   if (target?.storageKey) {
     await photoStore(target.storageKey, "remove");
-  } else {
+  } else if (!target) {
+    // Only fall back to removing the legacy unindexed primary key when no index record matched.
+    // Never delete the primary ticket image/PDF when removing a manual code ticket (storageKey: null).
     await photoStore(primaryTicketStorageKey(eventId), "remove");
   }
   writeAllSavedTickets(all.filter((t) => t.id !== ticketId));

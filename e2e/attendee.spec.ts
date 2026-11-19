@@ -666,7 +666,7 @@ test("ticketing surfaces, full-screen gate card, map tier unlock, bar sample men
   const gateCard = page.getByTestId("gate-card-modal");
   await expect(gateCard).toBeVisible();
   await expect(gateCard).toContainText("Sam Nghidinwa · General");
-  await expect(gateCard).toContainText("Brightness raised to max");
+  await expect(gateCard).toContainText(/brightness|Screen kept awake/i);
   await gateCard.getByRole("button", { name: "Close ticket" }).click();
   await expect(gateCard).toHaveCount(0);
 

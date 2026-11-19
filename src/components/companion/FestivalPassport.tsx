@@ -72,7 +72,7 @@ export function FestivalPassport() {
               </button>
               <button
                 type="button"
-                className="mt-2.5 inline-flex min-h-9 items-center gap-1 text-[13px] font-semibold text-primary"
+                className="mt-2.5 inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-primary"
                 onClick={() => openPlace(p.id)}
               >
                 <MapPin size={13} aria-hidden /> Map ↗

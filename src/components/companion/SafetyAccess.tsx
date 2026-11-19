@@ -12,6 +12,7 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
   const [contactPhone, setContactPhone] = useState(existing?.contactPhone ?? "");
   const [bloodType, setBloodType] = useState(existing?.bloodType ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [iceError, setIceError] = useState("");
   const safetyPlaces = places.filter(
     (p) => p.type === "first-aid" || p.type === "security" || p.type === "exit",
   );
@@ -104,14 +105,23 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
             className="mt-3 space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              attendee.update({
-                medicalCard: {
-                  contactName: contactName.trim(),
-                  contactPhone: contactPhone.trim(),
-                  bloodType: bloodType.trim(),
-                  notes: notes.trim(),
-                },
-              });
+              const trimmed = {
+                contactName: contactName.trim(),
+                contactPhone: contactPhone.trim(),
+                bloodType: bloodType.trim(),
+                notes: notes.trim(),
+              };
+              if (
+                !trimmed.contactName &&
+                !trimmed.contactPhone &&
+                !trimmed.bloodType &&
+                !trimmed.notes
+              ) {
+                setIceError("Enter at least an emergency contact or medical note before saving.");
+                return;
+              }
+              setIceError("");
+              attendee.update({ medicalCard: trimmed });
               setEditingIce(false);
               attendee.notify("Medical card saved on this phone");
             }}
@@ -155,9 +165,21 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </label>
+            {iceError && (
+              <p role="alert" className="text-[14px] font-medium text-destructive">
+                {iceError}
+              </p>
+            )}
             <div className="flex gap-2">
               <PrimaryButton type="submit">Save on this phone</PrimaryButton>
-              <SecondaryButton onClick={() => setEditingIce(false)}>Cancel</SecondaryButton>
+              <SecondaryButton
+                onClick={() => {
+                  setIceError("");
+                  setEditingIce(false);
+                }}
+              >
+                Cancel
+              </SecondaryButton>
             </div>
           </form>
         )}

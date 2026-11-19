@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { oauthReturnPath, redirectHost } from "@/lib/oauth-return-path";
+import { isSafeOAuthRedirect, oauthReturnPath, redirectHost } from "@/lib/oauth-return-path";
 import { Consent } from "@/routes/[.]lovable.oauth.consent";
 
 afterEach(cleanup);
@@ -21,6 +21,18 @@ describe("oauthReturnPath and redirectHost", () => {
     expect(redirectHost("https://claude.ai/api/mcp/auth_callback")).toBe("claude.ai");
     expect(redirectHost("not a url")).toBeNull();
     expect(redirectHost(undefined)).toBeNull();
+  });
+
+  it("allows safe OAuth callback schemes and blocks script/file/insecure remote schemes", () => {
+    expect(isSafeOAuthRedirect("https://claude.ai/api/mcp/auth_callback")).toBe(true);
+    expect(isSafeOAuthRedirect("http://localhost:8787/callback")).toBe(true);
+    expect(isSafeOAuthRedirect("http://127.0.0.1:8787/callback")).toBe(true);
+    expect(isSafeOAuthRedirect("cursor://oauth/callback")).toBe(true);
+    expect(isSafeOAuthRedirect("javascript:alert(1)")).toBe(false);
+    expect(isSafeOAuthRedirect("data:text/html,<script>alert(1)</script>")).toBe(false);
+    expect(isSafeOAuthRedirect("vbscript:msgbox(1)")).toBe(false);
+    expect(isSafeOAuthRedirect("file:///etc/passwd")).toBe(false);
+    expect(isSafeOAuthRedirect("http://evil.example/callback")).toBe(false);
   });
 });
 
@@ -83,5 +95,29 @@ describe("OAuth consent screen", () => {
     expect(onDecide).toHaveBeenNthCalledWith(1, true);
     expect(onDecide).toHaveBeenNthCalledWith(2, true);
     expect(onRedirect).toHaveBeenCalledWith("https://assistant.example/done");
+  });
+
+  it("blocks unsafe javascript: redirect targets returned from OAuth decisions", async () => {
+    const onRedirect = vi.fn();
+    const onDecide = vi.fn().mockResolvedValue({
+      data: { redirect_url: "javascript:alert(1)" },
+      error: null,
+    });
+
+    render(
+      <Consent
+        authorizationId="auth-123"
+        details={{ client: { name: "Festival Helper" } }}
+        email="maya@example.com"
+        onDecide={onDecide}
+        onRedirect={onRedirect}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    });
+    expect(onRedirect).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/unsafe redirect destination/i);
   });
 });

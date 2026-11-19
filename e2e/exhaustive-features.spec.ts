@@ -376,7 +376,7 @@ test("3. full ticketing Ship Check: multi-ticket swipe, cross-event gate card, o
   await ticketBar.getByRole("button", { name: "Show my ticket", exact: true }).click();
   await expect(gateCard).toBeVisible();
   await expect(gateCard).toContainText("1 of 2");
-  await expect(gateCard).toContainText("Brightness raised to max");
+  await expect(gateCard).toContainText(/brightness|Screen kept awake/i);
   // Pure white QR container + user-select none
   const surfaceStyles = await page.getByTestId("gate-card-surface").evaluate((el) => {
     const cs = getComputedStyle(el);
@@ -783,7 +783,9 @@ test("9. multi-viewport responsive audit (320px to 1280px): zero horizontal over
     { name: "390-iphone", width: 390, height: 844 },
     { name: "844-landscape", width: 844, height: 390 },
     { name: "768-tablet", width: 768, height: 1024 },
+    { name: "1024-laptop", width: 1024, height: 768 },
     { name: "1280-desktop", width: 1280, height: 800 },
+    { name: "1440-wide", width: 1440, height: 900 },
   ];
 
   const views = ["events", "home", "lineup", "map", "crew", "info", "you"];
@@ -816,6 +818,92 @@ test("9. multi-viewport responsive audit (320px to 1280px): zero horizontal over
       }
     }
   }
+
+  watcher.assertClean();
+});
+
+test("10. strict resilience pass: duplicate-submit guard, invalid form recovery, Escape focus return, reduced motion & long content at 320px/landscape", async ({
+  page,
+}) => {
+  const watcher = attachRuntimeWatchers(page);
+  await seedGuest(page);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/#home");
+
+  // 10A. Escape closes Sheet and returns focus to opening trigger button
+  const safetyTrigger = page.getByRole("button", { name: /Safety & medical points/ });
+  await safetyTrigger.focus();
+  await safetyTrigger.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  // Invalid empty ICE card submission shows inline alert instead of saving blank card
+  await dialog.getByRole("button", { name: /Add private medical/ }).click();
+  await dialog.getByRole("button", { name: "Save on this phone", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText(/Enter at least an emergency contact/i);
+
+  // Escape closes sheet & restores focus to safetyTrigger
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(safetyTrigger).toBeFocused();
+
+  // 10B. Duplicate manual ticket code submission is blocked & long holder name does not overflow 320px or landscape Gate Card
+  await page.getByRole("button", { name: "My Tickets & Passes", exact: true }).click();
+  await page.getByRole("button", { name: "Enter a ticket code manually", exact: true }).click();
+  const longHolder = "Alexandrina-Elizabeth-Van-Der-Merwe-Shikongo-Longname";
+  await page.getByLabel("Ticket code or reference").fill("HWL-DUP-2026");
+  await page.getByLabel("Holder name").fill(longHolder);
+  await page.getByRole("button", { name: "Save ticket code offline", exact: true }).click();
+
+  // Re-open manual form and try exact same code -> rejected cleanly with alert
+  await page.getByRole("button", { name: "Enter a ticket code manually", exact: true }).click();
+  await page.getByLabel("Ticket code or reference").fill("HWL-DUP-2026");
+  await page.getByRole("button", { name: "Save ticket code offline", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(/already saved/i);
+
+  // Add second distinct ticket & verify landscape Gate Card (844x390) + ArrowRight keyboard navigation
+  await page.getByLabel("Ticket code or reference").fill("HWL-SECOND-2026");
+  await page.getByRole("button", { name: "Save ticket code offline", exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page
+    .getByTestId("event-ticket-bar")
+    .getByRole("button", { name: "Show my ticket" })
+    .click();
+  const gateCard = page.getByTestId("gate-card-modal");
+  await expect(gateCard).toBeVisible();
+  await expect(gateCard).toContainText("1 of 2");
+  await gateCard.press("ArrowRight");
+  await expect(gateCard).toContainText("2 of 2");
+  mkdirSync("test-results/qa-screenshots", { recursive: true });
+  await page.screenshot({ path: "test-results/qa-screenshots/844-landscape-gate-card.png" });
+  const closeBox = await gateCard.getByRole("button", { name: "Close ticket" }).boundingBox();
+  expect(closeBox?.width).toBeGreaterThanOrEqual(44);
+  expect(closeBox?.height).toBeGreaterThanOrEqual(44);
+  await gateCard.press("Escape");
+  await expect(gateCard).toHaveCount(0);
+
+  // 10C. Reduced motion emulation collapses animations/transitions cleanly
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/#crew");
+  const reducedDuration = await page.evaluate(() => {
+    const nav = document.querySelector(".companion-navigation");
+    return nav ? getComputedStyle(nav).animationDuration : "0s";
+  });
+  expect(parseFloat(reducedDuration)).toBeLessThanOrEqual(0.01);
+
+  // Long unbroken crew note at 320px does not trigger horizontal overflow
+  await page.getByRole("button", { name: "Crew note" }).click();
+  await page
+    .getByLabel("Short crew message")
+    .fill("SuperLongUnbrokenLandmarkReferenceTokenWithoutSpaces12345678901234567890");
+  await page.getByRole("button", { name: "Post note", exact: true }).click();
+  const overflowAfterLongNote = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflowAfterLongNote).toBeLessThanOrEqual(1);
 
   watcher.assertClean();
 });

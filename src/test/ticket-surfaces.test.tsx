@@ -7,10 +7,14 @@ import {
   getEventGateLabel,
   getTicketProviderName,
   isZoneLockedForTier,
+  primaryTicketStorageKey,
+  readEventTickets,
+  removeSavedTicket,
   requiredTierForPlace,
   saveManualCodeTicket,
   TICKETS_INDEX_KEY,
 } from "@/lib/attendee/tickets";
+import * as ridePhoto from "@/lib/attendee/ride-photo";
 import { GateCardModal } from "@/components/companion/GateCardModal";
 import { EventCompanion } from "@/components/companion/EventCompanion";
 
@@ -61,7 +65,7 @@ describe("Ticketing surfaces, Gate Card & Map tier unlock", () => {
     expect(isZoneLockedForTier(platinumZone, "all_access")).toBe(false);
   });
 
-  it("renders full-screen Gate Card on pure white, supports multiple tickets, shows Offline badge, requests Wake Lock, and closes in 1 tap", () => {
+  it("renders full-screen Gate Card on pure white, supports multiple tickets and keyboard navigation, reports honest brightness/wake-lock state, and closes in 1 tap", async () => {
     const data = getDemoData();
     const release = vi.fn(async () => {});
     const request = vi.fn(async () => ({ release }));
@@ -90,32 +94,74 @@ describe("Ticketing surfaces, Gate Card & Map tier unlock", () => {
     });
 
     const onClose = vi.fn();
-    render(
-      <GateCardModal
-        open
-        onClose={onClose}
-        tickets={[t1, t2]}
-        initialIndex={0}
-        data={data}
-        online={false}
-      />,
-    );
+    await act(async () => {
+      render(
+        <GateCardModal
+          open
+          onClose={onClose}
+          tickets={[t1, t2]}
+          initialIndex={0}
+          data={data}
+          online={false}
+        />,
+      );
+    });
 
     expect(request).toHaveBeenCalledWith("screen");
     expect(screen.getByText("Offline")).toBeVisible();
-    expect(screen.getByText("Brightness raised to max")).toBeVisible();
+    // Standard browser lacks writable screen.brightness -> honest Wake Lock message instead of false max brightness claim
+    expect(
+      screen.getByText("Screen kept awake · Raise device brightness if needed at the gate"),
+    ).toBeVisible();
     expect(screen.getByText("Sam Nghidinwa · VIP")).toBeVisible();
     expect(screen.getByText("1 of 2")).toBeVisible();
     expect(screen.getByTestId("gate-card-surface").className).toContain("bg-[#ffffff]");
 
-    // Navigate to second ticket
+    // Navigate to second ticket via button and back via ArrowLeft keyboard key
     fireEvent.click(screen.getByRole("button", { name: "Next ticket" }));
     expect(screen.getByText("Maya Nghidinwa · VIP")).toBeVisible();
     expect(screen.getByText("2 of 2")).toBeVisible();
+    fireEvent.keyDown(screen.getByTestId("gate-card-modal"), { key: "ArrowLeft" });
+    expect(screen.getByText("1 of 2")).toBeVisible();
 
     // 1-tap close
     fireEvent.click(screen.getByRole("button", { name: "Close ticket" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the primary uploaded ticket blob in IndexedDB when removing a separate manual code ticket", async () => {
+    const data = getDemoData();
+    const storeSpy = vi.spyOn(ridePhoto, "photoStore").mockResolvedValue(null);
+
+    const primaryMeta = {
+      id: "primary-img-1",
+      eventId: data.event.id,
+      eventName: data.event.name,
+      eventDateIso: data.event.startAt.toISOString(),
+      label: "VIP Pass",
+      tier: "vip" as const,
+      holderName: "Sam",
+      fileType: "image" as const,
+      storageKey: primaryTicketStorageKey(data.event.id),
+      ticketCode: null,
+      fileSize: 2048,
+      addedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(TICKETS_INDEX_KEY, JSON.stringify([primaryMeta]));
+    const manual = saveManualCodeTicket({
+      eventId: data.event.id,
+      eventName: data.event.name,
+      eventDateIso: data.event.startAt.toISOString(),
+      ticketCode: "HWL-MANUAL-99",
+      holderName: "Sam",
+      tier: "general",
+      label: "Backup code",
+    });
+
+    await removeSavedTicket(manual.id, data.event.id);
+    expect(storeSpy).not.toHaveBeenCalled();
+    expect(readEventTickets(data.event.id).map((t) => t.id)).toEqual(["primary-img-1"]);
+    storeSpy.mockRestore();
   });
 
   it("shows sticky Event Hub bottom bar switching from Buy tickets to Show my ticket, with zero 5th tab", () => {

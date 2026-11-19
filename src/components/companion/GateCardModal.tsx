@@ -34,6 +34,8 @@ export function GateCardModal({
   const [blobUrl, setBlobUrl] = useState<string>("");
   const [blobType, setBlobType] = useState<string>("");
   const [loadingBlob, setLoadingBlob] = useState(false);
+  const [brightnessBoosted, setBrightnessBoosted] = useState(false);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
@@ -60,9 +62,12 @@ export function GateCardModal({
     if (previousBrightness !== null) {
       try {
         screenWithBrightness.brightness = 1;
+        setBrightnessBoosted(true);
       } catch {
-        /* Read-only on standard browsers. */
+        setBrightnessBoosted(false);
       }
+    } else {
+      setBrightnessBoosted(false);
     }
     const nav = navigator as Navigator & {
       wakeLock?: { request?: (type: "screen") => Promise<WakeLockSentinelLike> };
@@ -71,16 +76,24 @@ export function GateCardModal({
       void nav.wakeLock
         .request("screen")
         .then((lock) => {
-          if (active) sentinel = lock;
-          else void lock.release?.();
+          if (active) {
+            sentinel = lock;
+            setWakeLockActive(true);
+          } else {
+            void lock.release?.();
+          }
         })
         .catch(() => {
-          /* Wake lock is best-effort on unsupported browsers. */
+          if (active) setWakeLockActive(false);
         });
+    } else {
+      setWakeLockActive(false);
     }
 
     return () => {
       active = false;
+      setBrightnessBoosted(false);
+      setWakeLockActive(false);
       void sentinel?.release?.();
       if (previousBrightness !== null) {
         try {
@@ -154,9 +167,19 @@ export function GateCardModal({
         e.preventDefault();
         onClose();
       }}
+      onKeyDown={(e) => {
+        if (!multiple) return;
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          goPrev();
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          goNext();
+        }
+      }}
     >
       {/* Top minimal chrome: 1-tap close top-left, optional Offline badge top-right */}
-      <div className="flex items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="flex flex-none items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onClose}
@@ -175,9 +198,9 @@ export function GateCardModal({
         )}
       </div>
 
-      {/* Main full-height pure white scanner area (~65–70vh), text selection & context menu disabled */}
+      {/* Main full-height pure white scanner area, scrollable on landscape/short phones */}
       <div
-        className="mx-auto flex w-full max-w-md flex-1 flex-col justify-between px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="mx-auto flex w-full max-w-md flex-1 flex-col justify-between overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         onTouchStart={(e) => {
           touchStartX.current = e.changedTouches[0]?.clientX ?? null;
         }}
@@ -194,7 +217,7 @@ export function GateCardModal({
       >
         <div
           data-testid="gate-card-surface"
-          className="relative flex min-h-[60dvh] max-h-[68dvh] w-full flex-1 select-none items-center justify-center overflow-hidden rounded-3xl bg-[#ffffff] p-5 text-[#000000] shadow-float ring-1 ring-black/10"
+          className="relative flex min-h-[140px] max-h-[68dvh] w-full flex-1 select-none items-center justify-center overflow-hidden rounded-3xl bg-[#ffffff] p-3.5 text-[#000000] shadow-float ring-1 ring-black/10"
           style={{ WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -203,15 +226,16 @@ export function GateCardModal({
               Loading offline ticket…
             </p>
           ) : current.fileType === "code" && current.ticketCode ? (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex max-h-full max-w-full flex-col items-center gap-2">
               <QRCodeSVG
                 value={current.ticketCode}
                 size={256}
                 bgColor="#ffffff"
                 fgColor="#000000"
                 level="M"
+                className="h-auto max-h-[min(256px,34dvh)] w-auto max-w-full"
               />
-              <p className="font-mono text-[15px] font-semibold tracking-wider text-black">
+              <p className="max-w-full break-all text-center font-mono text-[14px] font-semibold tracking-wider text-black">
                 {current.ticketCode}
               </p>
             </div>
@@ -255,11 +279,11 @@ export function GateCardModal({
         </div>
 
         {/* Below QR/Ticket: Event name, holder + tier, gate + opens time */}
-        <div className="mt-4 space-y-1 text-center">
-          <p className="text-[17px] font-semibold leading-snug text-foreground">
+        <div className="mt-2.5 space-y-0.5 text-center">
+          <p className="break-words text-[17px] font-semibold leading-snug text-foreground">
             {current.eventName}
           </p>
-          <p className="text-[15px] text-muted-foreground">
+          <p className="break-words text-[15px] text-muted-foreground">
             {current.holderName} · {tierLabel}
           </p>
           <p className="text-[15px] tabular-nums text-foreground">
@@ -272,7 +296,7 @@ export function GateCardModal({
                 type="button"
                 aria-label="Previous ticket"
                 onClick={goPrev}
-                className="grid size-10 place-items-center rounded-full bg-popover ring-1 ring-border"
+                className="grid size-11 place-items-center rounded-full bg-popover ring-1 ring-border"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -296,14 +320,20 @@ export function GateCardModal({
                 type="button"
                 aria-label="Next ticket"
                 onClick={goNext}
-                className="grid size-10 place-items-center rounded-full bg-popover ring-1 ring-border"
+                className="grid size-11 place-items-center rounded-full bg-popover ring-1 ring-border"
               >
                 <ChevronRight size={18} />
               </button>
             </div>
           )}
 
-          <p className="pt-1 text-[13px] text-muted-foreground">Brightness raised to max</p>
+          <p className="pt-1 text-[13px] text-muted-foreground">
+            {brightnessBoosted
+              ? "Brightness raised to max"
+              : wakeLockActive
+                ? "Screen kept awake · Raise device brightness if needed at the gate"
+                : "Turn screen brightness up at the gate for faster scanning"}
+          </p>
         </div>
       </div>
     </dialog>
