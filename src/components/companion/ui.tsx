@@ -132,7 +132,7 @@ export function Segmented<T extends string>({
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
-          className="min-h-11 flex-1 rounded-[10px] px-3 text-[15px] font-medium text-foreground aria-pressed:bg-popover aria-pressed:font-semibold aria-pressed:shadow-sm"
+          className="inline-flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-[10px] px-2 text-[14px] font-medium text-foreground aria-pressed:bg-popover aria-pressed:font-semibold aria-pressed:shadow-sm sm:px-3 sm:text-[15px]"
         >
           {option.label}
         </button>
@@ -228,7 +228,18 @@ export function Avatar({
         size === "lg" ? "size-16 text-xl" : "size-10 text-[15px]",
       )}
     >
-      {src ? <img src={src} alt={alt} className="h-full w-full object-cover" /> : label}
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          width={size === "lg" ? 64 : 40}
+          height={size === "lg" ? 64 : 40}
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        label
+      )}
     </span>
   );
 }

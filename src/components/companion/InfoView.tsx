@@ -143,7 +143,7 @@ export function InfoView() {
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${data.event.venueName} ${data.event.city} ${data.event.country}`)}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
               >
                 Open {data.event.venueName} in Maps <ArrowUpRight size={16} aria-hidden />

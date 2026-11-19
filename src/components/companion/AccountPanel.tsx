@@ -1,4 +1,5 @@
 import { clearAccountCache, queuedActions } from "@/lib/account/outbox";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { deleteMyAccountData } from "@/lib/organiser/cloud-extensions";
 import { useState } from "react";
 import { Cloud, LogOut } from "lucide-react";
@@ -11,6 +12,7 @@ import { PrimaryButton } from "./ui";
 export function AccountPanel() {
   const { attendee, data, crew } = useCompanion();
   const { auth, sync } = attendee;
+  const terms = getEventCategoryTerms(data.event.category);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -120,8 +122,13 @@ export function AccountPanel() {
               {sync.error}
             </p>
           )}
-          <button type="button" className="min-h-11 font-medium text-favorite" onClick={sync.retry}>
-            Sync now
+          <button
+            type="button"
+            disabled={busy || sync.status === "checking"}
+            className="min-h-11 font-medium text-favorite disabled:opacity-50"
+            onClick={sync.retry}
+          >
+            {sync.status === "checking" ? "Syncing…" : "Sync now"}
           </button>
           <button
             type="button"
@@ -158,7 +165,8 @@ export function AccountPanel() {
       ) : (
         <>
           <p className="text-[15px] text-muted-foreground">
-            Sign in to keep favourite artists and your meeting plan available on your other phones.
+            Sign in to keep favourite {terms.peopleLabel.toLowerCase()} and your meeting plan
+            available on your other phones.
           </p>
           {auth.configured ? (
             <a
@@ -182,7 +190,7 @@ export function AccountPanel() {
       {importing && (
         <Sheet title="Copy this phone’s guest plan?" onClose={() => setImporting(false)}>
           <p className="mb-3 text-[17px]">
-            {guest?.savedArtists.length ?? 0} favourite artists
+            {guest?.savedArtists.length ?? 0} favourite {terms.peopleLabel.toLowerCase()}
             {guest?.meeting ? " and a meeting plan" : ""} are saved in this browser’s guest space.
           </p>
           <p className="mb-4 text-[15px] text-muted-foreground">
@@ -250,6 +258,7 @@ export function AccountPanel() {
             className="bg-destructive"
             disabled={busy}
             onClick={async () => {
+              if (busy) return;
               setBusy(true);
               setError("");
               const res = await deleteMyAccountData();

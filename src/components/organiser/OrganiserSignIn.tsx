@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { PrimaryButton } from "@/components/companion/ui";
@@ -6,16 +6,32 @@ import { PrimaryButton } from "@/components/companion/ui";
 export function OrganiserSignIn() {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    const syncOnline = () => setOffline(!navigator.onLine);
+    syncOnline();
+    window.addEventListener("online", syncOnline);
+    window.addEventListener("offline", syncOnline);
+    return () => {
+      window.removeEventListener("online", syncOnline);
+      window.removeEventListener("offline", syncOnline);
+    };
+  }, []);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
+    if (state === "sending" || offline || !email.trim()) return;
     setState("sending");
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/organiser` },
-    });
-    setState(error ? "error" : "sent");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/organiser` },
+      });
+      setState(error ? "error" : "sent");
+    } catch {
+      setState("error");
+    }
   }
 
   return (
@@ -28,9 +44,18 @@ export function OrganiserSignIn() {
         We’ll email you a sign-in link. No password needed.
       </p>
       {state === "sent" ? (
-        <p role="status" className="mt-6 rounded-xl bg-secondary px-4 py-3 text-[16px]">
-          Check {email} for your sign-in link.
-        </p>
+        <div className="mt-6 space-y-3">
+          <p role="status" className="rounded-xl bg-secondary px-4 py-3 text-[16px]">
+            Check {email.trim()} for your sign-in link.
+          </p>
+          <button
+            type="button"
+            className="min-h-11 text-[15px] font-semibold text-primary"
+            onClick={() => setState("idle")}
+          >
+            Use a different email
+          </button>
+        </div>
       ) : (
         <form onSubmit={send} className="mt-6 space-y-3">
           <label className="block text-[15px] font-medium" htmlFor="org-email">
@@ -41,6 +66,7 @@ export function OrganiserSignIn() {
             type="email"
             required
             autoComplete="email"
+            aria-invalid={state === "error" || undefined}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="ios-field w-full"
@@ -51,14 +77,16 @@ export function OrganiserSignIn() {
             </p>
           )}
           {offline && (
-            <p className="text-[15px] text-muted-foreground">You’re offline. Connect to sign in.</p>
+            <p role="status" className="text-[15px] text-muted-foreground">
+              You’re offline. Connect to sign in.
+            </p>
           )}
           <PrimaryButton type="submit" disabled={state === "sending" || offline}>
             {state === "sending" ? "Sending…" : "Email me a link"}
           </PrimaryButton>
         </form>
       )}
-      <Link to="/" className="mt-8 min-h-11 text-[15px] text-primary">
+      <Link to="/" className="mt-8 inline-flex min-h-11 items-center text-[15px] text-primary">
         Back to the attendee app
       </Link>
     </main>

@@ -23,7 +23,7 @@ export function PostEventState() {
           <a
             href={data.festival.officialUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="mt-4 flex min-h-12 items-center font-semibold"
           >
             Official event information ↗<span className="sr-only"> Opens in a new tab</span>

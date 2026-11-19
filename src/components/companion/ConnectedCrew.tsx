@@ -193,6 +193,9 @@ export function ConnectedCrew() {
             <img
               src={crewPhotoUrl}
               alt={`${crew.name} photo`}
+              width={44}
+              height={44}
+              decoding="async"
               className="size-11 flex-none rounded-xl object-cover ring-1 ring-border"
             />
           )}
@@ -712,7 +715,7 @@ export function ConnectedCrew() {
                   <p className="text-[15px]">
                     Expires {new Date(sync.invite.expiresAt).toLocaleString()}
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <SecondaryButton
                       onClick={async () => {
                         try {

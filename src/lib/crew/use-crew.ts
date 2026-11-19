@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { accountConfigured } from "@/lib/account/use-auth";
 import {
   commandSchema,
   crewSchema,
@@ -11,6 +9,7 @@ import {
   type CrewCommand,
 } from "./client";
 import {
+  broadcastCrewUpdated,
   dropCrewPin,
   listCrewPins,
   removeCrewPin,
@@ -59,10 +58,6 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
     let running = false;
     let cached: Crew | null = null;
     let checkedAt: string | null = null;
-    const channel =
-      accountConfigured && typeof supabase.channel === "function"
-        ? supabase.channel(`crew-sync:${eventId}`)
-        : null;
     try {
       const raw = JSON.parse(localStorage.getItem(storageKey) ?? "null");
       if (raw) {
@@ -110,12 +105,10 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
                 userId: currentUserId,
               });
             }
-            if (channel) {
-              void channel.send({
-                type: "broadcast",
-                event: "crew-updated",
-                payload: { eventId },
-              });
+            const updatedCrewId =
+              "crewId" in action.command ? action.command.crewId : (cached?.id ?? null);
+            if (updatedCrewId) {
+              void broadcastCrewUpdated(updatedCrewId, eventId);
             }
           }
           if (result.invite && result.expiresAt)
@@ -171,16 +164,10 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
     window.addEventListener("online", start);
     window.addEventListener("focus", start);
     window.addEventListener("storage", storage);
-    if (channel) {
-      channel.on("broadcast", { event: "crew-updated" }, () => start()).subscribe();
-    }
     return () => {
       cancelled = true;
       trigger.current = () => {};
       clearInterval(timer);
-      if (channel && typeof supabase.removeChannel === "function") {
-        void supabase.removeChannel(channel);
-      }
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("online", start);
       window.removeEventListener("focus", start);
@@ -243,6 +230,9 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("eb:crew-chat", { detail: msg }));
         }
+      },
+      onCrewUpdated: () => {
+        trigger.current();
       },
     });
   }, [activeCrewId, ready, storageKey, userId]);

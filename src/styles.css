@@ -140,8 +140,10 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: clip;
   }
   body {
+    overflow-x: clip;
     font-size: 17px;
     line-height: 22px;
     letter-spacing: -0.025em;

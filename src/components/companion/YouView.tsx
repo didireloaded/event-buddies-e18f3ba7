@@ -17,6 +17,11 @@ export function YouView() {
   const { data, attendee, avatar, openSheet, offlineStatus, allTicketsCount } = useCompanion();
   const { preferences } = attendee;
   const terms = getEventCategoryTerms(data.event.category);
+  const eventYear = data.event.startAt.getFullYear();
+  const savedLabel =
+    preferences.savedArtists.length === 1
+      ? terms.personSingular.toLowerCase()
+      : terms.peopleLabel.toLowerCase();
   const totalCheckpoints =
     preferences.stamps.length + preferences.customStamps.filter((s) => s.checked).length;
   return (
@@ -40,10 +45,14 @@ export function YouView() {
         />
         <span className="min-w-0 flex-1">
           <span className="block break-words text-[22px] font-bold tracking-tight">
-            {preferences.hasName ? preferences.profile.name : "Your festival name"}
+            {preferences.hasName
+              ? preferences.profile.name
+              : terms.isConferenceLike
+                ? "Your event name"
+                : "Your festival name"}
           </span>
           <span className="mt-1 block text-[15px] text-muted-foreground">
-            Edit name · {preferences.savedArtists.length} saved artists
+            Edit name · {preferences.savedArtists.length} saved {savedLabel}
           </span>
           {preferences.badges.length > 0 && (
             <span className="mt-1.5 block text-[13px] font-medium text-primary">
@@ -53,11 +62,11 @@ export function YouView() {
         </span>
         <Chevron />
       </button>
-      <Section title="My year in events · 2026" id="you-year-summary">
+      <Section title={`My year in events · ${eventYear}`} id="you-year-summary">
         <div className="ios-card space-y-2 p-4 text-[14px]">
           <p className="text-[16px] font-semibold">{data.event.name}</p>
           <p className="text-muted-foreground">
-            {preferences.savedArtists.length} saved artists · {totalCheckpoints} passport stops
+            {preferences.savedArtists.length} saved {savedLabel} · {totalCheckpoints} passport stops
             checked · {preferences.sharedPlans.length} friend plans imported
           </p>
           {preferences.collections.length > 0 && (
@@ -72,7 +81,10 @@ export function YouView() {
           )}
         </div>
       </Section>
-      <Section title="Festival mode" id="you-preferences">
+      <Section
+        title={terms.isConferenceLike ? "Event focus" : "Festival mode"}
+        id="you-preferences"
+      >
         <div className="ios-group ios-group-indent">
           <a href="#events" className="ios-row">
             <IconTile icon={CalendarDays} />

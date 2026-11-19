@@ -94,7 +94,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               </h2>
               <a
                 href="#lineup"
-                className="flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
+                className="flex min-h-11 flex-none items-center gap-1 whitespace-nowrap text-[15px] font-semibold text-primary"
               >
                 Your lineup <ArrowUpRight size={16} aria-hidden />
               </a>
@@ -149,13 +149,16 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-[14px] text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 text-[14px] text-muted-foreground">
               <span>
                 {preferences.savedArtists.length > 0
                   ? `${preferences.savedArtists.length} saved in your ${terms.programLabel.toLowerCase()}`
                   : `${data.festival.artists.length} ${terms.peopleLabel.toLowerCase()} across ${data.stages.length || 1} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()}`}
               </span>
-              <a href="#lineup" className="font-semibold text-primary">
+              <a
+                href="#lineup"
+                className="inline-flex min-h-11 flex-none items-center whitespace-nowrap font-semibold text-primary"
+              >
                 View full lineup
               </a>
             </div>

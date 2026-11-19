@@ -24,6 +24,9 @@ export function AvatarPicker({
           <img
             src={url}
             alt={altName ? `${altName}’s profile photo` : "Your profile photo"}
+            width={size === "lg" ? 96 : 64}
+            height={size === "lg" ? 96 : 64}
+            decoding="async"
             className="h-full w-full object-cover"
           />
         ) : (

@@ -60,8 +60,8 @@ export function Onboarding() {
             <span className="text-favorite">Don’t lose them.</span>
           </h1>
           <p className="mt-5 max-w-sm text-[17px] text-muted-foreground">
-            Your {data.event.name} map, favourite artists and one meeting plan to share with
-            friends.
+            Your {data.event.name} map, favourite {terms.peopleLabel.toLowerCase()} and one meeting
+            plan to share with friends.
           </p>
         </div>
       )}
@@ -128,11 +128,25 @@ export function Onboarding() {
             autoFocus
             maxLength={50}
             placeholder="Your name"
+            aria-invalid={name.trim().length === 1 || undefined}
+            aria-describedby="welcome-name-hint"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <p className="mt-2 text-center text-[14px] text-muted-foreground">
-            This is how your friends will see you.
+          <p
+            id="welcome-name-hint"
+            role={name.trim().length === 1 ? "alert" : undefined}
+            className={
+              name.trim().length === 1
+                ? "mt-2 text-center text-[14px] font-medium text-destructive"
+                : "mt-2 text-center text-[14px] text-muted-foreground"
+            }
+          >
+            {name.trim().length === 1
+              ? "Add at least one more character to continue."
+              : name.trim().length === 0
+                ? "Enter at least 2 characters — this is how your friends will see you."
+                : "This is how your friends will see you."}
           </p>
           <div className="mt-auto pt-8">
             <PrimaryButton type="submit" disabled={name.trim().length < 2}>

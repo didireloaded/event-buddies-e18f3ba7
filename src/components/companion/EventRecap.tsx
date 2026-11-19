@@ -164,7 +164,7 @@ export function EventRecap() {
           <p className="mt-1 text-[15px]">{people.join(" · ")}</p>
         </div>
       )}
-      <PrimaryButton onClick={() => navigate("you")}>Back up my festival plan</PrimaryButton>
+      <PrimaryButton onClick={() => navigate("you")}>Back up my event plan</PrimaryButton>
       <SecondaryButton className="mt-2" onClick={() => navigate("crew")}>
         Open saved plans
       </SecondaryButton>
@@ -173,7 +173,7 @@ export function EventRecap() {
           className="mt-3 flex min-h-11 items-center font-semibold"
           href={data.festival.officialUrl}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
         >
           More from the organiser ↗<span className="sr-only"> Opens in a new tab</span>
         </a>

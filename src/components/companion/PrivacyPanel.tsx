@@ -48,8 +48,13 @@ export function PrivacyPanel() {
           setError("");
           try {
             if (attendee.auth.user) {
-              if (queuedActions(attendee.scope).length || crew.pending)
-                throw new Error("Sync queued changes first.");
+              if (queuedActions(attendee.scope).length || crew.pending) {
+                setError(
+                  "You have changes waiting to sync. Connect and sync first, or sign out from Your account to discard them.",
+                );
+                setClearing(false);
+                return;
+              }
               const result = await supabase.auth.signOut({ scope: "local" });
               if (result.error) throw result.error;
               clearAccountCache(attendee.scope);

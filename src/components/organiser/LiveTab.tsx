@@ -305,7 +305,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       {editingIndex !== null && program[editingIndex] && (
         <Section title={`Update ${program[editingIndex]!.title}`} id="org-live-edit">
           <div className="ios-card space-y-3 p-4">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="block text-[14px] font-semibold">
                 Time (HH:MM)
                 <input
@@ -630,7 +630,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               setIssueNote("");
             }}
           >
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 aria-label="Issue zone or point"
                 className="ios-field"

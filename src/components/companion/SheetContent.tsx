@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { listEventBroadcasts, type OrganiserBroadcast } from "@/lib/organiser/cloud-extensions";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion, type Sheet as SheetState } from "./context";
@@ -55,7 +56,8 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         ? ctx.attendee.preferences.profile.name
         : (ctx.data.crewMembers[index]?.displayName ?? "Crew member");
     }
-    default:
+    default: {
+      const terms = getEventCategoryTerms(ctx.data.event.category);
       return {
         menu: "More",
         updates: "Event updates",
@@ -68,9 +70,9 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         backup: "Your saved plan",
         offline: "Offline & installation",
         pings: "Quick message",
-        passport: "Festival passport",
+        passport: terms.isConferenceLike ? "Event passport" : "Festival passport",
         memories: "Your event memories",
-        play: "Festival extras",
+        play: terms.isConferenceLike ? "Event extras" : "Festival extras",
         nearby: "Find nearby facilities",
         install: "Add to Home Screen",
         event: ctx.data.event.name,
@@ -79,6 +81,7 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         rules: "Rules & entry",
         transport: "Getting there",
       }[sheet.kind];
+    }
   }
 }
 
@@ -154,6 +157,7 @@ export function SheetContent({
   } = ctx;
   const { preferences, ready, toggleArtist, toggleSaved, notify, update } = attendee;
   const tz = data.event.timezone;
+  const terms = getEventCategoryTerms(data.event.category);
   const savedCount = preferences.savedArtists.length + preferences.saved.length;
 
   switch (sheet.kind) {
@@ -200,7 +204,7 @@ export function SheetContent({
             <a
               href={ticketUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground"
             >
               Buy from {provider} <ArrowUpRight size={18} aria-hidden />
@@ -239,6 +243,7 @@ export function SheetContent({
     case "artist": {
       const saved = preferences.savedArtists.includes(sheet.artist.id);
       const reminded = preferences.reminders.includes(sheet.artist.id);
+      const perf = data.performances.find((p) => p.artistId === sheet.artist.id);
       const q = encodeURIComponent(sheet.artist.name);
       return (
         <div className="space-y-4">
@@ -251,9 +256,15 @@ export function SheetContent({
                   ? data.stages.find((stage) => stage.id === sheet.artist.stageId)?.name
                   : sheet.artist.role === "Coke Studio Stage"
                     ? "Coke Studio Stage · venue-plan correspondence pending"
-                    : "Stage assignment awaiting publication"}
+                    : `${terms.placeSingular} assignment awaiting publication`}
               </p>
-              <p className="text-[15px] text-muted-foreground">Set time awaiting publication</p>
+              <p className="text-[15px] text-muted-foreground">
+                {perf
+                  ? `${eventTime(perf.scheduledStart)}–${eventTime(perf.scheduledEnd)} CAT`
+                  : data.festival.timetablePublished
+                    ? "Time to be confirmed"
+                    : `${terms.isConferenceLike ? "Session" : "Set"} time awaiting publication`}
+              </p>
             </div>
           </div>
           <PrimaryButton
@@ -282,62 +293,67 @@ export function SheetContent({
                 notify(
                   reminded
                     ? "In-app reminder turned off"
-                    : "In-app reminder saved for when set times are published",
+                    : `In-app reminder saved for when ${terms.isConferenceLike ? "session" : "set"} times are published`,
                 );
               }
             }}
           >
             <Bell size={18} />
-            {reminded ? "Reminder saved on this phone" : "Remind me when set time publishes"}
+            {reminded
+              ? "Reminder saved on this phone"
+              : `Remind me when ${terms.isConferenceLike ? "session" : "set"} time publishes`}
           </SecondaryButton>
           {sheet.artist.stageId && (
             <SecondaryButton onClick={() => openPlace(sheet.artist.stageId!)}>
-              <MapIcon size={18} /> Find the stage
+              <MapIcon size={18} /> Find the {terms.placeSingular.toLowerCase()}
             </SecondaryButton>
           )}
-          <div className="ios-group">
-            <a
-              href={`https://open.spotify.com/search/${q}`}
-              target="_blank"
-              rel="noreferrer"
-              className="ios-row font-semibold"
-            >
-              Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
-              <span className="sr-only"> Opens in a new tab</span>
-            </a>
-            <a
-              href={`https://music.apple.com/search?term=${q}`}
-              target="_blank"
-              rel="noreferrer"
-              className="ios-row font-semibold"
-            >
-              Apple Music search <ArrowUpRight size={18} className="ml-auto" />
-              <span className="sr-only"> Opens in a new tab</span>
-            </a>
-            <a
-              href={`https://music.youtube.com/search?q=${q}`}
-              target="_blank"
-              rel="noreferrer"
-              className="ios-row font-semibold"
-            >
-              YouTube Music search <ArrowUpRight size={18} className="ml-auto" />
-              <span className="sr-only"> Opens in a new tab</span>
-            </a>
-            <a
-              href={`https://soundcloud.com/search?q=${q}`}
-              target="_blank"
-              rel="noreferrer"
-              className="ios-row font-semibold"
-            >
-              SoundCloud sets <ArrowUpRight size={18} className="ml-auto" />
-              <span className="sr-only"> Opens in a new tab</span>
-            </a>
-          </div>
+          {!terms.isConferenceLike && (
+            <div className="ios-group">
+              <a
+                href={`https://open.spotify.com/search/${q}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ios-row font-semibold"
+              >
+                Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
+                <span className="sr-only"> Opens in a new tab</span>
+              </a>
+              <a
+                href={`https://music.apple.com/search?term=${q}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ios-row font-semibold"
+              >
+                Apple Music search <ArrowUpRight size={18} className="ml-auto" />
+                <span className="sr-only"> Opens in a new tab</span>
+              </a>
+              <a
+                href={`https://music.youtube.com/search?q=${q}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ios-row font-semibold"
+              >
+                YouTube Music search <ArrowUpRight size={18} className="ml-auto" />
+                <span className="sr-only"> Opens in a new tab</span>
+              </a>
+              <a
+                href={`https://soundcloud.com/search?q=${q}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ios-row font-semibold"
+              >
+                SoundCloud sets <ArrowUpRight size={18} className="ml-auto" />
+                <span className="sr-only"> Opens in a new tab</span>
+              </a>
+            </div>
+          )}
           <p className="text-[13px] text-muted-foreground">
             {sheet.artist.avatarUrl
-              ? "Artist and stage billing from the supplied 2026 announcement posts."
-              : "Announced on the organiser’s website and Howler."}{" "}
-            External music links open the artist search. Reminders need confirmed set times.
+              ? `${terms.personSingular} and ${terms.placeSingular.toLowerCase()} details from ${data.festival.organiser}.`
+              : `Listed by ${data.festival.organiser}.`}{" "}
+            {!terms.isConferenceLike && "External music links open the artist search. "}
+            Reminders need confirmed {terms.isConferenceLike ? "session" : "set"} times.
           </p>
         </div>
       );
@@ -466,14 +482,16 @@ export function SheetContent({
               </li>
             ))}
           </ul>
-          <a
-            className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
-            href={data.festival.officialUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Official event information <ArrowUpRight size={17} />
-          </a>
+          {data.festival.officialUrl && (
+            <a
+              className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
+              href={data.festival.officialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Official event information <ArrowUpRight size={17} />
+            </a>
+          )}
         </div>
       );
 
@@ -491,7 +509,7 @@ export function SheetContent({
             className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[17px] font-semibold text-primary-foreground"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${data.event.venueName} ${data.event.city} ${data.event.country}`)}`}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             Open venue in Maps <ArrowUpRight size={18} />
           </a>
@@ -507,23 +525,25 @@ export function SheetContent({
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
             <RowText
-              title={`${data.event.name} 2026`}
+              title={`${data.event.name} · ${data.event.startAt.getFullYear()}`}
               subtitle={`${dateLabel(data.event.startAt, tz, { day: "numeric", month: "short", year: "numeric" })} · ${data.event.city}`}
             />
             <Chevron />
           </button>
-          <a
-            className="ios-row"
-            href={data.festival.relatedEvent.url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <RowText
-              title={data.festival.relatedEvent.name}
-              subtitle={`${data.festival.relatedEvent.date} · ${data.festival.relatedEvent.venue}`}
-            />
-            <ArrowUpRight size={18} className="text-tertiary-foreground" />
-          </a>
+          {data.festival.relatedEvent.name && data.festival.relatedEvent.url && (
+            <a
+              className="ios-row"
+              href={data.festival.relatedEvent.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <RowText
+                title={data.festival.relatedEvent.name}
+                subtitle={`${data.festival.relatedEvent.date} · ${data.festival.relatedEvent.venue}`}
+              />
+              <ArrowUpRight size={18} className="text-tertiary-foreground" />
+            </a>
+          )}
         </div>
       );
 
@@ -575,7 +595,10 @@ export function SheetContent({
                 ctx.focusLineupSearch();
               }}
             >
-              <IconTile icon={Search} tone="bg-pin-other" /> <RowText title="Find an artist" />{" "}
+              <IconTile icon={Search} tone="bg-pin-other" />{" "}
+              <RowText
+                title={`Find ${/^[aeiou]/i.test(terms.personSingular) ? "an" : "a"} ${terms.personSingular.toLowerCase()}`}
+              />{" "}
               <Chevron />
             </button>
             <button type="button" className="ios-row" onClick={() => showOnMap("safety")}>
@@ -602,7 +625,10 @@ export function SheetContent({
         </div>
       );
 
-    case "event":
+    case "event": {
+      const eventTicketUrl = data.event.ticketUrl || data.festival.ticketUrl;
+      const ticketProvider = getTicketProviderName(eventTicketUrl);
+      const hasAge18Rule = data.festival.rules.some((rule) => /\b18\+/i.test(rule));
       return (
         <div className="space-y-4">
           <Paragraph className="text-muted-foreground">{data.event.description}</Paragraph>
@@ -623,25 +649,27 @@ export function SheetContent({
                   month: "long",
                   year: "numeric",
                 })}
-                subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT · 18+ with ID`}
+                subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT${hasAge18Rule ? " · 18+ with ID" : ""}`}
               />
             </div>
             <div className="ios-row">
               <IconTile icon={Music2} />
               <RowText
-                title={`${data.stages.length} stages · ${data.festival.artists.length} announced artists`}
+                title={`${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()} · ${data.festival.artists.length} announced ${data.festival.artists.length === 1 ? terms.personSingular.toLowerCase() : terms.peopleLabel.toLowerCase()}`}
                 subtitle={`Organised by ${data.festival.organiser}`}
               />
             </div>
           </div>
-          <a
-            className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[17px] font-semibold text-primary-foreground"
-            href={data.event.ticketUrl ?? data.festival.ticketUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Tickets on Howler <ArrowUpRight size={18} />
-          </a>
+          {eventTicketUrl && (
+            <a
+              className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary text-[17px] font-semibold text-primary-foreground"
+              href={eventTicketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Tickets on {ticketProvider} <ArrowUpRight size={18} />
+            </a>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <SecondaryButton
               onClick={() => {
@@ -649,7 +677,7 @@ export function SheetContent({
                 navigate("lineup");
               }}
             >
-              <Music2 size={18} /> Lineup
+              <Music2 size={18} /> {terms.programLabel}
             </SecondaryButton>
             <SecondaryButton onClick={onShare}>
               <Share2 size={18} /> Share
@@ -662,19 +690,27 @@ export function SheetContent({
             {data.festival.mapNotice}
           </p>
           <p className="text-[13px] text-muted-foreground">
-            Ticket purchases happen on Howler, not in this app. Past-edition photo from Namib Rage’s
-            official gallery. Information checked {data.festival.sourceCheckedAt}.
+            {eventTicketUrl
+              ? `Ticket purchases happen on ${ticketProvider}, not in this app.`
+              : "Ticket purchases happen directly with the organiser, not in this app."}{" "}
+            {data.event.id === "sound-of-summer-2026"
+              ? "Past-edition photo from Namib Rage’s official gallery. "
+              : ""}
+            Information checked {data.festival.sourceCheckedAt}.
           </p>
-          <a
-            className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
-            href={data.festival.officialUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Official event page <ArrowUpRight size={17} />
-          </a>
+          {data.festival.officialUrl && (
+            <a
+              className="flex min-h-11 items-center gap-1 text-[17px] font-semibold text-primary"
+              href={data.festival.officialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Official event page <ArrowUpRight size={17} />
+            </a>
+          )}
         </div>
       );
+    }
 
     case "privacy":
       return <PrivacyPanel />;

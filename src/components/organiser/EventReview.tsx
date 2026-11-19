@@ -555,7 +555,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <option value="private">Private event (Schedule / Hosts / Areas)</option>
               </select>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block text-[15px] font-semibold">
                 Start date
                 <input
@@ -627,7 +627,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     )
                   }
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input
                     aria-label={`Item ${idx + 1} place`}
                     className="ios-field"
@@ -918,7 +918,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                           Tap on map
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <input
                           type="number"
                           step="0.0001"
@@ -1029,7 +1029,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 value={newDrinkName}
                 onChange={(e) => setNewDrinkName(e.target.value)}
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <select
                   aria-label="Drink category"
                   className="ios-field"
@@ -1185,7 +1185,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <select
                     aria-label={`Zone ${idx + 1} access tier`}
                     className="ios-field"

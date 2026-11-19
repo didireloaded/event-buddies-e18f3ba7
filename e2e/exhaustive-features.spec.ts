@@ -619,7 +619,7 @@ test("5. lineup stage detail card, discover roulette, timed schedule clash detec
   await expect(page.getByText(/1 clash in your agenda/i)).toBeVisible();
 
   const icsDownload = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Add sets to calendar/ }).click();
+  await page.getByRole("button", { name: /Add sessions to calendar/ }).click();
   const icsText = await readFile((await (await icsDownload).path())!, "utf8");
   expect(icsText).toContain("SUMMARY:Keynote: African FinTech");
   expect(icsText).toContain("SUMMARY:AI Systems Workshop");
@@ -904,6 +904,52 @@ test("10. strict resilience pass: duplicate-submit guard, invalid form recovery,
     () => document.documentElement.scrollWidth - window.innerWidth,
   );
   expect(overflowAfterLongNote).toBeLessThanOrEqual(1);
+
+  watcher.assertClean();
+});
+
+test("11. skills-driven frontend hygiene: SSR security headers, zero Google Fonts requests, login password toggle & onboarding validation", async ({
+  page,
+  request,
+}) => {
+  const watcher = attachRuntimeWatchers(page);
+  const thirdPartyFontUrls: string[] = [];
+  page.on("request", (req) => {
+    const url = req.url();
+    if (url.includes("fonts.googleapis.com") || url.includes("fonts.gstatic.com")) {
+      thirdPartyFontUrls.push(url);
+    }
+  });
+
+  // 11A. Baseline SSR security headers present on HTML response
+  const homeRes = await request.get("/");
+  expect(homeRes.ok()).toBeTruthy();
+  expect(homeRes.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(homeRes.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(homeRes.headers()["permissions-policy"]).toContain("payment=()");
+
+  // 11B. Zero third-party Google Fonts requests during initial onboarding + inline 1-char validation alert
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Continue$/i }).click();
+  await page.getByRole("button", { name: /A bit of both/i }).click();
+  const nameInput = page.getByLabel("Your name");
+  await nameInput.fill("A");
+  await expect(page.getByRole("alert")).toContainText("Add at least one more character");
+  await expect(page.getByRole("button", { name: "Go to my event" })).toBeDisabled();
+  expect(thirdPartyFontUrls).toEqual([]);
+
+  // 11C. /login password visibility toggle switches input type and aria-pressed cleanly
+  await page.goto("/login");
+  const pwInput = page.getByLabel("Password", { exact: true });
+  await expect(pwInput).toHaveAttribute("type", "password");
+  const toggleBtn = page.getByRole("button", { name: "Show password" });
+  await expect(toggleBtn).toHaveAttribute("aria-pressed", "false");
+  await toggleBtn.click();
+  await expect(pwInput).toHaveAttribute("type", "text");
+  await expect(page.getByRole("button", { name: "Hide password" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   watcher.assertClean();
 });
