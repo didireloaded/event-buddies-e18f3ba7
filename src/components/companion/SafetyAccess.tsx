@@ -189,6 +189,10 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
         <img
           src={data.event.mapImageUrl}
           alt={`${data.event.name} venue plan`}
+          width={1200}
+          height={800}
+          loading="lazy"
+          decoding="async"
           className="w-full rounded-xl border border-border object-contain"
         />
       )}

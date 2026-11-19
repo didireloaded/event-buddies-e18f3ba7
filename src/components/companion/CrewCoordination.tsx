@@ -326,28 +326,28 @@ export function CrewCoordination() {
               onClick={() => void postActivity(ping.kind, ping.message, pointId || null)}
               className={
                 ping.kind === "sos"
-                  ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-3 text-[14px] font-semibold text-destructive-foreground"
+                  ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-2.5 text-[13px] font-semibold text-destructive-foreground sm:px-3 sm:text-[14px]"
                   : ping.kind === "safe"
-                    ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-[14px] font-semibold text-primary-foreground"
-                    : "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary px-3 text-[14px] font-semibold"
+                    ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:px-3 sm:text-[14px]"
+                    : "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary px-2.5 text-[13px] font-semibold sm:px-3 sm:text-[14px]"
               }
             >
-              {ping.kind === "sos" && <ShieldAlert size={16} aria-hidden />}
-              {ping.kind === "safe" && <CheckCircle2 size={16} aria-hidden />}
+              {ping.kind === "sos" && <ShieldAlert size={16} className="flex-none" aria-hidden />}
+              {ping.kind === "safe" && <CheckCircle2 size={16} className="flex-none" aria-hidden />}
               {ping.label}
             </button>
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          <SecondaryButton onClick={() => setSheet("poll")}>
-            <HelpCircle size={16} /> Crew poll
+        <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
+          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("poll")}>
+            <HelpCircle size={16} className="flex-none" aria-hidden /> Crew poll
           </SecondaryButton>
-          <SecondaryButton onClick={() => setSheet("travel")}>
-            <Car size={16} /> Travel plan
+          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("travel")}>
+            <Car size={16} className="flex-none" aria-hidden /> Travel plan
           </SecondaryButton>
-          <SecondaryButton onClick={() => setSheet("note")}>
-            <MessageSquare size={16} /> Crew note
+          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("note")}>
+            <MessageSquare size={16} className="flex-none" aria-hidden /> Crew note
           </SecondaryButton>
         </div>
 

@@ -453,7 +453,7 @@ export function TicketVault() {
                 onChange={(e) => setManualCode(e.target.value)}
               />
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="block text-[14px] font-semibold">
                 Holder name
                 <input

@@ -170,7 +170,14 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
           <div className="flex items-center gap-4">
             <div className="grid size-16 flex-none place-items-center overflow-hidden rounded-2xl bg-secondary text-[13px] font-semibold text-muted-foreground">
               {logoUrl ? (
-                <img src={logoUrl} alt="Organisation logo" className="h-full w-full object-cover" />
+                <img
+                  src={logoUrl}
+                  alt="Organisation logo"
+                  width={64}
+                  height={64}
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 "Logo"
               )}
@@ -299,7 +306,7 @@ export function AccountTab({ ctx }: { ctx: OrgCtx }) {
               }
             }}
           >
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 type="email"
                 required

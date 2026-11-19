@@ -261,7 +261,7 @@ export function GateCardModal({
               <a
                 href={blobUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center rounded-full bg-black px-5 text-[15px] font-semibold text-white"
               >
                 Open PDF full screen ↗

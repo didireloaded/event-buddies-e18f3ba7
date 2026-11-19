@@ -378,7 +378,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             </p>
             <p className="mt-1 text-[15px] text-muted-foreground">
               {onlySaved === "saved" && !term
-                ? "Tap the heart beside any act to save them here."
+                ? `Tap the heart beside any ${terms.personSingular.toLowerCase()} to save them here.`
                 : "Try another name or clear the filters."}
             </p>
             <button
@@ -471,7 +471,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             <RowText
               title={
                 <span className={mine.length ? "" : "text-muted-foreground"}>
-                  Add sets to calendar
+                  Add {terms.isConferenceLike ? "sessions" : "sets"} to calendar
                 </span>
               }
               subtitle={

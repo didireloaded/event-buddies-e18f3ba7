@@ -315,6 +315,7 @@ export function EventSelection() {
             alt={`${data.event.name} crowd`}
             width={1200}
             height={800}
+            decoding="async"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <span className="discovery-date absolute left-4 top-4 rounded-full px-4 py-2 text-[14px] font-semibold">
@@ -373,6 +374,9 @@ export function EventSelection() {
               <img
                 src={data.event.heroImageUrl}
                 alt={`${data.event.name}`}
+                width={800}
+                height={450}
+                decoding="async"
                 className="h-44 w-full object-cover"
               />
             </div>
@@ -453,7 +457,7 @@ export function EventSelection() {
                 <a
                   href={ticketUrl}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-flex min-h-11 items-center gap-1 text-[16px] font-semibold text-primary"
                 >
                   Buy tickets on {ticketProvider} <ArrowUpRight size={16} aria-hidden />
@@ -556,14 +560,16 @@ export function EventSelection() {
             <p className="text-[14px] text-muted-foreground">
               {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
             </p>
-            <a
-              href={data.festival.relatedEvent.url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
-            >
-              Official details <ArrowUpRight size={16} />
-            </a>
+            {data.festival.relatedEvent.url && (
+              <a
+                href={data.festival.relatedEvent.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
+              >
+                Official details <ArrowUpRight size={16} />
+              </a>
+            )}
           </div>
         </section>
       )}

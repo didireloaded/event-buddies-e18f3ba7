@@ -223,22 +223,26 @@ export function OrganiserWorkspace({ data }: { data: OrganiserData }) {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-x-6 px-4">
-          <a
-            className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
-            href={data.festival.officialUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Official event page <ArrowUpRight size={16} />
-          </a>
-          <a
-            className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
-            href={data.festival.ticketUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Howler listing <ArrowUpRight size={16} />
-          </a>
+          {data.festival.officialUrl && (
+            <a
+              className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
+              href={data.festival.officialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Official event page <ArrowUpRight size={16} />
+            </a>
+          )}
+          {data.festival.ticketUrl && (
+            <a
+              className="flex min-h-11 items-center gap-1 text-[17px] text-primary"
+              href={data.festival.ticketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Howler listing <ArrowUpRight size={16} />
+            </a>
+          )}
         </div>
       </main>
     </div>

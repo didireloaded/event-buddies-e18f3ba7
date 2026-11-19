@@ -69,6 +69,9 @@ export function RidePhoto() {
           <img
             src={url}
             alt="Your saved parking or shuttle landmark"
+            width={800}
+            height={600}
+            decoding="async"
             className="mt-3 max-h-64 w-full rounded-xl object-contain"
           />
           <button

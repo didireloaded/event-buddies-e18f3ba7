@@ -54,17 +54,22 @@ export function OrganiserApp() {
   const reload = useCallback(async () => {
     if (!user) return;
     setError("");
-    const [p, e] = await Promise.all([
-      supabase.from("organiser_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("organiser_events").select("*").order("updated_at", { ascending: false }),
-    ]);
-    if (p.error || e.error) {
+    try {
+      const [p, e] = await Promise.all([
+        supabase.from("organiser_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("organiser_events").select("*").order("updated_at", { ascending: false }),
+      ]);
+      if (p.error || e.error) {
+        setError("Couldn’t load your workspace. Check your connection.");
+        setEvents((prev) => prev ?? []);
+        return;
+      }
+      setProfile(p.data);
+      setEvents(e.data);
+    } catch {
       setError("Couldn’t load your workspace. Check your connection.");
       setEvents((prev) => prev ?? []);
-      return;
     }
-    setProfile(p.data);
-    setEvents(e.data);
   }, [user]);
 
   useEffect(() => {
@@ -98,7 +103,7 @@ export function OrganiserApp() {
           </div>
           <a
             href="/#events"
-            className="hidden min-h-10 items-center rounded-full bg-secondary px-4 text-[14px] font-semibold text-foreground lg:inline-flex"
+            className="hidden min-h-11 items-center rounded-full bg-secondary px-4 text-[14px] font-semibold text-foreground lg:inline-flex"
           >
             Open Attendee App ↗
           </a>
@@ -154,9 +159,16 @@ export function OrganiserApp() {
           ) : open ? (
             <EventReview ctx={ctx} event={open} />
           ) : route.eventId ? (
-            <p className="py-10 text-center text-muted-foreground">
-              This event isn’t in your workspace.
-            </p>
+            <div className="space-y-3 py-10 text-center">
+              <p className="text-muted-foreground">This event isn’t in your workspace.</p>
+              <button
+                type="button"
+                onClick={() => go("events")}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-secondary px-5 text-[15px] font-semibold text-foreground"
+              >
+                Back to all events
+              </button>
+            </div>
           ) : route.tab === "create" ? (
             <CreateTab ctx={ctx} />
           ) : route.tab === "live" ? (
@@ -181,7 +193,7 @@ export function OrganiserApp() {
                   href={`#${id}`}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-12 flex-col items-center justify-center rounded-full text-[11px] font-medium",
+                    "flex min-h-12 flex-col items-center justify-center rounded-full text-[12px] font-medium",
                     active ? "text-primary" : "text-nav-foreground/75",
                   )}
                 >

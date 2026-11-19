@@ -93,7 +93,7 @@ export function CrewView() {
                 attendee.notify("Buddy saved to your global list");
               }}
             >
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input
                   aria-label="Buddy name"
                   className="ios-field"

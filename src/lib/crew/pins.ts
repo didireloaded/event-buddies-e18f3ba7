@@ -264,6 +264,10 @@ export async function broadcastCrewChatMessage(msg: CrewRealtimeChat): Promise<v
   await broadcastCrewPinEvent(msg.crewId, "crew:chat", msg);
 }
 
+export async function broadcastCrewUpdated(crewId: string, eventId: string): Promise<void> {
+  await broadcastCrewPinEvent(crewId, "crew:updated", { crewId, eventId });
+}
+
 export type RealtimeChannelHandle = {
   on: (
     type: "broadcast",
@@ -290,12 +294,12 @@ const activeChannels = new Map<string, RealtimeChannelHandle>();
 
 export async function broadcastCrewPinEvent(
   crewId: string,
-  event: "pin:upserted" | "pin:removed" | "crew:lost" | "crew:chat",
+  event: "pin:upserted" | "pin:removed" | "crew:lost" | "crew:chat" | "crew:updated",
   payload: Record<string, unknown>,
 ): Promise<void> {
   if (!crewId) return;
 
-  // 1. Broadcast over the active subscribed Supabase Realtime channel for this crew
+  // 1. Broadcast over the active subscribed private Supabase Realtime channel for this crew
   const existing = activeChannels.get(crewId);
   if (existing && typeof existing.send === "function") {
     try {
@@ -308,9 +312,10 @@ export async function broadcastCrewPinEvent(
       /* Non-fatal if Realtime websocket is reconnecting. */
     }
   } else if (accountConfigured && typeof supabase.channel === "function") {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
     try {
       const topic = crewPinChannelTopic(crewId);
-      const ch = supabase.channel(topic, { config: { private: true } });
+      ch = supabase.channel(topic, { config: { private: true } });
       await ch.send({
         type: "broadcast",
         event,
@@ -318,6 +323,10 @@ export async function broadcastCrewPinEvent(
       });
     } catch {
       /* Non-fatal if Realtime websocket is reconnecting. */
+    } finally {
+      if (ch && typeof supabase.removeChannel === "function") {
+        void supabase.removeChannel(ch);
+      }
     }
   }
 }
@@ -329,6 +338,7 @@ export function subscribeCrewPins(
     onRemoved: (removed: PinRemovedPayload) => void;
     onLostAlert?: (alert: CrewLostAlert) => void;
     onChatMessage?: (msg: CrewRealtimeChat) => void;
+    onCrewUpdated?: () => void;
     onAnyChange?: () => void;
   },
   options?: { client?: RealtimeClientLike; configured?: boolean },
@@ -375,6 +385,11 @@ export function subscribeCrewPins(
       if (disposed) return;
       const parsed = crewRealtimeChatSchema.safeParse(msg.payload);
       if (parsed.success) handlers.onChatMessage?.(parsed.data);
+      handlers.onAnyChange?.();
+    });
+    ch.on("broadcast", { event: "crew:updated" }, () => {
+      if (disposed) return;
+      handlers.onCrewUpdated?.();
       handlers.onAnyChange?.();
     });
     return ch;

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   broadcastCrewChatMessage,
   broadcastCrewLostAlert,
+  broadcastCrewUpdated,
   crewPinChannelTopic,
   crewPinSchema,
   dropCrewPin,
@@ -210,6 +211,7 @@ describe("Real-time crew pin pipe (crew:{id}:pins)", () => {
     const phoneBPins: Record<string, unknown>[] = [];
     const phoneBLostAlerts: Record<string, unknown>[] = [];
     const phoneBChats: Record<string, unknown>[] = [];
+    let crewUpdates = 0;
 
     const unsubscribe = subscribeCrewPins(
       "crew-two-phone",
@@ -225,6 +227,9 @@ describe("Real-time crew pin pipe (crew:{id}:pins)", () => {
         },
         onLostAlert: (alert) => phoneBLostAlerts.push(alert),
         onChatMessage: (chat) => phoneBChats.push(chat),
+        onCrewUpdated: () => {
+          crewUpdates += 1;
+        },
       },
       { client: mockClient, configured: true },
     );
@@ -285,6 +290,10 @@ describe("Real-time crew pin pipe (crew:{id}:pins)", () => {
       pointId: "stage-main",
     });
     expect(phoneBPins).toHaveLength(0);
+
+    // 5. Crew membership/meeting changes broadcast on the private crew channel
+    await broadcastCrewUpdated("crew-two-phone", "20000000-0000-4000-8000-000000000002");
+    expect(crewUpdates).toBe(1);
 
     unsubscribe();
   });
