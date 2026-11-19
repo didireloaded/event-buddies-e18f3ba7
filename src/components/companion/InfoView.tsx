@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { ArrowUpRight, Bus, ClipboardCheck, HelpCircle, ShieldCheck, Ticket } from "lucide-react";
+import {
+  ArrowUpRight,
+  Ban,
+  Bus,
+  Camera,
+  ClipboardCheck,
+  HelpCircle,
+  IdCard,
+  Info as InfoIcon,
+  ShieldCheck,
+  Ticket,
+} from "lucide-react";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
@@ -104,12 +115,34 @@ export function InfoView() {
       <div className="mt-5">
         {selected === "entry" && (
           <div className="space-y-4">
-            <div className="ios-card p-4">
-              <h2 className="text-[17px] font-semibold">{terms.entryRulesLabel}</h2>
-              <ul className="mt-2 list-disc space-y-2 pl-5 text-[15px] leading-relaxed">
-                {data.festival.rules.map((rule) => (
-                  <li key={rule}>{rule}</li>
-                ))}
+            <div className="ios-card overflow-hidden">
+              <div className="border-b border-separator px-4 py-3">
+                <h2 className="text-[16px] font-semibold">{terms.entryRulesLabel}</h2>
+              </div>
+              <ul className="divide-y divide-separator">
+                {data.festival.rules.map((rule) => {
+                  const Icon = /\b(18\+|id|identification|badge)\b/i.test(rule)
+                    ? IdCard
+                    : /\b(camera|drone|drones|umbrella|umbrellas)\b/i.test(rule)
+                      ? Camera
+                      : /\b(prohibited|glass|weapons|outside|no)\b/i.test(rule)
+                        ? Ban
+                        : InfoIcon;
+                  return (
+                    <li
+                      key={rule}
+                      className="flex items-start gap-3 px-4 py-3 text-[15px] leading-snug"
+                    >
+                      <span
+                        aria-hidden
+                        className="mt-0.5 grid size-8 flex-none place-items-center rounded-lg bg-secondary text-primary"
+                      >
+                        <Icon size={16} />
+                      </span>
+                      <span className="min-w-0 flex-1 pt-0.5">{rule}</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             <PreparationChecklist />

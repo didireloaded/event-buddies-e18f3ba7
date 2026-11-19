@@ -46,15 +46,37 @@ export function AccountPanel() {
     }
   }
   return (
-    <section className="mt-5 ios-card space-y-3 p-4" aria-labelledby="account-heading">
-      <div className="flex items-center gap-2">
-        <Cloud size={21} className="text-favorite" />
-        <h2 id="account-heading" className="text-[20px] font-semibold">
-          Your account
-        </h2>
+    <section className="mt-4 ios-card space-y-3 p-4" aria-labelledby="account-heading">
+      <div className="flex items-center gap-2.5">
+        <span
+          aria-hidden
+          className="grid size-9 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
+        >
+          <Cloud size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id="account-heading" className="text-[17px] font-semibold leading-tight">
+            Your account
+          </h2>
+          {!auth.loading && !auth.user && (
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {auth.configured
+                ? `Sync ${terms.peopleLabel.toLowerCase()} & meetings across phones`
+                : "Account connection settings are pending. Device saves remain available."}
+            </p>
+          )}
+        </div>
       </div>
+      {!auth.loading && !auth.user && auth.configured && (
+        <a
+          href="/login?next=%2F%23you"
+          className="ios-press flex min-h-11 w-full items-center justify-center rounded-xl bg-favorite-soft px-4 text-[15px] font-semibold text-primary"
+        >
+          Sign in or create an account
+        </a>
+      )}
       {auth.loading ? (
-        <p role="status" className="text-[15px] text-muted-foreground">
+        <p role="status" className="text-[14px] text-muted-foreground">
           Checking sign-in…
         </p>
       ) : auth.user ? (
@@ -157,31 +179,11 @@ export function AccountPanel() {
           >
             Delete synced account data
           </button>
-          <p className="text-[14px] text-muted-foreground">
-            Suggested day plans, ticket copies and photos stay on this device. Your account’s
-            meeting plan is private to you.
+          <p className="text-[13px] text-muted-foreground">
+            Day plans, ticket copies and photos stay on this device.
           </p>
         </>
-      ) : (
-        <>
-          <p className="text-[15px] text-muted-foreground">
-            Sign in to keep favourite {terms.peopleLabel.toLowerCase()} and your meeting plan
-            available on your other phones.
-          </p>
-          {auth.configured ? (
-            <a
-              href="/login?next=%2F%23you"
-              className="flex min-h-11 items-center font-semibold text-favorite"
-            >
-              Sign in or create an account
-            </a>
-          ) : (
-            <p className="text-[15px] text-muted-foreground">
-              Account connection settings are pending. Your device saves remain available.
-            </p>
-          )}
-        </>
-      )}
+      ) : null}
       {(error || auth.error) && (
         <p role="alert" className="text-[15px] text-destructive">
           {error || auth.error}

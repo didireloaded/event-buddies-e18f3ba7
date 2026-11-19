@@ -79,33 +79,33 @@
 :root {
   --radius: 0.75rem;
   /* Coastal teal interaction tint over quiet iOS grouped surfaces. */
-  --background: oklch(0.96 0.003 265);
-  --card: oklch(0.96 0.003 265);
+  --background: oklch(0.968 0.004 235);
+  --card: oklch(0.968 0.004 235);
   --foreground: oklch(0.16 0 0);
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.46 0.085 195);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.925 0.005 265);
+  --secondary: oklch(0.935 0.005 240);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.925 0.005 265);
-  --muted-foreground: oklch(0.47 0.005 265);
-  --tertiary-foreground: oklch(0.52 0.005 265);
+  --muted: oklch(0.935 0.005 240);
+  --muted-foreground: oklch(0.47 0.006 250);
+  --tertiary-foreground: oklch(0.54 0.006 250);
   --accent: var(--favorite-soft);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.21 27);
   --destructive-foreground: oklch(0.99 0 0);
   --favorite: var(--primary);
-  --favorite-soft: oklch(0.93 0.025 190);
+  --favorite-soft: oklch(0.935 0.025 192);
   --success: oklch(0.55 0.13 165);
   --warning: oklch(0.5 0.12 65);
   --warning-soft: oklch(0.95 0.04 85);
-  --fill: oklch(0.915 0.005 265);
-  --bar: oklch(0.99 0 0 / 0.94);
-  --border: oklch(0.86 0.004 265);
-  --separator: oklch(0.86 0.004 265);
-  --input: oklch(0.86 0.004 265);
+  --fill: oklch(0.92 0.005 240);
+  --bar: oklch(0.995 0 0 / 0.94);
+  --border: oklch(0.89 0.005 240);
+  --separator: oklch(0.91 0.004 240);
+  --input: oklch(0.87 0.005 240);
   --ring: var(--primary);
   --pin-stage: oklch(0.8 0.12 80);
   --pin-safety: oklch(0.15 0.005 60);
@@ -264,7 +264,8 @@
   /* Inset grouped list (UITableView .insetGrouped) */
   .ios-group {
     background: var(--color-popover);
-    border-radius: 12px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in oklch, var(--color-border) 60%, transparent);
     overflow: hidden;
   }
   .ios-group > * + * {
@@ -272,7 +273,8 @@
   }
   .ios-card {
     background: var(--color-popover);
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
+    border: 1px solid color-mix(in oklch, var(--color-border) 60%, transparent);
   }
   .ios-group-indent > * + * {
     box-shadow: none;
@@ -308,10 +310,11 @@
     background: var(--color-fill);
   }
   .ios-section-title {
-    padding: 0 1rem 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    line-height: 1.25rem;
+    padding: 0 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.15rem;
     color: var(--color-muted-foreground);
   }
   .eyebrow {

@@ -1,3 +1,4 @@
+import { CalendarCheck2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { suggestDayPlan } from "@/lib/day-plan/day-plan.functions";
 import { buildPlanFacts } from "@/lib/day-plan/schema";
@@ -66,34 +67,48 @@ export function DayPlanPanel() {
   }
   return (
     <section
-      className="mx-4 mt-4 border-y border-border py-4"
+      className="ios-card mx-4 mt-3 space-y-2.5 px-4 py-3.5"
       aria-labelledby="day-plan-heading"
       aria-busy={busy}
     >
-      <h2 id="day-plan-heading" className="text-[20px] font-semibold">
-        Your day plan
-      </h2>
-      {empty && (
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Save {terms.isConferenceLike ? "a speaker" : "an artist"} using a heart below, or choose a
-          meeting time in Crew.
-        </p>
-      )}
-      <button
-        type="button"
-        className="min-h-11 text-left font-semibold text-primary disabled:opacity-50"
-        disabled={!ready || empty || busy}
-        onClick={() => void suggest()}
-      >
-        {busy ? "Suggesting your day…" : "Suggest my day plan"}
-      </button>
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden
+          className="mt-0.5 grid size-9 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
+        >
+          <CalendarCheck2 size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id="day-plan-heading" className="text-[16px] font-semibold leading-tight">
+            Your day plan
+          </h2>
+          <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+            {empty
+              ? `Save ${terms.isConferenceLike ? "a speaker" : "an artist"} using a heart below, or pick a meeting in Crew.`
+              : "Suggested plans stay on this device."}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          className="ios-press inline-flex min-h-11 items-center rounded-full bg-favorite-soft px-4 text-[14px] font-semibold text-primary disabled:opacity-45"
+          disabled={!ready || empty || busy}
+          onClick={() => void suggest()}
+        >
+          {busy ? "Suggesting your day…" : "Suggest my day plan"}
+        </button>
+        {empty && (
+          <p className="text-[12px] text-muted-foreground">Suggested plans stay on this device.</p>
+        )}
+      </div>
       {busy && (
-        <p role="status" className="text-[15px] text-muted-foreground">
+        <p role="status" className="mt-2 text-[14px] text-muted-foreground">
           Checking your favourites and meeting time…
         </p>
       )}
       {error && (
-        <div role="alert" className="text-[15px]">
+        <div role="alert" className="mt-2 text-[14px] text-destructive">
           <p>{error}</p>
           <button
             type="button"
@@ -106,41 +121,37 @@ export function DayPlanPanel() {
         </div>
       )}
       {plan && (
-        <div aria-live="polite">
-          <p className="mt-2 text-[15px]">{plan.summary}</p>
+        <div aria-live="polite" className="mt-3 border-t border-separator pt-3">
+          <p className="text-[15px] font-medium">{plan.summary}</p>
           <ol className="mt-2 divide-y divide-border">
             {plan.items.map((item, index) => (
-              <li key={`${item.kind}-${index}`} className="py-3">
-                <p className="text-[15px] font-semibold">{item.time}</p>
-                <p className="font-semibold">{item.title}</p>
-                {item.place && <p className="text-[15px] text-muted-foreground">{item.place}</p>}
-                <p className="text-[15px] text-muted-foreground">{item.detail}</p>
+              <li key={`${item.kind}-${index}`} className="py-2.5">
+                <p className="text-[13px] font-semibold text-primary">{item.time}</p>
+                <p className="text-[16px] font-semibold">{item.title}</p>
+                {item.place && <p className="text-[14px] text-muted-foreground">{item.place}</p>}
+                <p className="text-[14px] text-muted-foreground">{item.detail}</p>
               </li>
             ))}
           </ol>
-          <p className="text-[15px] text-muted-foreground">{plan.note}</p>
-          <button
-            type="button"
-            disabled={!ready}
-            className="min-h-11 font-semibold text-primary"
-            onClick={() => {
-              request.current?.abort();
-              request.current = null;
-              setBusy(false);
-              setError("");
-              attendee.update({ dayPlan: null });
-            }}
-          >
-            Clear plan
-          </button>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-[13px] text-muted-foreground">{plan.note}</p>
+            <button
+              type="button"
+              disabled={!ready}
+              className="min-h-11 flex-none text-[14px] font-semibold text-primary"
+              onClick={() => {
+                request.current?.abort();
+                request.current = null;
+                setBusy(false);
+                setError("");
+                attendee.update({ dayPlan: null });
+              }}
+            >
+              Clear plan
+            </button>
+          </div>
         </div>
       )}
-      <p className="mt-1 text-[14px] text-muted-foreground">
-        Suggested plans stay on this device. Review your plan here.{" "}
-        {(data?.performances?.length ?? 0) > 0
-          ? "Based on published times for this event."
-          : "Published times appear here once confirmed by the organiser."}
-      </p>
     </section>
   );
 }

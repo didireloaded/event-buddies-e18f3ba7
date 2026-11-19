@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Plus, Radio } from "lucide-react";
+import { Camera, Plus, Radio, Users } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { photoStore } from "@/lib/attendee/ride-photo";
 import { useCompanion, initials } from "./context";
@@ -183,13 +183,10 @@ export function ConnectedCrew() {
     }
   }
   return (
-    <section
-      className="mx-4 mt-4 border-y border-border py-4"
-      aria-labelledby="connected-crew-heading"
-    >
+    <section className="ios-card mx-4 mt-3 space-y-3 p-4" aria-labelledby="connected-crew-heading">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          {crew && crewPhotoUrl && (
+          {crew && crewPhotoUrl ? (
             <img
               src={crewPhotoUrl}
               alt={`${crew.name} photo`}
@@ -198,10 +195,24 @@ export function ConnectedCrew() {
               decoding="async"
               className="size-11 flex-none rounded-xl object-cover ring-1 ring-border"
             />
+          ) : (
+            <span
+              aria-hidden
+              className="grid size-10 flex-none place-items-center rounded-xl bg-favorite-soft text-primary"
+            >
+              <Users size={19} />
+            </span>
           )}
-          <h2 id="connected-crew-heading" className="truncate text-[22px] font-semibold">
-            {crew?.name ?? "Your connected crew"}
-          </h2>
+          <div className="min-w-0">
+            <h2 id="connected-crew-heading" className="truncate text-[18px] font-bold leading-snug">
+              {crew?.name ?? "Your connected crew"}
+            </h2>
+            {!attendee.auth.user && (
+              <p className="text-[13px] text-muted-foreground">
+                Live pins &amp; shared meetup across phones
+              </p>
+            )}
+          </div>
         </div>
         {crew && self?.owner && (
           <label className="ios-press inline-flex min-h-11 flex-none cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground">
@@ -269,15 +280,14 @@ export function ConnectedCrew() {
               </a>
             </div>
           )}
-          <p className="mt-2 text-[15px] text-muted-foreground">
-            Sign in to share a crew and meeting across your phones.
-          </p>
-          <a
-            href="/login?next=%2F%23crew"
-            className="flex min-h-11 items-center font-semibold text-primary"
-          >
-            Sign in for shared crews
-          </a>
+          {!pendingInvite && (
+            <a
+              href="/login?next=%2F%23crew"
+              className="ios-press flex min-h-11 w-full items-center justify-center rounded-xl bg-favorite-soft px-4 text-[15px] font-semibold text-primary"
+            >
+              Sign in for shared crews
+            </a>
+          )}
         </>
       ) : (
         <>

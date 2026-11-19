@@ -27,60 +27,84 @@ export function YouView() {
   return (
     <div className="px-4">
       <h1 className="ios-large-title pt-2">You</h1>
-      <AccountPanel />
-      <button
-        type="button"
-        className="ios-row mt-4 gap-4 rounded-2xl bg-popover py-5"
-        onClick={() => openSheet({ kind: "profile" })}
-      >
-        <Avatar
-          label={initials(preferences.profile.name)}
-          src={avatar?.url}
-          alt={
-            preferences.hasName
-              ? `${preferences.profile.name}’s profile photo`
-              : "Your profile photo"
-          }
-          size="lg"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block break-words text-[22px] font-bold tracking-tight">
-            {preferences.hasName
-              ? preferences.profile.name
-              : terms.isConferenceLike
-                ? "Your event name"
-                : "Your festival name"}
-          </span>
-          <span className="mt-1 block text-[15px] text-muted-foreground">
-            Edit name · {preferences.savedArtists.length} saved {savedLabel}
-          </span>
-          {preferences.badges.length > 0 && (
-            <span className="mt-1.5 block text-[13px] font-medium text-primary">
-              {preferences.badges.join(" · ")}
+      <div className="ios-card mt-4 overflow-hidden">
+        <button
+          type="button"
+          className="ios-row gap-4 py-4"
+          onClick={() => openSheet({ kind: "profile" })}
+        >
+          <Avatar
+            label={initials(preferences.profile.name)}
+            src={avatar?.url}
+            alt={
+              preferences.hasName
+                ? `${preferences.profile.name}’s profile photo`
+                : "Your profile photo"
+            }
+            size="lg"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block break-words text-[22px] font-bold tracking-tight">
+              {preferences.hasName
+                ? preferences.profile.name
+                : terms.isConferenceLike
+                  ? "Your event name"
+                  : "Your festival name"}
             </span>
-          )}
-        </span>
-        <Chevron />
-      </button>
-      <Section title={`My year in events · ${eventYear}`} id="you-year-summary">
-        <div className="ios-card space-y-2 p-4 text-[14px]">
-          <p className="text-[16px] font-semibold">{data.event.name}</p>
-          <p className="text-muted-foreground">
-            {preferences.savedArtists.length} saved {savedLabel} · {totalCheckpoints} passport stops
-            checked · {preferences.sharedPlans.length} friend plans imported
-          </p>
-          {preferences.collections.length > 0 && (
-            <p>
-              <strong>Collections:</strong> {preferences.collections.join(", ")}
+            <span className="mt-0.5 block text-[14px] text-muted-foreground">
+              Edit name · {data.event.name} · {eventYear}
+            </span>
+            {preferences.badges.length > 0 && (
+              <span className="mt-1.5 block text-[13px] font-medium text-primary">
+                {preferences.badges.join(" · ")}
+              </span>
+            )}
+          </span>
+          <Chevron />
+        </button>
+        <div
+          className="grid grid-cols-3 divide-x divide-separator border-t border-separator bg-secondary/35 text-center"
+          aria-label={`My year in events · ${eventYear}`}
+        >
+          <div className="px-2 py-3">
+            <p className="text-[20px] font-bold tabular-nums leading-none">
+              {preferences.savedArtists.length}
             </p>
-          )}
-          {preferences.followedOrganisers.length > 0 && (
-            <p>
-              <strong>Followed organisers:</strong> {preferences.followedOrganisers.join(", ")}
+            <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">
+              Saved {savedLabel}
             </p>
-          )}
+          </div>
+          <div className="px-2 py-3">
+            <p className="text-[20px] font-bold tabular-nums leading-none">{totalCheckpoints}</p>
+            <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">Passport</p>
+          </div>
+          <div className="px-2 py-3">
+            <p className="text-[20px] font-bold tabular-nums leading-none">
+              {preferences.sharedPlans.length}
+            </p>
+            <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">
+              Crew plans
+            </p>
+          </div>
         </div>
-      </Section>
+        {(preferences.collections.length > 0 || preferences.followedOrganisers.length > 0) && (
+          <div className="space-y-1 border-t border-separator px-4 py-2.5 text-[13px] text-muted-foreground">
+            {preferences.collections.length > 0 && (
+              <p>
+                <strong className="text-foreground">Collections:</strong>{" "}
+                {preferences.collections.join(", ")}
+              </p>
+            )}
+            {preferences.followedOrganisers.length > 0 && (
+              <p>
+                <strong className="text-foreground">Following:</strong>{" "}
+                {preferences.followedOrganisers.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      <AccountPanel />
       <Section
         title={terms.isConferenceLike ? "Event focus" : "Festival mode"}
         id="you-preferences"
@@ -120,20 +144,20 @@ export function YouView() {
             <IconTile icon={Ticket} />
             <RowText
               title={allTicketsCount > 0 ? `Your tickets · ${allTicketsCount}` : "Your tickets"}
-              subtitle="My Tickets & Passes · Ticket vault offline copy"
+              subtitle="Ticket vault & offline gate card"
             />
             <Chevron />
           </button>
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "memories" })}>
             <IconTile icon={Camera} />
-            <RowText title="Photo diary" subtitle="Private memories and landmarks" />
+            <RowText title="Photo diary" subtitle="Private memories" />
             <Chevron />
           </button>
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "passport" })}>
             <IconTile icon={Stamp} />
             <RowText
               title="Festival passport"
-              subtitle={`${preferences.stamps.length} stops checked off`}
+              subtitle={`${preferences.stamps.length} stops checked`}
             />
             <Chevron />
           </button>
@@ -143,21 +167,14 @@ export function YouView() {
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "privacy" })}>
             <IconTile icon={ShieldCheck} />
-            <RowText
-              title="Location & saved data"
-              subtitle="Private pins, sharing and clear data"
-            />
+            <RowText title="Location & saved data" subtitle="Pins, sharing & device storage" />
             <Chevron />
           </button>
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "offline" })}>
             <IconTile icon={Smartphone} />
             <RowText
               title="Offline & installation"
-              subtitle={
-                offlineStatus === "registered"
-                  ? "Offline copy saved on this phone"
-                  : "Check your offline copy"
-              }
+              subtitle={offlineStatus === "registered" ? "Saved offline" : "Check offline copy"}
             />
             <Chevron />
           </button>

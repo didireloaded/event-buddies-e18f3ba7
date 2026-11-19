@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Beer,
   CheckCircle2,
   Car,
   Download,
   HelpCircle,
+  MapPin,
   MessageSquare,
+  Music2,
   Share2,
   ShieldAlert,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { createCrewYearbookCard } from "@/lib/attendee/recap-card";
@@ -21,15 +26,20 @@ import {
 } from "@/lib/organiser/cloud-extensions";
 import { useCompanion } from "./context";
 import { Sheet } from "./Sheet";
-import { PrimaryButton, SecondaryButton, Section } from "./ui";
+import { PrimaryButton, Section } from "./ui";
 
-const QUICK_PINGS: { label: string; kind: CrewActivity["kind"]; message: string }[] = [
-  { label: "At the stage", kind: "ping", message: "At the stage" },
-  { label: "Bar run", kind: "ping", message: "Heading for a bar run" },
-  { label: "Toilets", kind: "ping", message: "Heading to the toilets" },
-  { label: "Regroup", kind: "ping", message: "Let’s regroup at our meeting spot" },
-  { label: "I’m safe", kind: "safe", message: "I’m safe and checked in" },
-  { label: "Need my crew", kind: "sos", message: "Need my crew at my landmark" },
+const QUICK_PINGS: {
+  label: string;
+  kind: CrewActivity["kind"];
+  message: string;
+  icon: LucideIcon;
+}[] = [
+  { label: "At the stage", kind: "ping", message: "At the stage", icon: Music2 },
+  { label: "Bar run", kind: "ping", message: "Heading for a bar run", icon: Beer },
+  { label: "Toilets", kind: "ping", message: "Heading to the toilets", icon: MapPin },
+  { label: "Regroup", kind: "ping", message: "Let’s regroup at our meeting spot", icon: Users },
+  { label: "I’m safe", kind: "safe", message: "I’m safe and checked in", icon: CheckCircle2 },
+  { label: "Need my crew", kind: "sos", message: "Need my crew at my landmark", icon: ShieldAlert },
 ];
 
 function localFeedKey(eventId: string) {
@@ -300,12 +310,14 @@ export function CrewCoordination() {
   }
 
   return (
-    <Section title="Crew coordination & check-in" id="crew-coordination" className="px-4">
+    <Section title="Quick pings & check-in" id="crew-coordination" className="px-4">
       <div className="ios-card space-y-3 p-4">
-        <label className="block text-[14px] font-semibold">
-          My current or target landmark
+        <label className="flex items-center gap-2 text-[14px] font-semibold">
+          <MapPin size={16} className="flex-none text-primary" aria-hidden />
+          <span className="sr-only">My current or target landmark</span>
           <select
-            className="ios-field mt-1"
+            aria-label="My current or target landmark"
+            className="ios-field flex-1"
             value={pointId}
             onChange={(e) => setPointId(e.target.value)}
           >
@@ -318,50 +330,76 @@ export function CrewCoordination() {
         </label>
 
         <div className="grid grid-cols-2 gap-2" role="group" aria-label="Quick crew pings">
-          {QUICK_PINGS.map((ping) => (
-            <button
-              key={ping.label}
-              type="button"
-              disabled={!attendee.ready || posting}
-              onClick={() => void postActivity(ping.kind, ping.message, pointId || null)}
-              className={
-                ping.kind === "sos"
-                  ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-2.5 text-[13px] font-semibold text-destructive-foreground sm:px-3 sm:text-[14px]"
-                  : ping.kind === "safe"
-                    ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:px-3 sm:text-[14px]"
-                    : "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary px-2.5 text-[13px] font-semibold sm:px-3 sm:text-[14px]"
-              }
-            >
-              {ping.kind === "sos" && <ShieldAlert size={16} className="flex-none" aria-hidden />}
-              {ping.kind === "safe" && <CheckCircle2 size={16} className="flex-none" aria-hidden />}
-              {ping.label}
-            </button>
-          ))}
+          {QUICK_PINGS.map((ping) => {
+            const PingIcon = ping.icon;
+            return (
+              <button
+                key={ping.label}
+                type="button"
+                disabled={!attendee.ready || posting}
+                onClick={() => void postActivity(ping.kind, ping.message, pointId || null)}
+                className={
+                  ping.kind === "sos"
+                    ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-destructive px-2.5 text-[13px] font-semibold text-destructive-foreground sm:px-3 sm:text-[14px]"
+                    : ping.kind === "safe"
+                      ? "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 text-[13px] font-semibold text-primary-foreground sm:px-3 sm:text-[14px]"
+                      : "ios-press flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-secondary px-2.5 text-[13px] font-semibold text-foreground sm:px-3 sm:text-[14px]"
+                }
+              >
+                <PingIcon size={15} className="flex-none" aria-hidden />
+                {ping.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3">
-          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("poll")}>
-            <HelpCircle size={16} className="flex-none" aria-hidden /> Crew poll
-          </SecondaryButton>
-          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("travel")}>
-            <Car size={16} className="flex-none" aria-hidden /> Travel plan
-          </SecondaryButton>
-          <SecondaryButton className="px-3 text-[15px]" onClick={() => setSheet("note")}>
-            <MessageSquare size={16} className="flex-none" aria-hidden /> Crew note
-          </SecondaryButton>
+        <div className="grid grid-cols-3 gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={() => setSheet("poll")}
+            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+          >
+            <HelpCircle size={18} className="flex-none" aria-hidden />
+            <span>Crew poll</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSheet("travel")}
+            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+          >
+            <Car size={18} className="flex-none" aria-hidden />
+            <span>Travel plan</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSheet("note")}
+            className="ios-press flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl bg-favorite-soft px-2 py-2 text-[13px] font-semibold text-primary"
+          >
+            <MessageSquare size={18} className="flex-none" aria-hidden />
+            <span>Crew note</span>
+          </button>
         </div>
 
-        <SecondaryButton disabled={exportingCard} onClick={() => void exportYearbook()}>
-          <Download size={17} />
-          {exportingCard ? "Creating yearbook card…" : "Download crew yearbook card"}
-        </SecondaryButton>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-separator pt-2.5">
+          {activities.length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">Tap a ping to update your crew.</p>
+          ) : (
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {activities.length} recent {activities.length === 1 ? "update" : "updates"}
+            </span>
+          )}
+          <button
+            type="button"
+            disabled={exportingCard}
+            onClick={() => void exportYearbook()}
+            className="ios-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-[13px] font-semibold text-foreground disabled:opacity-50"
+          >
+            <Download size={14} className="flex-none" aria-hidden />
+            {exportingCard ? "Creating card…" : "Download crew yearbook card"}
+          </button>
+        </div>
 
-        {activities.length === 0 ? (
-          <p className="border-t border-border pt-3 text-[14px] text-muted-foreground">
-            No crew pings or messages yet. Tap a quick ping above, start a stage poll or post a crew
-            note.
-          </p>
-        ) : (
+        {activities.length > 0 && (
           <div className="divide-y divide-border border-t border-border pt-2">
             {activities.slice(0, 8).map((act) => {
               const place = act.pointId ? places.find((p) => p.id === act.pointId) : null;
