@@ -51,9 +51,19 @@ export function GateCardModal({
       else el.setAttribute("open", "");
     }
 
-    // Request Screen Wake Lock on open and restore on close
+    // Request Screen Wake Lock + experimental Brightness API on open and restore on close
     let sentinel: WakeLockSentinelLike | null = null;
     let active = true;
+    const screenWithBrightness = window.screen as Screen & { brightness?: number };
+    const previousBrightness =
+      typeof screenWithBrightness.brightness === "number" ? screenWithBrightness.brightness : null;
+    if (previousBrightness !== null) {
+      try {
+        screenWithBrightness.brightness = 1;
+      } catch {
+        /* Read-only on standard browsers. */
+      }
+    }
     const nav = navigator as Navigator & {
       wakeLock?: { request?: (type: "screen") => Promise<WakeLockSentinelLike> };
     };
@@ -72,6 +82,13 @@ export function GateCardModal({
     return () => {
       active = false;
       void sentinel?.release?.();
+      if (previousBrightness !== null) {
+        try {
+          screenWithBrightness.brightness = previousBrightness;
+        } catch {
+          /* Ignore brightness restore failures. */
+        }
+      }
       if (el.open) {
         if (typeof el.close === "function") el.close();
         else el.removeAttribute("open");

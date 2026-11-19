@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+import { accountConfigured } from "@/lib/account/use-auth";
 import { photoStore } from "./ride-photo";
 import { eventTime } from "./schedule";
 import type { TicketTier } from "./use-attendee";
@@ -303,5 +305,139 @@ export async function readTicketBlob(ticket: SavedTicketMeta): Promise<Blob | nu
     return await photoStore(ticket.storageKey, "read");
   } catch {
     return null;
+  }
+}
+
+type UntypedTicketsTable = {
+  from: (table: string) => {
+    upsert: (
+      row: Record<string, unknown>,
+      opts?: { onConflict?: string },
+    ) => Promise<{ error: { message: string } | null }>;
+    select: (cols: string) => {
+      eq: (
+        col: string,
+        val: string,
+      ) => Promise<{ data: Record<string, unknown>[] | null; error: { message: string } | null }>;
+    };
+    delete: () => {
+      eq: (
+        col: string,
+        val: string,
+      ) => {
+        eq: (col2: string, val2: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+};
+
+/**
+ * Best-effort cloud backup of ticket metadata & tier into public.tickets when signed in,
+ * so a lost phone recovers ticket records & map tiers without breaking offline-first operation.
+ */
+export async function syncTicketToCloud(userId: string, ticket: SavedTicketMeta): Promise<void> {
+  if (!accountConfigured || !userId) return;
+  try {
+    const client = supabase as unknown as UntypedTicketsTable;
+    await client.from("tickets").upsert(
+      {
+        user_id: userId,
+        event_id: ticket.eventId,
+        label: ticket.label,
+        tier: ticket.tier,
+        file_type: ticket.fileType,
+        holder_name: ticket.holderName,
+        ticket_code: ticket.ticketCode,
+        added_at: ticket.addedAt,
+      },
+      { onConflict: "user_id,event_id,label" },
+    );
+  } catch {
+    /* Table may not be applied in Cloud yet; local offline copy stays intact. */
+  }
+}
+
+export async function deleteTicketFromCloud(
+  userId: string,
+  eventId: string,
+  label: string,
+): Promise<void> {
+  if (!accountConfigured || !userId) return;
+  try {
+    const client = supabase as unknown as {
+      from: (table: string) => {
+        delete: () => {
+          eq: (
+            col: string,
+            val: string,
+          ) => {
+            eq: (
+              col2: string,
+              val2: string,
+            ) => {
+              eq: (col3: string, val3: string) => Promise<{ error: { message: string } | null }>;
+            };
+          };
+        };
+      };
+    };
+    await client
+      .from("tickets")
+      .delete()
+      .eq("user_id", userId)
+      .eq("event_id", eventId)
+      .eq("label", label);
+  } catch {
+    /* Table may not be applied in Cloud yet; local deletion still succeeds. */
+  }
+}
+
+export async function pullTicketsFromCloud(
+  userId: string,
+  eventNameById: (eventId: string) => { name: string; dateIso: string },
+): Promise<SavedTicketMeta[]> {
+  if (!accountConfigured || !userId) return readAllSavedTickets();
+  try {
+    const client = supabase as unknown as UntypedTicketsTable;
+    const { data, error } = await client
+      .from("tickets")
+      .select("id,event_id,label,tier,file_type,holder_name,ticket_code,added_at")
+      .eq("user_id", userId);
+    if (error || !Array.isArray(data)) return readAllSavedTickets();
+
+    const local = readAllSavedTickets();
+    const merged = [...local];
+    for (const row of data) {
+      const eventId = typeof row["event_id"] === "string" ? row["event_id"] : null;
+      const label = typeof row["label"] === "string" ? row["label"] : null;
+      if (!eventId || !label) continue;
+      if (merged.some((t) => t.eventId === eventId && t.label === label)) continue;
+      const info = eventNameById(eventId);
+      merged.push({
+        id: typeof row["id"] === "string" ? row["id"] : crypto.randomUUID(),
+        eventId,
+        eventName: info.name,
+        eventDateIso: info.dateIso,
+        label,
+        tier:
+          row["tier"] === "vip" ||
+          row["tier"] === "all_access" ||
+          row["tier"] === "experience" ||
+          row["tier"] === "platinum"
+            ? (row["tier"] as TicketTier)
+            : "general",
+        holderName: typeof row["holder_name"] === "string" ? row["holder_name"] : "Attendee",
+        fileType:
+          row["file_type"] === "pdf" || row["file_type"] === "code" ? row["file_type"] : "image",
+        storageKey: null,
+        ticketCode: typeof row["ticket_code"] === "string" ? row["ticket_code"] : null,
+        fileSize: null,
+        addedAt: typeof row["added_at"] === "string" ? row["added_at"] : new Date().toISOString(),
+      });
+    }
+    writeAllSavedTickets(merged);
+    return merged;
+  } catch {
+    return readAllSavedTickets();
   }
 }

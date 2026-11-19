@@ -3,8 +3,18 @@ import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, RotateCw, Trash2 } from "l
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
-import { removeLocalPublishedEvent, saveLocalPublishedEvent } from "@/lib/organiser/event-adapter";
-import { optimizeSitePlanImage, type SitePlanRotation } from "@/lib/attendee/map-fit";
+import {
+  readStoredMapCalibration,
+  removeLocalPublishedEvent,
+  saveLocalPublishedEvent,
+  saveStoredMapCalibration,
+} from "@/lib/organiser/event-adapter";
+import {
+  computeAffineCalibration,
+  optimizeSitePlanImage,
+  type CalibrationRefPoint,
+  type SitePlanRotation,
+} from "@/lib/attendee/map-fit";
 import {
   DRINK_CATEGORIES,
   readOrganiserBarMenus,
@@ -71,6 +81,16 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(
     null,
   );
+  const [calRefs, setCalRefs] = useState<CalibrationRefPoint[]>(
+    () =>
+      readStoredMapCalibration(event.id)?.refs ?? [
+        { x: 20, y: 60, lat: -22.821, lng: 14.539 },
+        { x: 80, y: 60, lat: -22.821, lng: 14.544 },
+        { x: 50, y: 20, lat: -22.818, lng: 14.5415 },
+      ],
+  );
+  const [calActiveIdx, setCalActiveIdx] = useState<number | null>(null);
+  const [calStatus, setCalStatus] = useState("");
   const [barItems, setBarItems] = useState<BarDrinkItem[]>(
     () => readOrganiserBarMenus(event.id)[0]?.items ?? [],
   );
@@ -764,6 +784,121 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               Validated at ≥2000px long edge, compressed to WebP (80% quality), and split into
               display + zoom layers automatically.
             </p>
+
+            {/* Option A — 3-Point GPS Calibration (affine transform pixel% <-> lat/lng) */}
+            {sitePlanUrl && (
+              <details className="rounded-xl border border-border bg-popover p-3">
+                <summary className="min-h-10 cursor-pointer content-center text-[15px] font-semibold">
+                  Calibrate GPS (3 reference points)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <p className="text-[13px] text-muted-foreground">
+                    Drop 3 non-collinear reference points on the map and enter their verified real
+                    latitude/longitude so live GPS crew pins align accurately.
+                  </p>
+                  {calActiveIdx !== null && (
+                    <button
+                      type="button"
+                      className="relative block w-full overflow-hidden rounded-xl border border-primary"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10;
+                        const y = Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10;
+                        setCalRefs((prev) =>
+                          prev.map((r, i) => (i === calActiveIdx ? { ...r, x, y } : r)),
+                        );
+                        setCalActiveIdx(null);
+                      }}
+                    >
+                      <img
+                        src={sitePlanUrl}
+                        alt="Tap to place calibration point"
+                        className="w-full"
+                      />
+                      {calRefs.map((ref, idx) => (
+                        <span
+                          key={idx}
+                          style={{ left: `${ref.x}%`, top: `${ref.y}%` }}
+                          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground"
+                        >
+                          P{idx + 1}
+                        </span>
+                      ))}
+                    </button>
+                  )}
+                  {calRefs.map((ref, idx) => (
+                    <div key={idx} className="space-y-1.5 rounded-lg bg-secondary/60 p-2.5">
+                      <div className="flex items-center justify-between text-[13px] font-semibold">
+                        <span>
+                          Point {idx + 1} ({ref.x}%, {ref.y}%)
+                        </span>
+                        <button
+                          type="button"
+                          className="text-primary"
+                          onClick={() => setCalActiveIdx(idx)}
+                        >
+                          Tap on map
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          step="0.0001"
+                          aria-label={`Point ${idx + 1} latitude`}
+                          className="ios-field"
+                          value={ref.lat}
+                          onChange={(e) =>
+                            setCalRefs((prev) =>
+                              prev.map((r, i) =>
+                                i === idx ? { ...r, lat: Number(e.target.value) } : r,
+                              ),
+                            )
+                          }
+                        />
+                        <input
+                          type="number"
+                          step="0.0001"
+                          aria-label={`Point ${idx + 1} longitude`}
+                          className="ios-field"
+                          value={ref.lng}
+                          onChange={(e) =>
+                            setCalRefs((prev) =>
+                              prev.map((r, i) =>
+                                i === idx ? { ...r, lng: Number(e.target.value) } : r,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <SecondaryButton
+                    onClick={() => {
+                      const transform = computeAffineCalibration(calRefs);
+                      if (!transform) {
+                        setCalStatus(
+                          "Points must form a triangle (not a straight line) to solve calibration.",
+                        );
+                        return;
+                      }
+                      saveStoredMapCalibration(event.id, {
+                        refs: calRefs,
+                        transform,
+                        updatedAt: new Date().toISOString(),
+                      });
+                      setCalStatus("GPS affine calibration saved for this site plan.");
+                    }}
+                  >
+                    Save GPS calibration
+                  </SecondaryButton>
+                  {calStatus && (
+                    <p role="status" className="text-[13px] font-medium text-primary">
+                      {calStatus}
+                    </p>
+                  )}
+                </div>
+              </details>
+            )}
           </div>
         </Sheet>
       )}

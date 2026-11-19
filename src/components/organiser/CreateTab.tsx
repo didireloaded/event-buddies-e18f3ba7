@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleDashed, FileText } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { CheckCircle2, CircleDashed, FileText, Link2, PenLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { dbError, uploadOwnFile } from "@/lib/organiser/data";
 import { extractEventFromPdf } from "@/lib/organiser/extract.functions";
-import { validatePdf } from "@/lib/organiser/schema";
+import { getTicketProviderName } from "@/lib/attendee/tickets";
+import { EVENT_TYPES, validatePdf, type EventType } from "@/lib/organiser/schema";
 import { PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
 import type { OrgCtx } from "./OrganiserApp";
 
@@ -21,6 +22,12 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
+  const [manualType, setManualType] = useState<EventType>("festival");
+  const [manualName, setManualName] = useState("");
+  const [manualDate, setManualDate] = useState("");
+  const [manualVenue, setManualVenue] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
   const cancelledRef = useRef(false);
   const mountedRef = useRef(true);
   const offline = typeof navigator !== "undefined" && !navigator.onLine;
@@ -93,6 +100,101 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
       if (cancelledRef.current || !mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Couldn’t upload this PDF. Try again.");
       setStep("error");
+    }
+  }
+
+  async function createGuidedDraft(e: FormEvent) {
+    e.preventDefault();
+    if (offline) {
+      setError("You’re offline. Connect to create a draft.");
+      return;
+    }
+    if (!manualName.trim()) {
+      setError("Enter an event name to create a draft.");
+      return;
+    }
+    setError("");
+    setManualBusy(true);
+    try {
+      const { data, error: insErr } = await supabase
+        .from("organiser_events")
+        .insert({
+          owner_id: ctx.userId,
+          status: "draft",
+          event_type: manualType,
+          name: manualName.trim().slice(0, 160),
+          start_date: manualDate || null,
+          venue: manualVenue.trim().slice(0, 200),
+        })
+        .select("id")
+        .single();
+      if (insErr || !data) {
+        setError(dbError(insErr?.message));
+        return;
+      }
+      await ctx.reload();
+      ctx.go("events", data.id);
+    } finally {
+      setManualBusy(false);
+    }
+  }
+
+  async function importExternalUrlDraft(e: FormEvent) {
+    e.preventDefault();
+    if (offline) {
+      setError("You’re offline. Connect to save a reviewed import draft.");
+      return;
+    }
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(externalUrl.trim());
+      if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      setError("Enter a valid https:// event listing URL (e.g. Webtickets or Howler).");
+      return;
+    }
+    const cleanSource = `${parsedUrl.origin}${parsedUrl.pathname}`.slice(0, 120);
+    if (ctx.events.some((ev) => ev.source_label === cleanSource)) {
+      setError("A draft with this external listing URL already exists in your workspace.");
+      return;
+    }
+    const provider = getTicketProviderName(parsedUrl.toString());
+    const slugPart = parsedUrl.pathname
+      .split("/")
+      .filter(Boolean)
+      .pop()
+      ?.replace(/[-_]+/g, " ")
+      .trim();
+    const guessedTitle = slugPart
+      ? slugPart.replace(/\b\w/g, (ch) => ch.toUpperCase()).slice(0, 120)
+      : `${provider} Event Draft`;
+
+    setError("");
+    setManualBusy(true);
+    try {
+      const { data, error: insErr } = await supabase
+        .from("organiser_events")
+        .insert({
+          owner_id: ctx.userId,
+          status: "imported",
+          event_type: manualType,
+          name: guessedTitle,
+          source_label: cleanSource,
+          extraction_missing: ["Date", "Venue", "Gates open", "Entry rules", "Program"],
+        })
+        .select("id")
+        .single();
+      if (insErr || !data) {
+        setError(dbError(insErr?.message));
+        return;
+      }
+      setExternalUrl("");
+      await ctx.reload();
+      ctx.go("events", data.id);
+    } finally {
+      setManualBusy(false);
     }
   }
 
@@ -241,14 +343,100 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
         </div>
       </Section>
 
-      <Section title="2. Find an event to claim" id="org-create-claim">
-        <div className="ios-card space-y-2 p-4">
-          <p className="text-[16px] font-semibold">Partner event feeds unavailable</p>
-          <p className="text-[14px] text-muted-foreground">
-            Authorized partner feeds for What’s On Namibia and All Things Swakopmund aren’t
-            connected yet. Webtickets pages aren’t scraped; external ticket URLs can be added after
-            creating a draft.
-          </p>
+      <Section title="2. Manual event setup" id="org-create-manual">
+        <form onSubmit={(e) => void createGuidedDraft(e)} className="ios-card space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <PenLine size={20} className="mt-0.5 flex-none text-primary" aria-hidden />
+            <div>
+              <p className="text-[16px] font-semibold">Start with a template</p>
+              <p className="text-[14px] text-muted-foreground">
+                Create a festival, concert, conference, sports or corporate event draft directly.
+              </p>
+            </div>
+          </div>
+          <label className="block text-[14px] font-semibold">
+            Event template
+            <select
+              className="ios-field mt-1"
+              value={manualType}
+              onChange={(e) => setManualType(e.target.value as EventType)}
+            >
+              {EVENT_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-[14px] font-semibold">
+            Event name
+            <input
+              className="ios-field mt-1"
+              maxLength={160}
+              placeholder="e.g. Windhoek Tech Summit 2026"
+              value={manualName}
+              onChange={(e) => setManualName(e.target.value)}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-[14px] font-semibold">
+              Start date
+              <input
+                type="date"
+                className="ios-field mt-1"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+              />
+            </label>
+            <label className="block text-[14px] font-semibold">
+              Venue &amp; city
+              <input
+                className="ios-field mt-1"
+                maxLength={200}
+                placeholder="Safari Court, Windhoek"
+                value={manualVenue}
+                onChange={(e) => setManualVenue(e.target.value)}
+              />
+            </label>
+          </div>
+          <PrimaryButton type="submit" disabled={busy || manualBusy || offline}>
+            {manualBusy ? "Creating draft…" : "Create manual draft"}
+          </PrimaryButton>
+        </form>
+      </Section>
+
+      <Section title="3. Import from external listing URL" id="org-create-claim">
+        <div className="ios-card space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <Link2 size={20} className="mt-0.5 flex-none text-primary" aria-hidden />
+            <div>
+              <p className="text-[16px] font-semibold">Partner event feeds unavailable</p>
+              <p className="text-[14px] text-muted-foreground">
+                Authorized automated partner feeds for Webtickets, What’s On Namibia and All Things
+                Swakopmund aren’t connected yet. You can record an official listing URL below to
+                start a reviewed draft with duplicate protection — pages are never scraped without
+                authorisation.
+              </p>
+            </div>
+          </div>
+          <form onSubmit={(e) => void importExternalUrlDraft(e)} className="space-y-2.5 pt-1">
+            <label className="block text-[14px] font-semibold">
+              Official ticket or event listing URL
+              <input
+                type="url"
+                className="ios-field mt-1"
+                placeholder="https://www.webtickets.co.za/..."
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+              />
+            </label>
+            <SecondaryButton
+              type="submit"
+              disabled={busy || manualBusy || offline || !externalUrl.trim()}
+            >
+              Create reviewed draft from URL
+            </SecondaryButton>
+          </form>
         </div>
       </Section>
     </div>

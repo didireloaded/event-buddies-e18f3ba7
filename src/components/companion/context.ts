@@ -53,7 +53,7 @@ export type CompanionContext = {
   offlineStatus: OfflineStatus;
   eventTickets: SavedTicketMeta[];
   allTicketsCount: number;
-  openGateCard: (initialIndex?: number) => void;
+  openGateCard: (initialIndex?: number, ticketsOverride?: SavedTicketMeta[]) => void;
   view: View;
   navigate: (view: View) => void;
   openSheet: (sheet: Sheet) => void;

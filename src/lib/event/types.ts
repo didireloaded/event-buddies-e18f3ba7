@@ -21,7 +21,17 @@ export type EventRecord = {
   longitude: number | null;
   heroImageUrl: string;
   mapImageUrl: string;
+  mapZoomImageUrl?: string | null;
+  mapCalibration?: {
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    e: number;
+    f: number;
+  } | null;
   ticketUrl: string | null;
+  ticketSalesClose?: string | null;
   minTicketPrice: string | null;
   currency: string;
   packageVersion: number;

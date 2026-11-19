@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, QrCode, ShieldCheck, Ticket, Trash2 } from "lucide-react";
 import { photoStore } from "@/lib/attendee/ride-photo";
 import {
+  deleteTicketFromCloud,
   ensurePrimaryBlobIndexed,
   formatTicketTier,
   getEventGateLabel,
@@ -12,6 +13,7 @@ import {
   saveManualCodeTicket,
   saveUploadedTicket,
   subscribeTicketChanges,
+  syncTicketToCloud,
   TICKET_MAX_BYTES,
   TICKET_MIME_TYPES,
   updateEventTicketsTier,
@@ -91,7 +93,13 @@ export function TicketVault() {
   const applyTier = (tier: TicketTier) => {
     attendee.update({ ticketTier: tier });
     updateEventTicketsTier(data.event.id, tier, askTierForId ?? undefined);
-    setAllTickets(readAllSavedTickets());
+    const updated = readAllSavedTickets();
+    setAllTickets(updated);
+    if (attendee.auth.user?.id) {
+      for (const t of updated.filter((item) => item.eventId === data.event.id)) {
+        void syncTicketToCloud(attendee.auth.user.id, t);
+      }
+    }
     setAskTierForId(null);
     attendee.notify(`Ticket tier set to ${formatTicketTier(tier)} — map zones updated`);
   };
@@ -191,6 +199,13 @@ export function TicketVault() {
                     setBusy(true);
                     try {
                       await removeSavedTicket(ticket.id, data.event.id);
+                      if (attendee.auth.user?.id) {
+                        void deleteTicketFromCloud(
+                          attendee.auth.user.id,
+                          data.event.id,
+                          ticket.label,
+                        );
+                      }
                       if (ticket.storageKey === key) setFile(null);
                       setAllTickets(readAllSavedTickets());
                     } finally {
@@ -316,6 +331,9 @@ export function TicketVault() {
                 setFile(chosen);
                 setAllTickets(readAllSavedTickets());
                 setAskTierForId(saved.id);
+                if (attendee.auth.user?.id) {
+                  void syncTicketToCloud(attendee.auth.user.id, saved);
+                }
               } catch {
                 setError("Couldn’t save the ticket. Keep the original and try again.");
               } finally {
@@ -362,6 +380,9 @@ export function TicketVault() {
                   });
                   setAllTickets(readAllSavedTickets());
                   setAskTierForId(saved.id);
+                  if (attendee.auth.user?.id) {
+                    void syncTicketToCloud(attendee.auth.user.id, saved);
+                  }
                 } catch {
                   setError("Couldn’t save the extra ticket. Try again.");
                 } finally {
@@ -405,6 +426,9 @@ export function TicketVault() {
               setShowManualForm(false);
               setAllTickets(readAllSavedTickets());
               setAskTierForId(saved.id);
+              if (attendee.auth.user?.id) {
+                void syncTicketToCloud(attendee.auth.user.id, saved);
+              }
             }}
           >
             <label className="block text-[14px] font-semibold">
@@ -462,6 +486,13 @@ export function TicketVault() {
               const primaryMeta = eventTickets.find((t) => t.storageKey === key);
               if (primaryMeta) {
                 await removeSavedTicket(primaryMeta.id, data.event.id);
+                if (attendee.auth.user?.id) {
+                  void deleteTicketFromCloud(
+                    attendee.auth.user.id,
+                    data.event.id,
+                    primaryMeta.label,
+                  );
+                }
               } else {
                 await photoStore(key, "remove");
               }
@@ -478,28 +509,33 @@ export function TicketVault() {
         </button>
       )}
 
-      {/* Tickets for other events */}
+      {/* Tickets for other events — tapping opens the full-screen gate card */}
       {otherEventTickets.length > 0 && (
         <div className="space-y-2 border-t border-border pt-4">
           <h3 className="text-[15px] font-semibold text-muted-foreground">Other events</h3>
           <div className="ios-group">
-            {otherEventTickets.map((t) => (
-              <div key={t.id} className="ios-row justify-between py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold">{t.eventName}</p>
-                  <p className="text-[13px] text-muted-foreground">
+            {otherEventTickets.map((t, idx) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => openGateCard(idx, otherEventTickets)}
+                className="ios-row justify-between py-2.5 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-semibold">{t.eventName}</span>
+                  <span className="block text-[13px] text-muted-foreground">
                     {formatTicketTier(t.tier)} ·{" "}
                     {dateLabel(new Date(t.eventDateIso), data.event.timezone, {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
                     })}
-                  </p>
-                </div>
+                  </span>
+                </span>
                 <span className="rounded-full bg-secondary px-2.5 py-1 text-[12px] font-semibold">
                   {t.label}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -508,8 +544,9 @@ export function TicketVault() {
       <p className="flex items-start gap-2 text-[13px] text-muted-foreground">
         <ShieldCheck size={16} className="mt-0.5 flex-none text-primary" aria-hidden />
         <span>
-          Stored privately on this device for offline gate access. Never uploaded to public storage.
-          Keep your original confirmation email or PDF as a backup.
+          {attendee.auth.user
+            ? "Ticket images and PDFs stay privately on this device for offline gate access. Ticket metadata (tier, label, code) backs up privately to your signed-in account. Keep your original confirmation email or PDF as a backup."
+            : "Stored privately on this device for offline gate access. Never uploaded to public storage. Keep your original confirmation email or PDF as a backup."}
         </span>
       </p>
 

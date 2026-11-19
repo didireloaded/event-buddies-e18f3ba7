@@ -49,6 +49,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
   const [bearing, setBearing] = useState(0);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 1238, height: 1238 });
+  const [zoomLayerReady, setZoomLayerReady] = useState(false);
   const [imageState, setImageState] = useState<"empty" | "loading" | "loaded" | "error">(() =>
     data.event.mapImageUrl ? "loading" : "empty",
   );
@@ -59,9 +60,26 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
 
   useEffect(() => {
     setImageState(data.event.mapImageUrl ? "loading" : "empty");
+    setZoomLayerReady(false);
     setZoomState(expanded ? 2.2 : MIN_ZOOM);
     setBearing(0);
   }, [data.event.id, data.event.mapImageUrl, expanded]);
+
+  // Progressive display -> high-res zoom upgrade when pinching past 2x (Map Fit Prompt 5 #6)
+  useEffect(() => {
+    if (zoom < 2 || zoomLayerReady || !data.event.mapZoomImageUrl || imageState !== "loaded") {
+      return;
+    }
+    let active = true;
+    const preloader = new Image();
+    preloader.onload = () => {
+      if (active) setZoomLayerReady(true);
+    };
+    preloader.src = data.event.mapZoomImageUrl;
+    return () => {
+      active = false;
+    };
+  }, [zoom, zoomLayerReady, data.event.mapZoomImageUrl, imageState]);
 
   useLayoutEffect(() => {
     const element = viewport.current;
@@ -72,6 +90,7 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
         height: element.clientHeight,
       });
     measure();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
@@ -80,11 +99,11 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
   const padding = useMemo(
     () =>
       computeChromePadding({
-        topChrome: expanded ? 48 : 8,
-        bottomChrome: expanded ? 56 : 28,
+        topChrome: expanded ? 48 : map.filter !== "all" ? 28 : 8,
+        bottomChrome: expanded ? 56 : 36,
         side: 12,
       }),
-    [expanded],
+    [expanded, map.filter],
   );
 
   const fitted = useMemo(() => {
@@ -104,6 +123,11 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     () => computeCanvasMaxZoom(naturalSize.width, naturalSize.height, viewportSize.width || 390),
     [naturalSize.width, naturalSize.height, viewportSize.width],
   );
+
+  // On rotation or resize, re-clamp zoom so it never exceeds native image resolution
+  useEffect(() => {
+    setZoomState((prev) => Math.min(maxZoom, Math.max(MIN_ZOOM, prev)));
+  }, [maxZoom]);
 
   // Keep the centre of the view stationary while zooming and clamp strictly within [MIN_ZOOM, maxZoom].
   const setZoom = (next: number, screenX?: number, screenY?: number) => {
@@ -178,10 +202,18 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     ...pins.filter((p) => p.id === map.selected).map((place) => ({ place, ids: [place.id] })),
   ];
 
-  const activeCrewPins =
+  const activeCrewMembers =
     crew.crew?.members.filter(
       (m) => m.pointId && m.expiresAt && Date.parse(m.expiresAt) > (now ?? Date.now()),
-    ).length ?? 0;
+    ) ?? [];
+  const activeCrewPins = activeCrewMembers.length;
+  const crewLeadPlace = activeCrewMembers[0]?.pointId
+    ? places.find((p) => p.id === activeCrewMembers[0]!.pointId)
+    : null;
+  const activeMapSrc =
+    zoomLayerReady && data.event.mapZoomImageUrl
+      ? data.event.mapZoomImageUrl
+      : data.event.mapImageUrl;
 
   const canvasWidthPx = fitted.width ? Math.round(fitted.width * zoom) : 0;
   const canvasHeightPx = fitted.height ? Math.round(fitted.height * zoom) : 0;
@@ -289,9 +321,9 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
             <img
               key={`${data.event.mapImageUrl}-${retryKey}`}
               src={
-                retryKey > 0 && data.event.mapImageUrl
-                  ? `${data.event.mapImageUrl}${data.event.mapImageUrl.includes("?") ? "&" : "?"}retry=${retryKey}`
-                  : data.event.mapImageUrl
+                retryKey > 0 && activeMapSrc
+                  ? `${activeMapSrc}${activeMapSrc.includes("?") ? "&" : "?"}retry=${retryKey}`
+                  : activeMapSrc
               }
               alt={`Supplied ${data.event.name} venue plan`}
               className="venue-map-image absolute inset-0 h-full w-full select-none object-contain"
@@ -406,10 +438,14 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
         )}
       </div>
 
-      {/* Bottom-left live sharing / map hint pill */}
+      {/* Bottom-left live sharing / crew peek pill */}
       {imageState === "loaded" && (
-        <div className="pointer-events-none absolute bottom-3 left-3 z-20 rounded-full bg-white/92 px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm backdrop-blur ring-1 ring-black/5">
-          {activeCrewPins > 0 ? `${activeCrewPins} sharing live` : "Tap a location to see details"}
+        <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[68%] truncate rounded-full bg-white/92 px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm backdrop-blur ring-1 ring-black/5">
+          {activeCrewPins > 0 && crewLeadPlace
+            ? `${activeCrewPins} of your crew ${activeCrewPins === 1 ? "is" : "are"} at ${crewLeadPlace.name}`
+            : activeCrewPins > 0
+              ? `${activeCrewPins} sharing live`
+              : "Tap a location to see details"}
         </div>
       )}
 

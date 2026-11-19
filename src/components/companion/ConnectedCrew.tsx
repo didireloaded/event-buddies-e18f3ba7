@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Radio } from "lucide-react";
+import { Camera, Plus, Radio } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { photoStore } from "@/lib/attendee/ride-photo";
 import { useCompanion, initials } from "./context";
 import { QrCameraScanner } from "./QrCameraScanner";
 import { Sheet } from "./Sheet";
@@ -52,9 +53,30 @@ export function ConnectedCrew() {
   const [liveStatus, setLiveStatus] = useState<LiveLocationStatus>("off");
   const [livePos, setLivePos] = useState<LiveGpsPosition | null>(null);
   const [liveError, setLiveError] = useState("");
+  const [crewPhotoUrl, setCrewPhotoUrl] = useState("");
   const stopLiveGpsRef = useRef<(() => void) | null>(null);
   const crew = sync.crew;
   const self = crew?.members.find((m) => m.id === attendee.auth.user?.id);
+
+  useEffect(() => {
+    if (!crew?.id) {
+      setCrewPhotoUrl("");
+      return;
+    }
+    let active = true;
+    let url = "";
+    void photoStore(`crew-photo:${crew.id}`, "read")
+      .then((blob) => {
+        if (!active || !blob) return;
+        url = URL.createObjectURL(blob);
+        setCrewPhotoUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [crew?.id]);
   const waiting = Boolean(sync.pending);
   const meetingPlace = places.find((p) => p.id === crew?.meeting?.pointId);
   const activePin =
@@ -166,9 +188,53 @@ export function ConnectedCrew() {
       className="mx-4 mt-4 border-y border-border py-4"
       aria-labelledby="connected-crew-heading"
     >
-      <h2 id="connected-crew-heading" className="text-[22px] font-semibold">
-        {crew?.name ?? "Your connected crew"}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {crew && crewPhotoUrl && (
+            <img
+              src={crewPhotoUrl}
+              alt={`${crew.name} photo`}
+              className="size-11 flex-none rounded-xl object-cover ring-1 ring-border"
+            />
+          )}
+          <h2 id="connected-crew-heading" className="truncate text-[22px] font-semibold">
+            {crew?.name ?? "Your connected crew"}
+          </h2>
+        </div>
+        {crew && self?.owner && (
+          <label className="ios-press inline-flex min-h-10 flex-none cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground">
+            <Camera size={14} aria-hidden />
+            {crewPhotoUrl ? "Change photo" : "Crew photo"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={async (e) => {
+                const chosen = e.currentTarget.files?.[0];
+                e.currentTarget.value = "";
+                if (!chosen) return;
+                if (
+                  !["image/jpeg", "image/png", "image/webp"].includes(chosen.type) ||
+                  chosen.size > 4 * 1024 * 1024
+                ) {
+                  setLocalError("Choose a JPG, PNG or WebP crew photo under 4 MB.");
+                  return;
+                }
+                try {
+                  await photoStore(`crew-photo:${crew.id}`, "save", chosen);
+                  setCrewPhotoUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev);
+                    return URL.createObjectURL(chosen);
+                  });
+                  attendee.notify("Crew photo updated on this device");
+                } catch {
+                  setLocalError("Couldn’t save crew photo.");
+                }
+              }}
+            />
+          </label>
+        )}
+      </div>
       {!attendee.auth.user ? (
         <>
           {pendingInvite && (

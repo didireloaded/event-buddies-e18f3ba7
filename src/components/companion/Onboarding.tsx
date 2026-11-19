@@ -141,7 +141,14 @@ export function Onboarding() {
           </div>
         </form>
       )}
-      {step === 0 && <PrimaryButton onClick={() => setStep(1)}>Continue</PrimaryButton>}
+      {step === 0 && (
+        <div className="space-y-3">
+          <PrimaryButton onClick={() => setStep(1)}>Continue</PrimaryButton>
+          <SecondaryButton onClick={() => navigate("events")}>
+            Browse events without signing in
+          </SecondaryButton>
+        </div>
+      )}
       {step > 0 && (
         <SecondaryButton className="mt-3" onClick={() => setStep(step - 1)}>
           Back

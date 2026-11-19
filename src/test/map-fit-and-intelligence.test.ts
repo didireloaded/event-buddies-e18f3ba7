@@ -22,6 +22,9 @@ import {
 } from "@/lib/crew/live-gps";
 import { getDemoData } from "@/lib/event/demo-data";
 import { SAMPLE_BAR_MENU } from "@/lib/attendee/bar-menu";
+import { eventFacts, searchLocalFacts } from "@/lib/attendee/event-facts";
+import { addGlobalBuddy, readGlobalBuddies, removeGlobalBuddy } from "@/lib/crew/buddies";
+import { readStoredMapCalibration, saveStoredMapCalibration } from "@/lib/organiser/event-adapter";
 
 describe("Map Fit placement, zoom limits, aspect-ratio fitting and upload validation", () => {
   it("computes aspect-ratio-preserving geographic bounds without stretching", () => {
@@ -165,5 +168,46 @@ describe("Event-scoped Intelligence, Onboarding personalisation, Bar Sample Menu
     const end = new Date(now + 4 * 3600_000);
     expect(computeLiveShareExpiry("15m", end, now)).toBe(now + 15 * 60_000);
     expect(computeLiveShareExpiry("until_end", end, now)).toBe(+end);
+  });
+
+  it("tags event knowledge facts with Verified/Pending provenance and supports offline local search", () => {
+    const data = getDemoData();
+    const facts = eventFacts(data);
+    expect(facts.find((f) => f.id === "venue")?.status).toBe("verified");
+    expect(facts.find((f) => f.id === "venue")?.source).toBe("Namib Rage Events");
+    expect(facts.find((f) => f.id === "timetable")?.status).toBe("pending");
+    const glassHits = searchLocalFacts(data, "Can I bring glass bottles?");
+    expect(glassHits.length).toBeGreaterThan(0);
+    expect(glassHits[0]?.text.toLowerCase()).toContain("glass");
+  });
+
+  it("persists Global Buddies across events and stores organiser 3-point GPS calibration", () => {
+    localStorage.clear();
+    const added = addGlobalBuddy({
+      name: "Lukas",
+      handle: "lukas_na",
+      lastEventName: "Sound of Summer",
+    });
+    expect(added).toHaveLength(1);
+    expect(readGlobalBuddies()[0]?.handle).toBe("lukas_na");
+    // Deduplicates
+    expect(addGlobalBuddy({ name: "Lukas" })).toHaveLength(1);
+    const removed = removeGlobalBuddy(added[0]!.id);
+    expect(removed).toHaveLength(0);
+
+    const refs = [
+      { x: 0, y: 0, lat: -22.8, lng: 14.5 },
+      { x: 100, y: 0, lat: -22.8, lng: 14.6 },
+      { x: 0, y: 100, lat: -22.9, lng: 14.5 },
+    ];
+    const transform = computeAffineCalibration(refs)!;
+    saveStoredMapCalibration("evt-cal-1", {
+      refs,
+      transform,
+      updatedAt: "2026-11-19T10:00:00Z",
+    });
+    expect(readStoredMapCalibration("evt-cal-1")?.transform).toEqual(transform);
+    saveStoredMapCalibration("evt-cal-1", null);
+    expect(readStoredMapCalibration("evt-cal-1")).toBeNull();
   });
 });

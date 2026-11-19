@@ -1,8 +1,40 @@
 import type { DemoData, MapPointRecord, PerformanceRecord, StageRecord } from "@/lib/event/types";
+import type { AffineTransform, CalibrationRefPoint } from "@/lib/attendee/map-fit";
 import { EVENT_TYPES, parseProgram, parseZones, TYPE_TERMS, type EventType } from "./schema";
 import type { PublishedOrganiserEvent } from "./cloud-extensions";
 
 export const LOCAL_PUBLISHED_EVENTS_KEY = "event-buddies:published-organiser-events";
+const MAP_CALIBRATION_KEY = (eventId: string) => `event-buddies:${eventId}:map-calibration:v1`;
+
+export type StoredMapCalibration = {
+  refs: CalibrationRefPoint[];
+  transform: AffineTransform;
+  updatedAt: string;
+};
+
+export function readStoredMapCalibration(eventId: string): StoredMapCalibration | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = JSON.parse(localStorage.getItem(MAP_CALIBRATION_KEY(eventId)) ?? "null");
+    if (!raw || typeof raw !== "object" || !raw.transform) return null;
+    return raw as StoredMapCalibration;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredMapCalibration(
+  eventId: string,
+  calibration: StoredMapCalibration | null,
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!calibration) localStorage.removeItem(MAP_CALIBRATION_KEY(eventId));
+    else localStorage.setItem(MAP_CALIBRATION_KEY(eventId), JSON.stringify(calibration));
+  } catch {
+    /* Ignore storage failures. */
+  }
+}
 
 function slugify(value: string): string {
   return (
@@ -217,6 +249,8 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       longitude: null,
       heroImageUrl: ev.sitePlanUrl || "/images/sound-of-summer-hero.jpg",
       mapImageUrl: ev.sitePlanUrl ?? "",
+      mapZoomImageUrl: ev.sitePlanZoomUrl ?? null,
+      mapCalibration: readStoredMapCalibration(ev.id)?.transform ?? null,
       ticketUrl: null,
       minTicketPrice: null,
       currency: "NAD",

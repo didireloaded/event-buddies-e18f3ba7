@@ -1,23 +1,47 @@
 import { useState } from "react";
 import { askEvent } from "@/lib/event-assistant/assistant.functions";
-import { eventFacts } from "@/lib/attendee/event-facts";
+import { eventFacts, searchLocalFacts, type EventFact } from "@/lib/attendee/event-facts";
 import { useCompanion } from "./context";
 import { PrimaryButton } from "./ui";
+
+function FactBadge({ status }: { status: EventFact["status"] }) {
+  const styles =
+    status === "verified"
+      ? "bg-favorite-soft text-primary"
+      : status === "sample"
+        ? "bg-warning-soft text-foreground"
+        : "bg-secondary text-muted-foreground";
+  const label =
+    status === "verified"
+      ? "Verified"
+      : status === "sample"
+        ? "Sample"
+        : status === "outdated"
+          ? "Outdated"
+          : "Pending";
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${styles}`}>
+      {label}
+    </span>
+  );
+}
 
 export function EventAssistant() {
   const { data } = useCompanion();
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [answer, setAnswer] = useState<ReturnType<typeof eventFacts> | null>(null);
+  const [answer, setAnswer] = useState<EventFact[] | null>(null);
+  const facts = eventFacts(data);
+
   return (
     <section className="mx-4 mt-6 border-y border-border py-4" aria-labelledby="assistant-title">
       <h2 id="assistant-title" className="ios-section-title">
-        Ask about the festival
+        Ask about {data.event.name}
       </h2>
       <p className="mb-3 text-[15px] text-muted-foreground">
-        Rules, transport and venue facilities, from the saved event information. Unpublished details
-        are noted clearly.
+        Rules, transport and venue facilities from the verified event guide. Unpublished details are
+        marked clearly as pending.
       </p>
       <form
         onSubmit={async (event) => {
@@ -32,19 +56,25 @@ export function EventAssistant() {
           setAnswer(null);
           try {
             if (!navigator.onLine) throw new Error("Offline");
-            const activeFacts = eventFacts(data);
             const result = await askEvent({
               data: {
                 question,
                 eventId: data.event.id,
                 eventName: data.event.name,
-                facts: activeFacts,
+                facts,
               },
               signal: AbortSignal.timeout(8000),
             });
-            if (result.ok) setAnswer(result.facts);
-            else setError(result.error);
+            if (result.ok) {
+              setAnswer(result.facts);
+            } else {
+              const localMatches = searchLocalFacts(data, question);
+              if (localMatches.length > 0) setAnswer(localMatches);
+              setError(result.error);
+            }
           } catch {
+            const localMatches = searchLocalFacts(data, question);
+            if (localMatches.length > 0) setAnswer(localMatches);
             setError(
               "You can still read the saved event information below. Reconnect to ask the assistant.",
             );
@@ -77,13 +107,14 @@ export function EventAssistant() {
         )}
         {answer?.map((fact) => (
           <div key={fact.id} className="border-t border-border py-3">
-            <h3 className="font-semibold">{fact.title}</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold">{fact.title}</h3>
+              <FactBadge status={fact.status} />
+            </div>
             <p className="mt-1">{fact.text}</p>
-            {fact.pending && (
-              <p className="mt-2 font-semibold text-muted-foreground">
-                Drops closer to festival day — check the official event page for updates.
-              </p>
-            )}
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Source: {fact.source} · Checked {fact.updatedAt}
+            </p>
           </div>
         ))}
       </div>
@@ -92,9 +123,12 @@ export function EventAssistant() {
           Read the saved event answers
         </summary>
         <dl>
-          {eventFacts(data).map((fact) => (
+          {facts.map((fact) => (
             <div className="border-t border-border py-3" key={fact.id}>
-              <dt className="text-[17px] font-semibold">{fact.title}</dt>
+              <dt className="flex items-center justify-between gap-2 text-[16px] font-semibold">
+                <span>{fact.title}</span>
+                <FactBadge status={fact.status} />
+              </dt>
               <dd className="mt-1 text-[15px] text-muted-foreground">{fact.text}</dd>
             </div>
           ))}

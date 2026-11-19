@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, MapPin, Clock, ArrowUpRight } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowUpRight, Heart } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { useEvent } from "@/context/EventContext";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
+import { getTicketProviderName } from "@/lib/attendee/tickets";
+import { selectFeaturedParticipants } from "@/lib/intelligence/event-intelligence";
 import {
   defaultPreferences,
   EVENT_COLLECTIONS,
@@ -45,7 +47,7 @@ export function EventSelection() {
   const { data, attendee, navigate, now } = useCompanion();
   const { availableEvents, selectEvent } = useEvent();
   const [preview, setPreview] = useState(false);
-  const [mode, setMode] = useState<"browse" | "calendar">("browse");
+  const [mode, setMode] = useState<"browse" | "mine" | "calendar">("browse");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>(() =>
@@ -168,7 +170,17 @@ export function EventSelection() {
         .includes(query.trim().toLowerCase()),
     );
 
-  const primaryVisible = (mode === "browse" || matches) && searchMatch && categoryMatchesPrimary;
+  const isPrimarySaved =
+    attendee.preferences.following ||
+    attendee.preferences.collections.length > 0 ||
+    attendee.preferences.selectedEventId === data.event.id;
+  const primaryVisible =
+    (mode === "browse" || (mode === "mine" ? isPrimarySaved : matches)) &&
+    searchMatch &&
+    categoryMatchesPrimary;
+  const featuredPreview = selectFeaturedParticipants(data);
+  const ticketUrl = data.event.ticketUrl || data.festival.ticketUrl;
+  const ticketProvider = getTicketProviderName(ticketUrl);
 
   return (
     <div className="event-discovery px-4 pt-3">
@@ -213,11 +225,12 @@ export function EventSelection() {
         value={mode}
         options={[
           { value: "browse", label: "Explore" },
+          { value: "mine", label: "My Events" },
           {
             value: "calendar",
             label: (
               <>
-                <CalendarDays size={17} className="mr-2 inline" />
+                <CalendarDays size={17} className="mr-1.5 inline" />
                 Calendar
               </>
             ),
@@ -250,7 +263,13 @@ export function EventSelection() {
 
       <div className="mb-3 mt-6 flex items-center justify-between">
         <h2 className="text-[20px] font-semibold">
-          {mode === "calendar" ? "On this date" : ended ? "Past events" : "Coming up"}
+          {mode === "calendar"
+            ? "On this date"
+            : mode === "mine"
+              ? "My saved events"
+              : ended
+                ? "Past events"
+                : "Coming up"}
         </h2>
         {mode === "browse" && (
           <span className="text-[14px] text-muted-foreground">{data.event.city}</span>
@@ -318,8 +337,34 @@ export function EventSelection() {
       {preview && (
         <Sheet title={data.event.name} onClose={() => setPreview(false)}>
           <div className="event-preview-facts space-y-4">
-            <p className="border-l-4 border-favorite pl-3 text-[20px] font-semibold">
-              {data.event.venueName}
+            <div className="overflow-hidden rounded-2xl bg-foreground">
+              <img
+                src={data.event.heroImageUrl}
+                alt={`${data.event.name}`}
+                className="h-44 w-full object-cover"
+              />
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">
+                  {data.event.category} · {data.festival.organiser}
+                </p>
+                <p className="mt-1 border-l-4 border-favorite pl-3 text-[20px] font-semibold">
+                  {data.event.venueName}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Save event"
+                aria-pressed={attendee.preferences.following}
+                onClick={attendee.toggleFollow}
+                className="ios-press grid size-11 flex-none place-items-center rounded-full bg-popover text-favorite ring-1 ring-border"
+              >
+                <Heart size={20} fill={attendee.preferences.following ? "currentColor" : "none"} />
+              </button>
+            </div>
+            <p className="text-[15px] leading-relaxed text-muted-foreground">
+              {data.event.description}
             </p>
             <p className="flex items-center gap-3 text-[17px]">
               <CalendarDays size={21} className="text-favorite" />
@@ -329,6 +374,14 @@ export function EventSelection() {
               <Clock size={21} className="text-favorite" />
               {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT
             </p>
+            {featuredPreview.length > 0 && (
+              <div className="rounded-xl bg-secondary/70 p-3 text-[14px]">
+                <p className="font-semibold">Featured highlights</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  {featuredPreview.map((p) => p.name).join(" · ")}
+                </p>
+              </div>
+            )}
             <p className="text-[15px] text-muted-foreground">
               {data.festival.rules[0] ?? "Follow organiser entry rules at the gates."}
             </p>
@@ -356,16 +409,28 @@ export function EventSelection() {
                 })}
               </div>
             </div>
-            <button
-              type="button"
-              className="min-h-11 text-[17px] font-semibold underline"
-              onClick={() => downloadEventCalendar(data)}
-            >
-              Add event to my calendar
-            </button>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                className="min-h-11 text-[16px] font-semibold underline"
+                onClick={() => downloadEventCalendar(data)}
+              >
+                Add event to my calendar
+              </button>
+              {ticketUrl && (
+                <a
+                  href={ticketUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center gap-1 text-[16px] font-semibold text-primary"
+                >
+                  Buy tickets on {ticketProvider} <ArrowUpRight size={16} aria-hidden />
+                </a>
+              )}
+            </div>
             <PrimaryButton
               onClick={() => {
-                if (attendee.update({ selectedEventId: data.event.id })) {
+                if (attendee.update({ selectedEventId: data.event.id, following: true })) {
                   setPreview(false);
                   navigate("home");
                 }

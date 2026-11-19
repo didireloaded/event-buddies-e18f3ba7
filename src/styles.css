@@ -567,44 +567,32 @@
 }
 
 @media (min-width: 768px) {
-  html:has(.companion-shell) {
-    overflow: hidden;
-  }
   body:has(.companion-shell) {
-    background: var(--color-fill);
+    background: var(--color-background);
   }
   .companion-shell {
-    width: 480px;
-    height: 100dvh;
-    min-height: 0;
+    width: 100%;
+    max-width: 960px;
+    min-height: 100dvh;
     margin: 0 auto;
-    overflow-y: auto;
     overflow-x: clip;
-    border-radius: 0;
     background: var(--color-background);
-    border-inline: 0.5px solid var(--color-separator);
-    scrollbar-width: none;
   }
   .companion-navigation {
-    width: 480px;
-    left: calc(50% - 240px);
+    width: 100%;
+    max-width: 720px;
+    left: 50%;
+    transform: translateX(-50%);
     bottom: 0;
     overflow: hidden;
-    border-radius: 0;
+    border-radius: 16px 16px 0 0;
   }
   .companion-toast {
     bottom: 116px;
   }
-  .companion-shell .lg\:grid {
-    display: block;
-    padding: 0;
-  }
-  .companion-shell .lg\:sticky {
-    position: static;
-  }
   .ios-sheet {
     margin: auto;
-    max-width: 430px;
+    max-width: 480px;
     max-height: min(86dvh, 48rem);
     border-radius: 1rem;
   }

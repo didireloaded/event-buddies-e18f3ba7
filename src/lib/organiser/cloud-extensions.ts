@@ -31,6 +31,7 @@ export const publishedEventSchema = z.object({
   zones: z.array(z.unknown()).optional(),
   sitePlanPath: z.string().nullable().optional(),
   sitePlanUrl: z.string().nullable().optional(),
+  sitePlanZoomUrl: z.string().nullable().optional(),
   publishedAt: z.string().nullable(),
 });
 export type PublishedOrganiserEvent = z.infer<typeof publishedEventSchema>;

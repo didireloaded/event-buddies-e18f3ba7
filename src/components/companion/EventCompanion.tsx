@@ -26,6 +26,7 @@ import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
 import {
   ensurePrimaryBlobIndexed,
+  pullTicketsFromCloud,
   readAllSavedTickets,
   subscribeTicketChanges,
   type SavedTicketMeta,
@@ -131,9 +132,14 @@ function EventCompanionInner() {
   const places = useMemo(() => buildPlaces(data), [data]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [allTickets, setAllTickets] = useState<SavedTicketMeta[]>([]);
-  const [gateCard, setGateCard] = useState<{ open: boolean; index: number }>({
+  const [gateCard, setGateCard] = useState<{
+    open: boolean;
+    index: number;
+    overrideTickets: SavedTicketMeta[] | null;
+  }>({
     open: false,
     index: 0,
+    overrideTickets: null,
   });
   const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("checking");
 
@@ -151,6 +157,14 @@ function EventCompanionInner() {
       .catch(() => {
         /* IndexedDB may be restricted in private browsing. */
       });
+    if (attendee.auth.user?.id) {
+      void pullTicketsFromCloud(attendee.auth.user.id, (evId) => ({
+        name: evId === data.event.id ? data.event.name : "Saved event",
+        dateIso: data.event.startAt.toISOString(),
+      })).then((merged) => {
+        if (active) setAllTickets(merged);
+      });
+    }
     const unsub = subscribeTicketChanges(() => {
       if (active) setAllTickets(readAllSavedTickets());
     });
@@ -158,7 +172,12 @@ function EventCompanionInner() {
       active = false;
       unsub();
     };
-  }, [data, attendee.preferences.profile.name, attendee.preferences.ticketTier]);
+  }, [
+    data,
+    attendee.preferences.profile.name,
+    attendee.preferences.ticketTier,
+    attendee.auth.user?.id,
+  ]);
 
   const eventTickets = useMemo(
     () => allTickets.filter((t) => t.eventId === data.event.id),
@@ -166,12 +185,17 @@ function EventCompanionInner() {
   );
 
   const openGateCard = useCallback(
-    (initialIndex = 0) => {
+    (initialIndex = 0, ticketsOverride?: SavedTicketMeta[]) => {
+      if (ticketsOverride && ticketsOverride.length > 0) {
+        setSheet(null);
+        setGateCard({ open: true, index: initialIndex, overrideTickets: ticketsOverride });
+        return;
+      }
       const latest = readAllSavedTickets().filter((t) => t.eventId === data.event.id);
       setAllTickets(readAllSavedTickets());
       if (latest.length > 0) {
         setSheet(null);
-        setGateCard({ open: true, index: initialIndex });
+        setGateCard({ open: true, index: initialIndex, overrideTickets: null });
       } else {
         setSheet({ kind: "ticket" });
       }
@@ -298,7 +322,8 @@ function EventCompanionInner() {
   };
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
-  const onboarding = attendee.ready && view !== "crew" && !attendee.preferences.hasName;
+  const onboarding =
+    attendee.ready && view !== "crew" && view !== "events" && !attendee.preferences.hasName;
   const selecting =
     attendee.ready &&
     !onboarding &&
@@ -486,8 +511,8 @@ function EventCompanionInner() {
           )}
           <GateCardModal
             open={gateCard.open}
-            onClose={() => setGateCard({ open: false, index: 0 })}
-            tickets={eventTickets}
+            onClose={() => setGateCard({ open: false, index: 0, overrideTickets: null })}
+            tickets={gateCard.overrideTickets ?? eventTickets}
             initialIndex={gateCard.index}
             data={data}
             online={online}

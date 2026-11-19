@@ -9,6 +9,9 @@ const factItemSchema = z.object({
   title: z.string().min(1).max(120),
   text: z.string().min(1).max(800),
   pending: z.boolean(),
+  status: z.enum(["verified", "pending", "outdated", "sample"]).default("verified"),
+  source: z.string().max(120).default("Organiser"),
+  updatedAt: z.string().max(40).default(""),
 });
 
 const askEventInputSchema = z.object({

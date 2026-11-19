@@ -371,7 +371,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       {/* Surface 1 — Persistent Sticky Event Hub Bottom Ticket Action Bar (Zero 5th tab!) */}
       <div
         data-testid="event-ticket-bar"
-        className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)-0.25rem)] z-20 mx-auto max-w-[480px] border-t border-border bg-bar/95 px-4 py-2.5 backdrop-blur-xl"
+        className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)-0.25rem)] z-20 mx-auto max-w-[720px] border-t border-border bg-bar/95 px-4 py-2.5 backdrop-blur-xl"
       >
         {primaryTicket ? (
           <div className="flex items-center justify-between gap-3">
