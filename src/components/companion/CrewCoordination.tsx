@@ -11,6 +11,7 @@ import {
 import { activeLandmarkPin } from "@/lib/attendee/lifecycle";
 import { createCrewYearbookCard } from "@/lib/attendee/recap-card";
 import { eventTime } from "@/lib/attendee/schedule";
+import { broadcastCrewChatMessage, broadcastCrewLostAlert } from "@/lib/crew/pins";
 import {
   crewActivitySchema,
   crewListActivities,
@@ -107,6 +108,21 @@ export function CrewCoordination() {
     void refreshFeed();
   }, [refreshFeed]);
 
+  useEffect(() => {
+    const onIncomingChat = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const parsed = crewActivitySchema.safeParse(detail);
+      if (!parsed.success || parsed.data.eventId !== eventId) return;
+      setActivities((prev) => {
+        const next = [parsed.data, ...prev.filter((a) => a.id !== parsed.data.id)].slice(0, 30);
+        writeLocalFeed(eventId, next);
+        return next;
+      });
+    };
+    window.addEventListener("eb:crew-chat", onIncomingChat);
+    return () => window.removeEventListener("eb:crew-chat", onIncomingChat);
+  }, [eventId]);
+
   async function postActivity(
     kind: CrewActivity["kind"],
     message: string,
@@ -130,6 +146,24 @@ export function CrewCoordination() {
     writeLocalFeed(eventId, nextLocal);
     setActivities(nextLocal);
 
+    if (sync.crew) {
+      void broadcastCrewChatMessage(localItem);
+      if (kind === "sos") {
+        const chosenPlace = chosenPointId ? places.find((p) => p.id === chosenPointId) : null;
+        void broadcastCrewLostAlert({
+          id: localItem.id,
+          crewId: sync.crew.id,
+          eventId,
+          userId: voterId,
+          authorName,
+          pointId: chosenPointId,
+          placeName: chosenPlace?.name ?? "our meeting point",
+          message: `${authorName}: ${message}${chosenPlace ? ` near ${chosenPlace.name}` : ""}`,
+          createdAt: localItem.createdAt,
+        });
+      }
+    }
+
     if (attendee.auth.user && sync.crew) {
       const res = await crewPostActivity({
         eventId,
@@ -142,11 +176,14 @@ export function CrewCoordination() {
         const replaced = [res.activity, ...nextLocal.filter((a) => a.id !== localItem.id)];
         writeLocalFeed(eventId, replaced);
         setActivities(replaced);
+        void broadcastCrewChatMessage(res.activity);
         attendee.notify("Posted to your connected crew");
         return;
       }
     }
-    attendee.notify("Saved to your crew board on this phone");
+    attendee.notify(
+      sync.crew ? "Sent to your connected crew" : "Saved to your crew board on this phone",
+    );
   }
 
   async function voteOnPoll(activity: CrewActivity, optionIndex: number) {

@@ -10,13 +10,21 @@ import {
   type Crew,
   type CrewCommand,
 } from "./client";
-import { dropCrewPin, listCrewPins, removeCrewPin, subscribeCrewPins, type CrewPin } from "./pins";
+import {
+  dropCrewPin,
+  listCrewPins,
+  removeCrewPin,
+  subscribeCrewPins,
+  type CrewLostAlert,
+  type CrewPin,
+} from "./pins";
 const pendingSchema = z.object({ id: z.string().uuid(), command: commandSchema });
 type Pending = z.infer<typeof pendingSchema>;
 type State = {
   scope: string;
   crew: Crew | null;
   pins: CrewPin[];
+  lostAlert: CrewLostAlert | null;
   loading: boolean;
   pending: Pending | null;
   error: string;
@@ -27,6 +35,7 @@ const initial: State = {
   scope: "",
   crew: null,
   pins: [],
+  lostAlert: null,
   loading: false,
   pending: null,
   error: "",
@@ -227,6 +236,14 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
           return { ...s, crew: nextCrew, pins: nextPins, checkedAt };
         });
       },
+      onLostAlert: (alert) => {
+        setState((s) => ({ ...s, lostAlert: alert }));
+      },
+      onChatMessage: (msg) => {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("eb:crew-chat", { detail: msg }));
+        }
+      },
     });
   }, [activeCrewId, ready, storageKey, userId]);
   function command(value: CrewCommand) {
@@ -256,5 +273,11 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
       stopping && m.id === userId ? { ...m, pointId: null, expiresAt: null } : m,
     ),
   };
-  return { ...visible, crew, command, refresh: () => trigger.current() };
+  return {
+    ...visible,
+    crew,
+    command,
+    refresh: () => trigger.current(),
+    dismissLostAlert: () => setState((s) => ({ ...s, lostAlert: null })),
+  };
 }

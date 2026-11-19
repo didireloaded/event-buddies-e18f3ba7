@@ -52,6 +52,33 @@ export const pinRemovedSchema = z.object({
 });
 export type PinRemovedPayload = z.infer<typeof pinRemovedSchema>;
 
+export const crewLostAlertSchema = z.object({
+  id: z.string(),
+  crewId: z.string(),
+  eventId: z.string(),
+  userId: z.string(),
+  authorName: z.string(),
+  pointId: z.string().nullable(),
+  placeName: z.string(),
+  message: z.string(),
+  createdAt: z.string(),
+});
+export type CrewLostAlert = z.infer<typeof crewLostAlertSchema>;
+
+export const crewRealtimeChatSchema = z.object({
+  id: z.string(),
+  eventId: z.string(),
+  crewId: z.string(),
+  authorId: z.string(),
+  authorName: z.string(),
+  kind: z.enum(["ping", "safe", "sos", "poll", "travel", "message"]),
+  message: z.string().min(1).max(200),
+  pointId: z.string().nullable().default(null),
+  meta: z.record(z.string(), z.unknown()).default({}),
+  createdAt: z.string(),
+});
+export type CrewRealtimeChat = z.infer<typeof crewRealtimeChatSchema>;
+
 /**
  * Opt-in, single-shot GPS coordinate reading rounded to 4 decimal places (~11m).
  * Never uses watchPosition or continuous background tracking.
@@ -74,6 +101,31 @@ export function requestOneTimeGeolocation(
       { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 60000 },
     );
   });
+}
+
+export async function triggerCrewPushNotification(title: string, body: string): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    navigator.vibrate?.([200, 100, 200]);
+  } catch {
+    /* Ignore vibration restrictions. */
+  }
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && typeof reg.showNotification === "function") {
+        await reg.showNotification(title, {
+          body,
+          tag: "event-buddies-crew-alert",
+        });
+        return;
+      }
+    }
+    new Notification(title, { body, tag: "event-buddies-crew-alert" });
+  } catch {
+    /* Ignore notification errors on unsupported browsers. */
+  }
 }
 
 export async function listCrewPins(crewId: string): Promise<CrewPin[]> {
@@ -106,57 +158,60 @@ export async function dropCrewPin(input: {
   const rlat = roundGpsCoord(input.lat, -90, 90);
   const rlng = roundGpsCoord(input.lng, -180, 180);
 
-  if (!accountConfigured) {
-    return { ok: false, error: "Cloud connection settings are not configured." };
-  }
-
   let savedPin: CrewPin | null = null;
 
-  // 1. Try the drop_pin RPC first (lowest latency, triggers DB broadcast on crew:{id}:pins)
-  try {
-    const { data, error } = await callRpc("drop_pin", {
-      p_event_id: input.eventId,
-      p_crew_id: input.crewId,
-      p_point_id: input.pointId,
-      p_x: rx,
-      p_y: ry,
-      p_lat: rlat,
-      p_lng: rlng,
-    });
-    if (!error && data) {
-      const parsed = crewPinSchema.safeParse(data);
-      if (parsed.success) savedPin = parsed.data;
-    }
-  } catch {
-    /* Fall through to Edge Function below if RPC is not applied yet. */
-  }
-
-  // 2. If RPC wasn't applied yet, try the drop-pin Edge Function
-  if (!savedPin && typeof supabase.functions?.invoke === "function") {
+  if (accountConfigured) {
+    // 1. Try the drop_pin RPC first (lowest latency, triggers DB broadcast on crew:{id}:pins)
     try {
-      const { data, error } = await supabase.functions.invoke("drop-pin", {
-        body: {
-          action: "drop",
-          eventId: input.eventId,
-          crewId: input.crewId,
-          pointId: input.pointId,
-          x: rx,
-          y: ry,
-          lat: rlat,
-          lng: rlng,
-        },
+      const { data, error } = await callRpc("drop_pin", {
+        p_event_id: input.eventId,
+        p_crew_id: input.crewId,
+        p_point_id: input.pointId,
+        p_x: rx,
+        p_y: ry,
+        p_lat: rlat,
+        p_lng: rlng,
       });
-      if (!error && data && typeof data === "object" && (data as Record<string, unknown>)["pin"]) {
-        const parsed = crewPinSchema.safeParse((data as Record<string, unknown>)["pin"]);
+      if (!error && data) {
+        const parsed = crewPinSchema.safeParse(data);
         if (parsed.success) savedPin = parsed.data;
       }
     } catch {
-      /* Fall through to synthetic broadcast pin below. */
+      /* Fall through to Edge Function below if RPC is not applied yet. */
+    }
+
+    // 2. If RPC wasn't applied yet, try the drop-pin Edge Function
+    if (!savedPin && typeof supabase.functions?.invoke === "function") {
+      try {
+        const { data, error } = await supabase.functions.invoke("drop-pin", {
+          body: {
+            action: "drop",
+            eventId: input.eventId,
+            crewId: input.crewId,
+            pointId: input.pointId,
+            x: rx,
+            y: ry,
+            lat: rlat,
+            lng: rlng,
+          },
+        });
+        if (
+          !error &&
+          data &&
+          typeof data === "object" &&
+          (data as Record<string, unknown>)["pin"]
+        ) {
+          const parsed = crewPinSchema.safeParse((data as Record<string, unknown>)["pin"]);
+          if (parsed.success) savedPin = parsed.data;
+        }
+      } catch {
+        /* Fall through to live broadcast pin below. */
+      }
     }
   }
 
   // 3. Construct the pin record (60m expiry) and broadcast on crew:{id}:pins for immediate <1s cross-phone delivery
-  const fallbackPin: CrewPin = savedPin ?? {
+  const pinRecord: CrewPin = savedPin ?? {
     id: crypto.randomUUID(),
     eventId: input.eventId,
     crewId: input.crewId,
@@ -171,8 +226,8 @@ export async function dropCrewPin(input: {
     expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
   };
 
-  await broadcastCrewPinEvent(input.crewId, "pin:upserted", fallbackPin);
-  return { ok: true, pin: fallbackPin };
+  await broadcastCrewPinEvent(input.crewId, "pin:upserted", pinRecord);
+  return { ok: true, pin: pinRecord };
 }
 
 export async function removeCrewPin(input: {
@@ -180,11 +235,12 @@ export async function removeCrewPin(input: {
   userId: string;
   pointId?: string | null | undefined;
 }): Promise<void> {
-  if (!accountConfigured) return;
-  try {
-    await callRpc("remove_pin", { p_crew_id: input.crewId });
-  } catch {
-    /* Ignore if RPC not yet applied. */
+  if (accountConfigured) {
+    try {
+      await callRpc("remove_pin", { p_crew_id: input.crewId });
+    } catch {
+      /* Ignore if RPC not yet applied. */
+    }
   }
   await broadcastCrewPinEvent(input.crewId, "pin:removed", {
     crewId: input.crewId,
@@ -193,45 +249,86 @@ export async function removeCrewPin(input: {
   });
 }
 
-async function broadcastCrewPinEvent(
-  crewId: string,
-  event: "pin:upserted" | "pin:removed",
-  payload: Record<string, unknown>,
-): Promise<void> {
-  if (!accountConfigured || typeof supabase.channel !== "function") return;
-  try {
-    const topic = crewPinChannelTopic(crewId);
-    const channel = supabase.channel(topic, { config: { private: true } });
-    await channel.send({
-      type: "broadcast",
-      event,
-      payload,
-    });
-  } catch {
-    /* Non-fatal if Realtime websocket is reconnecting. */
+export async function broadcastCrewLostAlert(alert: CrewLostAlert): Promise<void> {
+  await broadcastCrewPinEvent(alert.crewId, "crew:lost", alert);
+  if (accountConfigured && typeof supabase.functions?.invoke === "function") {
+    try {
+      await supabase.functions.invoke("send-crew-push", { body: alert });
+    } catch {
+      /* Web push Edge Function is optional when Realtime channel is active. */
+    }
   }
 }
+
+export async function broadcastCrewChatMessage(msg: CrewRealtimeChat): Promise<void> {
+  await broadcastCrewPinEvent(msg.crewId, "crew:chat", msg);
+}
+
+export type RealtimeChannelHandle = {
+  on: (
+    type: "broadcast",
+    filter: { event: string },
+    cb: (msg: { payload?: unknown }) => void,
+  ) => unknown;
+  subscribe: (cb?: (status: string) => void) => unknown;
+  send?: (args: {
+    type: "broadcast";
+    event: string;
+    payload: Record<string, unknown>;
+  }) => Promise<unknown> | unknown;
+};
 
 export type RealtimeClientLike = {
   channel?: (
     topic: string,
     opts?: { config?: { private?: boolean; broadcast?: { self?: boolean } } },
-  ) => {
-    on: (
-      type: "broadcast",
-      filter: { event: string },
-      cb: (msg: { payload?: unknown }) => void,
-    ) => unknown;
-    subscribe: (cb?: (status: string) => void) => unknown;
-  };
+  ) => RealtimeChannelHandle;
   removeChannel?: (channel: unknown) => unknown;
 };
+
+const activeChannels = new Map<string, RealtimeChannelHandle>();
+
+export async function broadcastCrewPinEvent(
+  crewId: string,
+  event: "pin:upserted" | "pin:removed" | "crew:lost" | "crew:chat",
+  payload: Record<string, unknown>,
+): Promise<void> {
+  if (!crewId) return;
+
+  // 1. Broadcast over the active subscribed Supabase Realtime channel for this crew
+  const existing = activeChannels.get(crewId);
+  if (existing && typeof existing.send === "function") {
+    try {
+      await existing.send({
+        type: "broadcast",
+        event,
+        payload,
+      });
+    } catch {
+      /* Non-fatal if Realtime websocket is reconnecting. */
+    }
+  } else if (accountConfigured && typeof supabase.channel === "function") {
+    try {
+      const topic = crewPinChannelTopic(crewId);
+      const ch = supabase.channel(topic, { config: { private: true } });
+      await ch.send({
+        type: "broadcast",
+        event,
+        payload,
+      });
+    } catch {
+      /* Non-fatal if Realtime websocket is reconnecting. */
+    }
+  }
+}
 
 export function subscribeCrewPins(
   crewId: string,
   handlers: {
     onUpserted: (pin: CrewPin) => void;
     onRemoved: (removed: PinRemovedPayload) => void;
+    onLostAlert?: (alert: CrewLostAlert) => void;
+    onChatMessage?: (msg: CrewRealtimeChat) => void;
     onAnyChange?: () => void;
   },
   options?: { client?: RealtimeClientLike; configured?: boolean },
@@ -243,12 +340,12 @@ export function subscribeCrewPins(
   }
 
   const topic = crewPinChannelTopic(crewId);
-  type ChannelHandle = ReturnType<NonNullable<RealtimeClientLike["channel"]>>;
   let activeChannel = client.channel(topic, {
     config: { private: true, broadcast: { self: false } },
   });
+  activeChannels.set(crewId, activeChannel);
 
-  const attachListeners = (ch: ChannelHandle) => {
+  const attachListeners = (ch: RealtimeChannelHandle) => {
     ch.on("broadcast", { event: "pin:upserted" }, (msg: { payload?: unknown }) => {
       const parsed = crewPinSchema.safeParse(msg.payload);
       if (parsed.success) handlers.onUpserted(parsed.data);
@@ -259,19 +356,36 @@ export function subscribeCrewPins(
       if (parsed.success) handlers.onRemoved(parsed.data);
       handlers.onAnyChange?.();
     });
+    ch.on("broadcast", { event: "crew:lost" }, (msg: { payload?: unknown }) => {
+      const parsed = crewLostAlertSchema.safeParse(msg.payload);
+      if (parsed.success) {
+        handlers.onLostAlert?.(parsed.data);
+        void triggerCrewPushNotification(
+          `${parsed.data.authorName} is looking for you`,
+          parsed.data.message,
+        );
+      }
+      handlers.onAnyChange?.();
+    });
+    ch.on("broadcast", { event: "crew:chat" }, (msg: { payload?: unknown }) => {
+      const parsed = crewRealtimeChatSchema.safeParse(msg.payload);
+      if (parsed.success) handlers.onChatMessage?.(parsed.data);
+      handlers.onAnyChange?.();
+    });
     return ch;
   };
 
   attachListeners(activeChannel).subscribe((status: string) => {
-    // If private channel RLS isn't applied in Cloud yet, fall back to standard channel subscription
+    // If private channel RLS isn't applied in Cloud yet, retry on the SAME topic without private:true
     if (status === "CHANNEL_ERROR" && typeof client.channel === "function") {
       try {
         if (typeof client.removeChannel === "function") {
           void client.removeChannel(activeChannel);
         }
-        activeChannel = client.channel(`${topic}:fallback`, {
+        activeChannel = client.channel(topic, {
           config: { broadcast: { self: false } },
         });
+        activeChannels.set(crewId, activeChannel);
         attachListeners(activeChannel).subscribe();
       } catch {
         /* Ignore fallback errors. */
@@ -280,6 +394,9 @@ export function subscribeCrewPins(
   });
 
   return () => {
+    if (activeChannels.get(crewId) === activeChannel) {
+      activeChannels.delete(crewId);
+    }
     if (typeof client.removeChannel === "function") {
       void client.removeChannel(activeChannel);
     }

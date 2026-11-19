@@ -12,7 +12,12 @@ import {
   extractCrewInviteCode,
   readPendingCrewInvite,
 } from "@/lib/crew/invite-link";
-import { dropCrewPin, requestOneTimeGeolocation } from "@/lib/crew/pins";
+import {
+  broadcastCrewLostAlert,
+  dropCrewPin,
+  removeCrewPin,
+  requestOneTimeGeolocation,
+} from "@/lib/crew/pins";
 import { PrimaryButton, SecondaryButton, Avatar } from "./ui";
 
 export function ConnectedCrew() {
@@ -146,6 +151,35 @@ export function ConnectedCrew() {
             </div>
           ) : (
             <>
+              {sync.lostAlert && (
+                <div
+                  role="alert"
+                  className="mt-3 rounded-2xl border border-destructive bg-destructive/10 p-3 text-[15px]"
+                >
+                  <p className="font-semibold text-destructive">
+                    {sync.lostAlert.authorName} is looking for you
+                  </p>
+                  <p className="mt-0.5">{sync.lostAlert.message}</p>
+                  <div className="mt-2 flex gap-4">
+                    {sync.lostAlert.pointId && (
+                      <button
+                        type="button"
+                        className="min-h-10 font-semibold text-primary"
+                        onClick={() => openPlace(sync.lostAlert!.pointId!)}
+                      >
+                        Show on map ↗
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="min-h-10 text-muted-foreground"
+                      onClick={() => sync.dismissLostAlert?.()}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="mt-4 divide-y divide-border">
                 {crew.members.map((member) => {
                   const place =
@@ -207,11 +241,54 @@ export function ConnectedCrew() {
                   <button
                     type="button"
                     className="min-h-11 font-semibold text-primary"
-                    onClick={() => sync.command({ op: "stop", crewId: crew.id })}
+                    onClick={() => {
+                      if (self) {
+                        void removeCrewPin({
+                          crewId: crew.id,
+                          userId: self.id,
+                          pointId: self.pointId,
+                        });
+                      }
+                      sync.command({ op: "stop", crewId: crew.id });
+                    }}
                   >
                     Stop sharing · Ghost Mode
                   </button>
                 )}
+                <button
+                  type="button"
+                  disabled={waiting}
+                  className="min-h-11 font-semibold text-destructive"
+                  onClick={async () => {
+                    if (
+                      typeof Notification !== "undefined" &&
+                      Notification.permission === "default"
+                    ) {
+                      void Notification.requestPermission();
+                    }
+                    const targetPointId =
+                      self?.pointId ?? crew.meeting?.pointId ?? places[0]?.id ?? null;
+                    const targetPlace = targetPointId
+                      ? places.find((p) => p.id === targetPointId)
+                      : null;
+                    const authorName = self?.name ?? attendee.preferences.profile.name ?? "Friend";
+                    const placeName = targetPlace?.name ?? "our meeting point";
+                    await broadcastCrewLostAlert({
+                      id: crypto.randomUUID(),
+                      crewId: crew.id,
+                      eventId: data.event.id,
+                      userId: self?.id ?? attendee.auth.user?.id ?? "self",
+                      authorName,
+                      pointId: targetPointId,
+                      placeName,
+                      message: `${authorName} is looking for you near ${placeName}.`,
+                      createdAt: new Date().toISOString(),
+                    });
+                    attendee.notify(`Alerted ${crew.name}: looking for you near ${placeName}`);
+                  }}
+                >
+                  Lost someone · Alert crew
+                </button>
                 {self?.owner && (
                   <button
                     type="button"

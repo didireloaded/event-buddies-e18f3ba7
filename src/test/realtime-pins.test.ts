@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  broadcastCrewChatMessage,
+  broadcastCrewLostAlert,
   crewPinChannelTopic,
   crewPinSchema,
+  dropCrewPin,
   pinRemovedSchema,
+  removeCrewPin,
   requestOneTimeGeolocation,
   roundGpsCoord,
   roundVenueCoord,
@@ -123,5 +127,114 @@ describe("Real-time crew pin pipe (crew:{id}:pins)", () => {
 
     unsubscribe();
     expect(mockClient.removeChannel).toHaveBeenCalled();
+  });
+
+  it("delivers pin drops, Lost Someone alerts, crew chat, and Ghost Mode removal from Phone A to Phone B over the active crew:{id}:pins channel", async () => {
+    const listeners: Record<string, (msg: { payload?: unknown }) => void> = {};
+    const mockChannel = {
+      on: vi.fn(
+        (_type: string, filter: { event: string }, cb: (msg: { payload?: unknown }) => void) => {
+          listeners[filter.event] = cb;
+          return mockChannel;
+        },
+      ),
+      subscribe: vi.fn((cb?: (status: string) => void) => {
+        cb?.("SUBSCRIBED");
+        return mockChannel;
+      }),
+      send: vi.fn(
+        async (args: { type: "broadcast"; event: string; payload: Record<string, unknown> }) => {
+          // Simulate Realtime broker delivering Phone A's broadcast to Phone B's listener
+          listeners[args.event]?.({ payload: args.payload });
+          return "ok";
+        },
+      ),
+    };
+
+    const mockClient = {
+      channel: vi.fn(() => mockChannel),
+      removeChannel: vi.fn(),
+    };
+
+    const phoneBPins: Record<string, unknown>[] = [];
+    const phoneBLostAlerts: Record<string, unknown>[] = [];
+    const phoneBChats: Record<string, unknown>[] = [];
+
+    const unsubscribe = subscribeCrewPins(
+      "crew-two-phone",
+      {
+        onUpserted: (pin) => {
+          const idx = phoneBPins.findIndex((p) => p["userId"] === pin.userId);
+          if (idx >= 0) phoneBPins[idx] = pin;
+          else phoneBPins.push(pin);
+        },
+        onRemoved: (rem) => {
+          const idx = phoneBPins.findIndex((p) => p["userId"] === rem.userId);
+          if (idx >= 0) phoneBPins.splice(idx, 1);
+        },
+        onLostAlert: (alert) => phoneBLostAlerts.push(alert),
+        onChatMessage: (chat) => phoneBChats.push(chat),
+      },
+      { client: mockClient, configured: true },
+    );
+
+    // 1. Phone A drops a pin at Main Stage with rounded coordinates
+    const dropped = await dropCrewPin({
+      eventId: "20000000-0000-4000-8000-000000000002",
+      crewId: "crew-two-phone",
+      userId: "phone-a",
+      displayName: "Sam",
+      pointId: "stage-main",
+      x: 48.24,
+      y: 61.88,
+      lat: -22.81987,
+      lng: 14.54231,
+    });
+    expect(dropped.ok).toBe(true);
+    expect(phoneBPins).toHaveLength(1);
+    expect(phoneBPins[0]?.["displayName"]).toBe("Sam");
+    expect(phoneBPins[0]?.["x"]).toBe(48.2);
+    expect(phoneBPins[0]?.["lat"]).toBe(-22.8199);
+
+    // 2. Phone A taps "Lost someone · Alert crew"
+    await broadcastCrewLostAlert({
+      id: "alert-1",
+      crewId: "crew-two-phone",
+      eventId: "20000000-0000-4000-8000-000000000002",
+      userId: "phone-a",
+      authorName: "Sam",
+      pointId: "stage-main",
+      placeName: "Main Stage",
+      message: "Sam is looking for you near Main Stage.",
+      createdAt: new Date().toISOString(),
+    });
+    expect(phoneBLostAlerts).toHaveLength(1);
+    expect(phoneBLostAlerts[0]?.["message"]).toBe("Sam is looking for you near Main Stage.");
+
+    // 3. Phone A sends a real-time crew chat message
+    await broadcastCrewChatMessage({
+      id: "chat-1",
+      eventId: "20000000-0000-4000-8000-000000000002",
+      crewId: "crew-two-phone",
+      authorId: "phone-a",
+      authorName: "Sam",
+      kind: "message",
+      message: "Meet by the left speaker stack",
+      pointId: "stage-main",
+      meta: {},
+      createdAt: new Date().toISOString(),
+    });
+    expect(phoneBChats).toHaveLength(1);
+    expect(phoneBChats[0]?.["message"]).toBe("Meet by the left speaker stack");
+
+    // 4. Phone A activates Ghost Mode -> pin is removed on Phone B
+    await removeCrewPin({
+      crewId: "crew-two-phone",
+      userId: "phone-a",
+      pointId: "stage-main",
+    });
+    expect(phoneBPins).toHaveLength(0);
+
+    unsubscribe();
   });
 });
