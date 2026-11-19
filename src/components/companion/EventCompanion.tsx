@@ -9,6 +9,7 @@ import {
   WifiOff,
   Check,
   Info,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -23,6 +24,12 @@ import {
 } from "react";
 import { useEventClock, dateLabel } from "@/lib/attendee/event-clock";
 import { buildPlaces, type MapFilter } from "@/lib/attendee/map";
+import {
+  ensurePrimaryBlobIndexed,
+  readAllSavedTickets,
+  subscribeTicketChanges,
+  type SavedTicketMeta,
+} from "@/lib/attendee/tickets";
 import { useCrew } from "@/lib/crew/use-crew";
 import { captureCrewInviteFromUrl } from "@/lib/crew/invite-link";
 import { useAttendee } from "@/lib/attendee/use-attendee";
@@ -36,7 +43,7 @@ import { Companion, type CompanionContext, type Sheet as SheetState, type View }
 const CrewView = lazy(() => import("./CrewView").then((module) => ({ default: module.CrewView })));
 import { HomeView } from "./HomeView";
 import { EventSelection } from "./EventSelection";
-import { SafetyAccess } from "./SafetyAccess";
+import { GateCardModal } from "./GateCardModal";
 import { Onboarding } from "./Onboarding";
 const YouView = lazy(() => import("./YouView").then((module) => ({ default: module.YouView })));
 const InfoView = lazy(() => import("./InfoView").then((module) => ({ default: module.InfoView })));
@@ -94,9 +101,15 @@ function useConnectivity() {
   return online;
 }
 
-export function EventCompanion({ data: initialData }: { data: DemoData }) {
+export function EventCompanion({
+  data: initialData,
+  initialEventSlug,
+}: {
+  data: DemoData;
+  initialEventSlug?: string | undefined;
+}) {
   return (
-    <EventProvider initialData={initialData}>
+    <EventProvider initialData={initialData} initialEventSlug={initialEventSlug}>
       <EventCompanionInner />
     </EventProvider>
   );
@@ -117,7 +130,54 @@ function EventCompanionInner() {
   const now = useEventClock(attendee.preferences.batterySaver ? 60000 : 10000);
   const places = useMemo(() => buildPlaces(data), [data]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  const [allTickets, setAllTickets] = useState<SavedTicketMeta[]>([]);
+  const [gateCard, setGateCard] = useState<{ open: boolean; index: number }>({
+    open: false,
+    index: 0,
+  });
   const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>("checking");
+
+  useEffect(() => {
+    let active = true;
+    setAllTickets(readAllSavedTickets());
+    void ensurePrimaryBlobIndexed(
+      data,
+      attendee.preferences.profile.name,
+      attendee.preferences.ticketTier,
+    )
+      .then(() => {
+        if (active) setAllTickets(readAllSavedTickets());
+      })
+      .catch(() => {
+        /* IndexedDB may be restricted in private browsing. */
+      });
+    const unsub = subscribeTicketChanges(() => {
+      if (active) setAllTickets(readAllSavedTickets());
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [data, attendee.preferences.profile.name, attendee.preferences.ticketTier]);
+
+  const eventTickets = useMemo(
+    () => allTickets.filter((t) => t.eventId === data.event.id),
+    [allTickets, data.event.id],
+  );
+
+  const openGateCard = useCallback(
+    (initialIndex = 0) => {
+      const latest = readAllSavedTickets().filter((t) => t.eventId === data.event.id);
+      setAllTickets(readAllSavedTickets());
+      if (latest.length > 0) {
+        setSheet(null);
+        setGateCard({ open: true, index: initialIndex });
+      } else {
+        setSheet({ kind: "ticket" });
+      }
+    },
+    [data.event.id],
+  );
   const [filter, setFilter] = useState<MapFilter>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -132,6 +192,7 @@ function EventCompanionInner() {
     const measure = () =>
       shellRef.current?.style.setProperty("--companion-header-height", `${header.offsetHeight}px`);
     measure();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(header);
     return () => observer.disconnect();
@@ -163,8 +224,8 @@ function EventCompanionInner() {
   // Leaving the Map tab (including via browser Back) closes the full-screen map.
   useEffect(() => {
     if (view !== "map") setExpanded(false);
-    window.scrollTo({ top: 0 });
-    shellRef.current?.scrollTo({ top: 0 });
+    if (typeof window.scrollTo === "function") window.scrollTo({ top: 0 });
+    if (typeof shellRef.current?.scrollTo === "function") shellRef.current.scrollTo({ top: 0 });
     setScrolled(false);
   }, [view]);
 
@@ -197,7 +258,11 @@ function EventCompanionInner() {
     avatar,
     crew,
     now,
+    online,
     offlineStatus,
+    eventTickets,
+    allTicketsCount: allTickets.length,
+    openGateCard,
     view,
     navigate,
     openSheet: setSheet,
@@ -284,7 +349,22 @@ function EventCompanionInner() {
                     </>
                   )}
                 </a>
-                <SafetyAccess />
+                <button
+                  type="button"
+                  aria-label="My Tickets & Passes"
+                  onClick={() =>
+                    eventTickets.length > 0 ? openGateCard(0) : setSheet({ kind: "ticket" })
+                  }
+                  className="ios-press relative grid size-11 place-items-center rounded-full text-foreground"
+                >
+                  <Ticket size={21} aria-hidden />
+                  {eventTickets.length > 0 && (
+                    <span
+                      aria-hidden
+                      className="absolute right-2 top-2 size-2 rounded-full bg-primary"
+                    />
+                  )}
+                </button>
                 <button
                   type="button"
                   aria-label="Open your profile"
@@ -404,6 +484,14 @@ function EventCompanionInner() {
               <SheetContent sheet={sheet} onShare={shareEvent} />
             </Sheet>
           )}
+          <GateCardModal
+            open={gateCard.open}
+            onClose={() => setGateCard({ open: false, index: 0 })}
+            tickets={eventTickets}
+            initialIndex={gateCard.index}
+            data={data}
+            online={online}
+          />
         </div>
       </Companion.Provider>
     </KonstaProvider>

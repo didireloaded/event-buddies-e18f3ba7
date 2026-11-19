@@ -82,9 +82,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Event Buddies" },
-      { name: "description", content: "Mobile event companion for festivals in Namibia." },
+      {
+        name: "description",
+        content:
+          "Mobile-first multi-event platform for festivals, concerts, conferences and crews.",
+      },
       { property: "og:title", content: "Event Buddies" },
-      { property: "og:description", content: "Mobile event companion for festivals in Namibia." },
+      {
+        property: "og:description",
+        content:
+          "Mobile-first multi-event platform for festivals, concerts, conferences and crews.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#171717" },

@@ -5,10 +5,39 @@ import type { DemoData } from "@/lib/event/types";
 export const TBA = "Time to be announced";
 export const PLAN_KINDS = ["favourite_artist", "meeting", "venue_wayfinding", "break"] as const;
 
-/** What the browser sends: only ids and the local meeting, never free-form facts. */
+/** Optional active-event context passed for multi-event planning beyond the default demo event. */
+export const dayPlanEventContextSchema = z.object({
+  eventId: z.string().max(80),
+  eventName: z.string().max(160),
+  category: z.string().max(60),
+  venue: z.string().max(200),
+  gatesOpen: z.string().max(30),
+  ends: z.string().max(30),
+  entry: z.string().max(200),
+  stages: z.array(z.string().max(100)).max(30),
+  setTimesPublished: z.boolean(),
+  savedArtists: z
+    .array(
+      z.object({
+        name: z.string().max(120),
+        stage: z.string().max(100).nullable(),
+        time: z.string().max(40),
+      }),
+    )
+    .max(50),
+  meeting: z
+    .object({
+      place: z.string().max(120),
+      time: z.string().max(40),
+    })
+    .nullable(),
+});
+
+/** What the browser sends: only ids, local meeting, and optional active event snapshot. */
 export const dayPlanInput = z.object({
   savedArtistIds: z.array(z.string().max(80)).max(50),
   meeting: z.object({ pointId: z.string().max(80), at: z.string().max(40) }).nullable(),
+  eventContext: dayPlanEventContextSchema.optional(),
 });
 export type DayPlanInput = z.infer<typeof dayPlanInput>;
 

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { suggestDayPlan } from "@/lib/day-plan/day-plan.functions";
+import { buildPlanFacts } from "@/lib/day-plan/schema";
 import { useCompanion } from "./context";
 
 export function DayPlanPanel() {
-  const { attendee } = useCompanion();
+  const { attendee, data } = useCompanion();
   const { preferences, ready } = attendee;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -18,9 +19,34 @@ export function DayPlanPanel() {
     setBusy(true);
     setError("");
     try {
+      const eventContext = data
+        ? (() => {
+            const built = buildPlanFacts(data, {
+              savedArtistIds: preferences.savedArtists,
+              meeting: preferences.meeting,
+            });
+            return {
+              eventId: data.event.id,
+              eventName: data.event.name,
+              category: data.event.category,
+              venue: built.event.venue,
+              gatesOpen: built.event.gatesOpen,
+              ends: built.event.ends,
+              entry: data.festival.rules[0] ?? built.event.entry,
+              stages: built.stages,
+              setTimesPublished: built.setTimesPublished,
+              savedArtists: built.savedArtists,
+              meeting: built.meeting,
+            };
+          })()
+        : undefined;
       const result = await suggestDayPlan({
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
-        data: { savedArtistIds: preferences.savedArtists, meeting: preferences.meeting },
+        data: {
+          savedArtistIds: preferences.savedArtists,
+          meeting: preferences.meeting,
+          ...(eventContext ? { eventContext } : {}),
+        },
       });
       if (controller.signal.aborted) return;
       if (!result.ok) setError(result.error);

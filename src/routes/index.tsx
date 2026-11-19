@@ -6,17 +6,17 @@ import { getDemoData } from "@/lib/event/demo-data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sound of Summer 2026 · Event Buddies" },
+      { title: "Event Buddies · Discover events, venue plans & crews" },
       {
         name: "description",
         content:
-          "Venue map, announced lineup, favourites and crew meeting plans for Sound of Summer 2026 at Tidal Pools & Jetty Beach, Langstrand.",
+          "Mobile event platform for festivals, concerts, conferences and community events. Explore venue maps, programmes, offline tickets and private crew coordination.",
       },
-      { property: "og:title", content: "Sound of Summer 2026 · Event Buddies" },
+      { property: "og:title", content: "Event Buddies" },
       {
         property: "og:description",
         content:
-          "Find stages, bars, toilets and medics, save artists and plan where your crew meets.",
+          "Discover events, find stages and facilities, save favourites and coordinate with your crew.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

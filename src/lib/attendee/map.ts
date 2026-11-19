@@ -7,6 +7,7 @@ export type Place = {
   x: number;
   y: number;
   description: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type MapFilter =
@@ -42,6 +43,7 @@ export function buildPlaces(data: DemoData): Place[] {
       x: point.mapX,
       y: point.mapY,
       description: point.description,
+      metadata: point.metadata,
     })),
   ];
 }

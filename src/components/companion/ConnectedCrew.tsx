@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Radio } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCompanion, initials } from "./context";
 import { QrCameraScanner } from "./QrCameraScanner";
@@ -20,12 +21,21 @@ import {
   removeCrewPin,
   requestOneTimeGeolocation,
 } from "@/lib/crew/pins";
+import {
+  classifyPositionFreshness,
+  computeLiveShareExpiry,
+  formatAccuracyBadge,
+  startActiveLiveGps,
+  type LiveGpsPosition,
+  type LiveLocationDuration,
+  type LiveLocationStatus,
+} from "@/lib/crew/live-gps";
 import { PrimaryButton, SecondaryButton, Avatar } from "./ui";
 
 export function ConnectedCrew() {
   const { crew: sync, attendee, avatar, data, places, openPlace, now } = useCompanion();
   const [mode, setMode] = useState<
-    "create" | "join" | "invite" | "meeting" | "leave" | "pin" | null
+    "create" | "join" | "invite" | "meeting" | "leave" | "pin" | "live-gps" | null
   >(null);
   const [name, setName] = useState("Our crew");
   const [code, setCode] = useState(() => readPendingCrewInvite() ?? "");
@@ -38,12 +48,78 @@ export function ConnectedCrew() {
   const [scanningQr, setScanningQr] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsBusy, setGpsBusy] = useState(false);
+  const [liveDuration, setLiveDuration] = useState<LiveLocationDuration>("60m");
+  const [liveStatus, setLiveStatus] = useState<LiveLocationStatus>("off");
+  const [livePos, setLivePos] = useState<LiveGpsPosition | null>(null);
+  const [liveError, setLiveError] = useState("");
+  const stopLiveGpsRef = useRef<(() => void) | null>(null);
   const crew = sync.crew;
   const self = crew?.members.find((m) => m.id === attendee.auth.user?.id);
   const waiting = Boolean(sync.pending);
   const meetingPlace = places.find((p) => p.id === crew?.meeting?.pointId);
   const activePin =
     self?.pointId && self.expiresAt && Date.parse(self.expiresAt) > (now ?? Date.now());
+  const isLiveSharing =
+    liveStatus === "starting" ||
+    liveStatus === "live" ||
+    liveStatus === "paused_background" ||
+    liveStatus === "outdated";
+
+  useEffect(() => {
+    return () => {
+      stopLiveGpsRef.current?.();
+      stopLiveGpsRef.current = null;
+    };
+  }, []);
+
+  function stopLiveGpsSession() {
+    stopLiveGpsRef.current?.();
+    stopLiveGpsRef.current = null;
+    setLiveStatus("off");
+    setLivePos(null);
+    setLiveError("");
+  }
+
+  function startLiveGpsSession() {
+    if (!crew || !self) return;
+    stopLiveGpsSession();
+    const expiresAt = computeLiveShareExpiry(liveDuration, data.event.endAt);
+    const sessionId = crypto.randomUUID();
+    setLiveError("");
+    stopLiveGpsRef.current = startActiveLiveGps({
+      expiresAt,
+      sessionId,
+      onStatusChange: (nextStatus, err) => {
+        setLiveStatus(nextStatus);
+        if (err) setLiveError(err);
+      },
+      onPosition: (pos) => {
+        setLivePos(pos);
+        const fallbackPlace = places.find((p) => p.id === (self.pointId ?? pointId)) ?? places[0];
+        void dropCrewPin({
+          eventId: data.event.id,
+          crewId: crew.id,
+          userId: self.id,
+          displayName: self.name,
+          pointId: self.pointId ?? fallbackPlace?.id ?? null,
+          x: fallbackPlace?.x ?? null,
+          y: fallbackPlace?.y ?? null,
+          lat: pos.lat,
+          lng: pos.lng,
+        });
+      },
+      onExpired: () => {
+        setLivePos(null);
+        void removeCrewPin({
+          crewId: crew.id,
+          userId: self.id,
+          pointId: self.pointId,
+        });
+        attendee.notify("Live location sharing expired");
+      },
+    });
+    setMode(null);
+  }
 
   useEffect(() => {
     const captured = captureCrewInviteFromUrl();
@@ -224,6 +300,71 @@ export function ConnectedCrew() {
                   </div>
                 </div>
               )}
+              {/* Visual circular member avatar strip with Add button */}
+              <div className="scrollbar-none mt-3 flex items-center gap-3 overflow-x-auto rounded-2xl bg-popover px-3.5 py-3">
+                {crew.members.map((member) => (
+                  <div
+                    key={`strip-${member.id}`}
+                    className="flex w-16 flex-none flex-col items-center gap-1"
+                  >
+                    <Avatar
+                      label={initials(member.name)}
+                      src={member.id === attendee.auth.user?.id ? avatar?.url : null}
+                      alt={member.id === attendee.auth.user?.id ? "Your profile photo" : ""}
+                    />
+                    <span className="w-full truncate text-center text-[12px] font-medium">
+                      {member.id === attendee.auth.user?.id ? "You" : member.name}
+                    </span>
+                  </div>
+                ))}
+                {self?.owner && (
+                  <button
+                    type="button"
+                    disabled={waiting}
+                    onClick={() => open("invite")}
+                    className="flex w-16 flex-none flex-col items-center gap-1 text-primary"
+                    aria-label="Add friend to crew"
+                  >
+                    <span className="grid size-11 place-items-center rounded-full bg-favorite-soft text-primary">
+                      <Plus size={20} aria-hidden />
+                    </span>
+                    <span className="text-[12px] font-semibold">Add</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Active-session Live GPS status banner */}
+              {(isLiveSharing || liveError) && (
+                <div
+                  role="status"
+                  className="mt-3 rounded-2xl bg-secondary px-3.5 py-2.5 text-[14px]"
+                >
+                  {(() => {
+                    const fresh = classifyPositionFreshness(
+                      livePos?.capturedAt ?? null,
+                      liveStatus,
+                      now ?? Date.now(),
+                    );
+                    const acc = formatAccuracyBadge(livePos?.accuracyMeters);
+                    return (
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            <Radio size={14} className="mr-1.5 inline text-primary" aria-hidden />
+                            Live location · {fresh.label}
+                            {acc ? ` (${acc})` : ""}
+                          </p>
+                          <p className="text-[12px] text-muted-foreground">
+                            {liveError ||
+                              "Active while Event Buddies stays open. Pauses when backgrounded."}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="mt-4 divide-y divide-border">
                 {crew.members.map((member) => {
                   const place =
@@ -281,11 +422,20 @@ export function ConnectedCrew() {
                 >
                   {activePin ? "Update my landmark" : "Share my landmark"}
                 </button>
-                {(activePin || sync.pending?.command.op === "share") && (
+                <button
+                  type="button"
+                  disabled={waiting}
+                  className="min-h-11 text-primary font-medium"
+                  onClick={() => open("live-gps")}
+                >
+                  {isLiveSharing ? "Live GPS active" : "Share live location"}
+                </button>
+                {(activePin || isLiveSharing || sync.pending?.command.op === "share") && (
                   <button
                     type="button"
                     className="min-h-11 font-semibold text-primary"
                     onClick={() => {
+                      stopLiveGpsSession();
                       if (self) {
                         void removeCrewPin({
                           crewId: crew.id,
@@ -373,7 +523,9 @@ export function ConnectedCrew() {
                     ? "Crew meeting"
                     : mode === "pin"
                       ? "Share a landmark"
-                      : "Leave this crew?"
+                      : mode === "live-gps"
+                        ? "Share live location"
+                        : "Leave this crew?"
           }
           onClose={() => {
             setScanningQr(false);
@@ -619,6 +771,62 @@ export function ConnectedCrew() {
                 Share with my crew
               </PrimaryButton>
             </form>
+          )}
+          {mode === "live-gps" && crew && self && (
+            <div className="space-y-4">
+              <p className="text-[15px] text-muted-foreground">
+                Opt-in active-session GPS shared only with <strong>{crew.name}</strong>. Sharing
+                starts off by default, updates while Event Buddies is open, pauses when the browser
+                is backgrounded, and stops automatically when the timer expires or you tap Ghost
+                Mode.
+              </p>
+              <div
+                role="group"
+                aria-label="Live location duration"
+                className="grid grid-cols-3 gap-2"
+              >
+                {(
+                  [
+                    { value: "15m", label: "15 min" },
+                    { value: "60m", label: "1 hour" },
+                    { value: "until_end", label: "Until event ends" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    aria-pressed={liveDuration === opt.value}
+                    onClick={() => setLiveDuration(opt.value)}
+                    className={`min-h-12 rounded-xl border px-2 text-[14px] font-semibold ${
+                      liveDuration === opt.value
+                        ? "border-primary bg-favorite-soft text-primary"
+                        : "border-border bg-popover text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <PrimaryButton onClick={startLiveGpsSession}>
+                Start sharing live location
+              </PrimaryButton>
+              {isLiveSharing && (
+                <SecondaryButton
+                  onClick={() => {
+                    stopLiveGpsSession();
+                    void removeCrewPin({
+                      crewId: crew.id,
+                      userId: self.id,
+                      pointId: self.pointId,
+                    });
+                    sync.command({ op: "stop", crewId: crew.id });
+                    setMode(null);
+                  }}
+                >
+                  Stop sharing · Ghost Mode
+                </SecondaryButton>
+              )}
+            </div>
           )}
           {mode === "leave" && crew && (
             <div className="space-y-4">

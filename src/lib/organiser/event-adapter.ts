@@ -1,5 +1,5 @@
 import type { DemoData, MapPointRecord, PerformanceRecord, StageRecord } from "@/lib/event/types";
-import { parseProgram, parseZones, TYPE_TERMS, type EventType } from "./schema";
+import { EVENT_TYPES, parseProgram, parseZones, TYPE_TERMS, type EventType } from "./schema";
 import type { PublishedOrganiserEvent } from "./cloud-extensions";
 
 export const LOCAL_PUBLISHED_EVENTS_KEY = "event-buddies:published-organiser-events";
@@ -30,8 +30,9 @@ function mapZoneTypeToPointType(zoneType: string): string {
 }
 
 export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData {
-  const eventType: EventType =
-    ev.eventType === "conference" || ev.eventType === "corporate" ? ev.eventType : "festival";
+  const eventType: EventType = (EVENT_TYPES as readonly string[]).includes(ev.eventType)
+    ? (ev.eventType as EventType)
+    : "festival";
   const terms = TYPE_TERMS[eventType];
   const program = parseProgram(ev.program ?? []);
   const zones = parseZones(ev.zones ?? []);
@@ -115,9 +116,16 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
     return {
       id: `artist-${slugify(item.title)}-${idx + 1}`,
       name: item.title,
-      role: item.place.trim() || terms.people,
+      role: item.headliner
+        ? eventType === "conference"
+          ? "Keynote"
+          : "Headliner"
+        : item.place.trim() || terms.people,
       stageId: matchedStage?.id ?? null,
       avatarUrl: null,
+      featured: item.featured || item.headliner,
+      headliner: item.headliner,
+      featuredOrder: item.featuredOrder ?? (item.headliner ? 0 : idx + 1),
     };
   });
 
@@ -186,11 +194,17 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       slug: slugify(ev.name),
       description: `${ev.name} at ${ev.venue || "confirmed venue"}.`,
       category:
-        eventType === "conference"
-          ? "Conference"
-          : eventType === "corporate"
-            ? "Corporate event"
-            : "Music festival",
+        {
+          festival: "Music festival",
+          concert: "Concert",
+          nightlife: "Nightlife",
+          conference: "Conference",
+          corporate: "Corporate event",
+          sports: "Sports",
+          expo: "Expo & market",
+          cultural: "Cultural event",
+          private: "Private event",
+        }[eventType] ?? "Event",
       status: "published",
       startAt,
       endAt,

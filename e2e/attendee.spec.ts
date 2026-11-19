@@ -544,8 +544,9 @@ test("crew coordination pings, polls, trivia predictions and private medical car
   await page.getByRole("button", { name: "Save my predictions" }).click();
   await page.getByRole("button", { name: "Done" }).click();
 
-  // 3. Emergency & first aid -> private medical card
-  await page.getByRole("button", { name: "Emergency and first aid" }).click();
+  // 3. Essentials -> Safety & Support -> private medical card (moved out of header)
+  await page.goto("/#info");
+  await page.getByRole("button", { name: /Safety & Support/ }).click();
   await page.getByRole("button", { name: "Add private medical & ICE card" }).click();
   await page.getByLabel("Emergency contact name").fill("Maya");
   await page.getByLabel("Blood type (optional)").fill("O+");
@@ -632,4 +633,70 @@ test("selecting a newly published Event #2 switches Home, Lineup, Map and Crew c
   await expect(switchRegion.getByText("Sound of Summer")).toBeVisible();
   await switchRegion.getByRole("button", { name: "I’m going" }).click();
   await expect(page.getByRole("heading", { name: "Sound of Summer" })).toBeVisible();
+});
+
+test("ticketing surfaces, full-screen gate card, map tier unlock, bar sample menu and home focus work end-to-end", async ({
+  page,
+}) => {
+  await guest(page);
+  await page.goto("/events/sound-of-summer-2026#home");
+
+  // 1. Exactly 4 main nav tabs (zero 5th Tickets tab) and sticky Event Hub bottom bar
+  await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link")).toHaveCount(4);
+  const ticketBar = page.getByTestId("event-ticket-bar");
+  await expect(ticketBar).toContainText("No ticket yet");
+  await ticketBar.getByRole("button", { name: "Buy tickets" }).click();
+  await expect(page.getByText("Official tickets are sold externally by")).toBeVisible();
+  await page.getByRole("button", { name: "I already have a ticket — add it offline" }).click();
+
+  // 2. Add a manual ticket code -> immediate 1-tap "Which ticket do you have?" tier sheet
+  await page.getByRole("button", { name: "Enter a ticket code manually" }).click();
+  await page.getByLabel("Ticket code or reference").fill("HWL-2026-VIP-99");
+  await page.getByLabel("Holder name").fill("Sam Nghidinwa");
+  await page.getByRole("button", { name: "Save ticket code offline" }).click();
+
+  const tierPrompt = page.getByTestId("ticket-tier-prompt");
+  await expect(tierPrompt).toContainText("Which ticket do you have?");
+  await tierPrompt.getByRole("button", { name: /^General/ }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  // 3. Sticky bar switches to "Show my ticket" and opens full-screen Gate Card on white bg
+  await expect(ticketBar).toContainText("General · West entrance · Opens 12:00");
+  await ticketBar.getByRole("button", { name: "Show my ticket" }).click();
+  const gateCard = page.getByTestId("gate-card-modal");
+  await expect(gateCard).toBeVisible();
+  await expect(gateCard).toContainText("Sam Nghidinwa · General");
+  await expect(gateCard).toContainText("Brightness raised to max");
+  await gateCard.getByRole("button", { name: "Close ticket" }).click();
+  await expect(gateCard).toHaveCount(0);
+
+  // 4. Switch home focus (onboarding personalisation) reorders Home
+  await page.getByRole("button", { name: "Change home focus" }).click();
+  await expect(page.getByText("Prioritising:")).toBeVisible();
+
+  // 5. Map tier lock for General -> unlock after switching to VIP + Bar Sample Menu + Recenter FAB
+  await page.goto("/#map");
+  await expect(page.getByTestId("map-recenter-fab")).toBeVisible();
+  await page.getByLabel("Search venue places or artists").fill("Platinum area");
+  await page.getByRole("button", { name: /Platinum area/ }).click();
+  await expect(page.getByTestId("map-tier-access-note")).toContainText(
+    "Platinum area is for Platinum ticket holders.",
+  );
+  await page.getByRole("button", { name: "Change my ticket tier" }).click();
+  await page
+    .getByRole("group", { name: "Ticket tier" })
+    .getByRole("button", { name: "VIP" })
+    .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByLabel("Search venue places or artists").fill("Platinum area");
+  await page.getByRole("button", { name: /Platinum area/ }).click();
+  await expect(page.getByTestId("map-tier-access-note")).toContainText(
+    "Unlocked with your VIP ticket tier.",
+  );
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+
+  // 6. Bar detail sheet shows clearly labelled Sample Menu
+  await page.getByLabel("Search venue places or artists").fill("Bar 01");
+  await page.getByRole("button", { name: /Bar 01/ }).click();
+  await expect(page.getByText("Sample Menu", { exact: true })).toBeVisible();
 });

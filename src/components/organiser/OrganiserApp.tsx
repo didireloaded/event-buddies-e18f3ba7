@@ -87,55 +87,90 @@ export function OrganiserApp() {
   const open = route.eventId ? ctx.events.find((e) => e.id === route.eventId) : null;
 
   return (
-    <div className="min-h-dvh bg-background pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)]">
+    <div className="min-h-dvh bg-background pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)] lg:pb-12">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur">
-        <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Organiser workspace
-        </p>
-        <p className="truncate text-[15px]">{profile?.organisation || user.email}</p>
-      </header>
-      <main className="mx-auto max-w-xl px-4">
-        {error && (
-          <div
-            role="alert"
-            className="mt-4 flex items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]"
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Event Buddies · Organiser workspace
+            </p>
+            <p className="truncate text-[15px]">{profile?.organisation || user.email}</p>
+          </div>
+          <a
+            href="/#events"
+            className="hidden min-h-10 items-center rounded-full bg-secondary px-4 text-[14px] font-semibold text-foreground lg:inline-flex"
           >
-            <span className="flex-1">{error}</span>
-            <button
-              type="button"
-              className="min-h-11 font-semibold text-primary"
-              onClick={() => void reload()}
+            Open Attendee App ↗
+          </a>
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:px-6 lg:pt-4">
+        {/* Desktop left navigation sidebar */}
+        <aside className="hidden lg:block" aria-label="Organiser desktop navigation">
+          <nav className="sticky top-20 space-y-1.5">
+            {TABS.map(({ id, label, icon: Icon }) => {
+              const active = route.tab === id;
+              return (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-[15px] font-semibold transition-colors",
+                    active ? "bg-favorite-soft text-primary" : "text-foreground hover:bg-popover",
+                  )}
+                >
+                  <Icon size={19} aria-hidden />
+                  {label}
+                </a>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main className="mx-auto w-full max-w-2xl px-4 lg:max-w-none lg:px-0">
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 flex items-center gap-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]"
             >
-              Retry
-            </button>
-          </div>
-        )}
-        {events === null ? (
-          <div className="py-16 text-center" role="status">
-            <LoaderCircle
-              className="mx-auto animate-spin text-muted-foreground"
-              aria-label="Loading events"
-            />
-          </div>
-        ) : open ? (
-          <EventReview ctx={ctx} event={open} />
-        ) : route.eventId ? (
-          <p className="py-10 text-center text-muted-foreground">
-            This event isn’t in your workspace.
-          </p>
-        ) : route.tab === "create" ? (
-          <CreateTab ctx={ctx} />
-        ) : route.tab === "live" ? (
-          <LiveTab ctx={ctx} />
-        ) : route.tab === "account" ? (
-          <AccountTab ctx={ctx} />
-        ) : (
-          <EventsTab ctx={ctx} />
-        )}
-      </main>
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                className="min-h-11 font-semibold text-primary"
+                onClick={() => void reload()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {events === null ? (
+            <div className="py-16 text-center" role="status">
+              <LoaderCircle
+                className="mx-auto animate-spin text-muted-foreground"
+                aria-label="Loading events"
+              />
+            </div>
+          ) : open ? (
+            <EventReview ctx={ctx} event={open} />
+          ) : route.eventId ? (
+            <p className="py-10 text-center text-muted-foreground">
+              This event isn’t in your workspace.
+            </p>
+          ) : route.tab === "create" ? (
+            <CreateTab ctx={ctx} />
+          ) : route.tab === "live" ? (
+            <LiveTab ctx={ctx} />
+          ) : route.tab === "account" ? (
+            <AccountTab ctx={ctx} />
+          ) : (
+            <EventsTab ctx={ctx} />
+          )}
+        </main>
+      </div>
       <nav
         aria-label="Organiser"
-        className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
+        className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden"
       >
         <ul className="flex w-full max-w-md rounded-full bg-nav p-1.5 shadow-float">
           {TABS.map(({ id, label, icon: Icon }) => {

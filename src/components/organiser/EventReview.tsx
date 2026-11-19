@@ -1,9 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, RotateCw, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
 import { removeLocalPublishedEvent, saveLocalPublishedEvent } from "@/lib/organiser/event-adapter";
+import { optimizeSitePlanImage, type SitePlanRotation } from "@/lib/attendee/map-fit";
+import {
+  DRINK_CATEGORIES,
+  readOrganiserBarMenus,
+  saveOrganiserBarMenus,
+  type BarDrinkItem,
+  type DrinkCategory,
+} from "@/lib/attendee/bar-menu";
+import { analyzeOrganiserEvent } from "@/lib/intelligence/event-intelligence";
 import {
   EVENT_TYPES,
   IMAGE_TYPES,
@@ -28,7 +37,15 @@ import {
 import type { OrgCtx } from "./OrganiserApp";
 
 type ReviewSheet =
-  "basics" | "program" | "site-plan" | "zones" | "publish" | "unpublish" | "delete" | null;
+  | "basics"
+  | "program"
+  | "site-plan"
+  | "zones"
+  | "bar-menus"
+  | "publish"
+  | "unpublish"
+  | "delete"
+  | null;
 
 export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   const [sheet, setSheet] = useState<ReviewSheet>(null);
@@ -50,6 +67,20 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   const [program, setProgram] = useState<ProgramItem[]>(() => parseProgram(event.program));
   const [zones, setZones] = useState<ZoneItem[]>(() => parseZones(event.zones));
   const [activeZoneIndex, setActiveZoneIndex] = useState<number | null>(null);
+  const [sitePlanRotation, setSitePlanRotation] = useState<SitePlanRotation>(0);
+  const [uploadProgress, setUploadProgress] = useState<{ percent: number; label: string } | null>(
+    null,
+  );
+  const [barItems, setBarItems] = useState<BarDrinkItem[]>(
+    () => readOrganiserBarMenus(event.id)[0]?.items ?? [],
+  );
+  const [barPaymentNote, setBarPaymentNote] = useState(
+    () =>
+      readOrganiserBarMenus(event.id)[0]?.paymentNote ?? "Cashless & card accepted at event bars.",
+  );
+  const [newDrinkName, setNewDrinkName] = useState("");
+  const [newDrinkCat, setNewDrinkCat] = useState<DrinkCategory>("Beer");
+  const [newDrinkPrice, setNewDrinkPrice] = useState("");
 
   useEffect(() => {
     setName(event.name);
@@ -84,7 +115,19 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     name,
     start_date: startDate || null,
     site_plan_path: event.site_plan_path,
+    event_type: eventType,
+    venue,
     verification,
+  });
+  const readinessIssues = analyzeOrganiserEvent({
+    name,
+    venue,
+    startDate,
+    entryRules,
+    program,
+    zones,
+    sitePlanPath: event.site_plan_path,
+    eventType,
   });
 
   async function savePatch(patch: Database["public"]["Tables"]["organiser_events"]["Update"]) {
@@ -133,12 +176,25 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     }
     setSaveState("saving");
     setError("");
+    setUploadProgress({ percent: 10, label: "Checking image quality…" });
     try {
-      const path = await uploadOwnFile(ctx.userId, file, "site-plans");
+      const optimized = await optimizeSitePlanImage(file, {
+        rotation: sitePlanRotation,
+        onProgress: (percent, label) => setUploadProgress({ percent, label }),
+      });
+      setUploadProgress({ percent: 85, label: "Uploading optimized map…" });
+      const path = await uploadOwnFile(ctx.userId, optimized.displayFile, "site-plans");
+      if (optimized.zoomFile) {
+        // Upload high-res zoom variant alongside display version (best-effort)
+        void uploadOwnFile(ctx.userId, optimized.zoomFile, "site-plans-zoom").catch(() => {});
+      }
       await savePatch({ site_plan_path: path });
+      setSitePlanRotation(0);
     } catch (err) {
       setSaveState("error");
       setError(err instanceof Error ? err.message : "Couldn’t upload site plan.");
+    } finally {
+      setUploadProgress(null);
     }
   }
 
@@ -267,8 +323,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               title="Site plan"
               subtitle={
                 event.site_plan_path
-                  ? "Uploaded — tap to view or replace"
-                  : "Required before publishing"
+                  ? "Uploaded — tap to view, rotate or replace"
+                  : eventType === "festival"
+                    ? "Required before publishing (≥2000px)"
+                    : "Optional for this event type"
               }
             />
             <Chevron />
@@ -286,8 +344,46 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             />
             <Chevron />
           </button>
+          <button
+            type="button"
+            className="ios-row w-full text-left"
+            onClick={() => setSheet("bar-menus")}
+          >
+            <RowText
+              title="Bar drinks menu"
+              subtitle={
+                barItems.length
+                  ? `${barItems.length} confirmed drinks published`
+                  : "Optional · bars show Sample Menu until configured"
+              }
+            />
+            <Chevron />
+          </button>
         </div>
       </Section>
+
+      {readinessIssues.length > 0 && (
+        <Section title="Readiness checks" id="org-readiness-checks">
+          <div className="ios-group">
+            {readinessIssues.map((issue) => (
+              <div key={issue.id} className="ios-row items-start py-3">
+                <RowText
+                  title={
+                    <span
+                      className={
+                        issue.severity === "warning" ? "font-semibold text-warning" : "font-medium"
+                      }
+                    >
+                      {issue.title}
+                    </span>
+                  }
+                  subtitle={issue.detail}
+                />
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Publish" id="org-publish">
         <div className="ios-card space-y-3 p-4">
@@ -366,8 +462,14 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 onChange={(e) => setEventType(e.target.value as EventType)}
               >
                 <option value="festival">Festival (Lineup / Artists / Stages)</option>
+                <option value="concert">Concert (Lineup / Performers / Stages)</option>
+                <option value="nightlife">Nightlife (Lineup / DJs / Rooms)</option>
                 <option value="conference">Conference (Agenda / Speakers / Rooms)</option>
                 <option value="corporate">Corporate (Program / Presenters / Rooms)</option>
+                <option value="sports">Sports (Fixtures / Teams / Venues)</option>
+                <option value="expo">Expo &amp; Market (Schedule / Exhibitors / Booths)</option>
+                <option value="cultural">Cultural (Programme / Performers / Areas)</option>
+                <option value="private">Private event (Schedule / Hosts / Areas)</option>
               </select>
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -466,6 +568,42 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     }
                   />
                 </div>
+                <div className="flex flex-wrap items-center gap-4 pt-1 text-[13px]">
+                  <label className="flex items-center gap-1.5 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.headliner)}
+                      onChange={(e) =>
+                        setProgram((prev) =>
+                          prev.map((row, i) =>
+                            i === idx
+                              ? {
+                                  ...row,
+                                  headliner: e.target.checked,
+                                  featured: e.target.checked || row.featured,
+                                }
+                              : row,
+                          ),
+                        )
+                      }
+                    />
+                    {eventType === "conference" ? "Keynote" : "Headliner"}
+                  </label>
+                  <label className="flex items-center gap-1.5 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(item.featured)}
+                      onChange={(e) =>
+                        setProgram((prev) =>
+                          prev.map((row, i) =>
+                            i === idx ? { ...row, featured: e.target.checked } : row,
+                          ),
+                        )
+                      }
+                    />
+                    Featured on Home
+                  </label>
+                </div>
                 <div className="flex items-center gap-2">
                   <select
                     aria-label={`Item ${idx + 1} status`}
@@ -531,7 +669,15 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               onClick={() =>
                 setProgram((prev) => [
                   ...prev,
-                  { title: "", place: "", time: "", status: "scheduled" },
+                  {
+                    title: "",
+                    place: "",
+                    time: "",
+                    status: "scheduled",
+                    featured: false,
+                    headliner: false,
+                    featuredOrder: null,
+                  },
                 ])
               }
             >
@@ -555,16 +701,52 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         <Sheet title="Site plan" onClose={() => setSheet(null)}>
           <div className="space-y-4">
             {sitePlanUrl ? (
-              <img
-                src={sitePlanUrl}
-                alt="Uploaded event site plan"
-                className="w-full rounded-xl border border-border object-contain"
-              />
+              <div className="overflow-hidden rounded-xl border border-border bg-white p-2">
+                <img
+                  src={sitePlanUrl}
+                  alt="Uploaded event site plan"
+                  style={{ transform: `rotate(${sitePlanRotation}deg)` }}
+                  className="max-h-72 w-full object-contain transition-transform duration-200"
+                />
+              </div>
             ) : (
               <p className="text-[15px] text-muted-foreground">
-                No site plan uploaded yet. Upload a JPG, PNG or WebP map before publishing.
+                No site plan uploaded yet. Upload a crisp JPG, PNG or WebP map (at least 2000px on
+                the long edge, aspect ratio between 1:3 and 3:1).
               </p>
             )}
+
+            {/* Orientation rotation control (0°, 90°, 180°, 270°) */}
+            <div className="flex items-center justify-between rounded-xl bg-secondary px-3.5 py-2.5">
+              <span className="text-[14px] font-medium">
+                Rotation before upload: <strong>{sitePlanRotation}°</strong>
+              </span>
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-popover px-3 text-[14px] font-semibold"
+                onClick={() =>
+                  setSitePlanRotation(((sitePlanRotation + 90) % 360) as SitePlanRotation)
+                }
+              >
+                <RotateCw size={15} aria-hidden /> Rotate 90°
+              </button>
+            </div>
+
+            {uploadProgress && (
+              <div role="status" className="space-y-1.5 rounded-xl bg-popover p-3">
+                <div className="flex items-center justify-between text-[13px] font-medium">
+                  <span>{uploadProgress.label}</span>
+                  <span className="tabular-nums">{uploadProgress.percent}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-200"
+                    style={{ width: `${uploadProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             <label className="ios-press flex min-h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground">
               {sitePlanUrl ? "Replace site plan" : "Upload site plan"}
               <input
@@ -578,6 +760,122 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 }}
               />
             </label>
+            <p className="text-[13px] text-muted-foreground">
+              Validated at ≥2000px long edge, compressed to WebP (80% quality), and split into
+              display + zoom layers automatically.
+            </p>
+          </div>
+        </Sheet>
+      )}
+
+      {sheet === "bar-menus" && (
+        <Sheet title="Bar drinks menu" onClose={() => setSheet(null)}>
+          <div className="space-y-4">
+            <p className="text-[14px] text-muted-foreground">
+              Add official drinks and optional prices for this event’s bars. Until you save items
+              here, bar pins display a clearly labelled Sample Menu.
+            </p>
+            <label className="block text-[14px] font-semibold">
+              Payment &amp; bar note
+              <input
+                className="ios-field mt-1"
+                maxLength={160}
+                value={barPaymentNote}
+                onChange={(e) => setBarPaymentNote(e.target.value)}
+              />
+            </label>
+            {barItems.length > 0 && (
+              <div className="ios-group">
+                {barItems.map((drink) => (
+                  <div key={drink.id} className="ios-row justify-between py-2.5">
+                    <div>
+                      <p className="text-[15px] font-semibold">{drink.name}</p>
+                      <p className="text-[13px] text-muted-foreground">
+                        {drink.category} · {drink.price ?? "Price TBC"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${drink.name}`}
+                      className="grid size-10 place-items-center text-destructive"
+                      onClick={() =>
+                        setBarItems((prev) => prev.filter((item) => item.id !== drink.id))
+                      }
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="space-y-2 rounded-2xl bg-popover p-3">
+              <input
+                aria-label="Drink name"
+                className="ios-field"
+                placeholder="Drink name (e.g. Windhoek Lager 330ml)"
+                value={newDrinkName}
+                onChange={(e) => setNewDrinkName(e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  aria-label="Drink category"
+                  className="ios-field"
+                  value={newDrinkCat}
+                  onChange={(e) => setNewDrinkCat(e.target.value as DrinkCategory)}
+                >
+                  {DRINK_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  aria-label="Drink price (optional)"
+                  className="ios-field"
+                  placeholder="Price (optional, e.g. N$ 45)"
+                  value={newDrinkPrice}
+                  onChange={(e) => setNewDrinkPrice(e.target.value)}
+                />
+              </div>
+              <SecondaryButton
+                onClick={() => {
+                  if (!newDrinkName.trim()) return;
+                  setBarItems((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      name: newDrinkName.trim(),
+                      category: newDrinkCat,
+                      price: newDrinkPrice.trim() || null,
+                      available: true,
+                    },
+                  ]);
+                  setNewDrinkName("");
+                  setNewDrinkPrice("");
+                }}
+              >
+                <Plus size={17} aria-hidden /> Add drink
+              </SecondaryButton>
+            </div>
+            <PrimaryButton
+              onClick={() => {
+                saveOrganiserBarMenus(
+                  event.id,
+                  barItems.length
+                    ? [
+                        {
+                          isSample: false,
+                          paymentNote: barPaymentNote.trim(),
+                          items: barItems,
+                        },
+                      ]
+                    : [],
+                );
+                setSheet(null);
+              }}
+            >
+              Save bar menu
+            </PrimaryButton>
           </div>
         </Sheet>
       )}

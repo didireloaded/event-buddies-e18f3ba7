@@ -202,14 +202,20 @@ describe("organiser tabs", () => {
     ).toBeVisible();
   });
 
-  it("lists publish blockers and adapts terminology in EventReview", async () => {
+  it("lists publish blockers conditionally by event type and adapts terminology in EventReview", async () => {
     const confEvent = makeEvent({ event_type: "conference", site_plan_path: null });
-    await act(async () => {
-      render(<EventReview ctx={makeCtx([confEvent], "unverified")} event={confEvent} />);
-    });
+    const view = render(<EventReview ctx={makeCtx([confEvent], "unverified")} event={confEvent} />);
     expect(screen.getByText("Agenda")).toBeVisible();
-    expect(screen.getByText("Upload a site plan")).toBeVisible();
+    // Conferences can publish without a site plan
+    expect(screen.queryByText("Upload a site plan")).toBeNull();
     expect(screen.getByText("Organiser verification must be approved")).toBeVisible();
     expect(screen.getByRole("button", { name: "Publish event" })).toBeDisabled();
+
+    // Festivals still require a site plan
+    const festEvent = makeEvent({ event_type: "festival", site_plan_path: null });
+    await act(async () => {
+      view.rerender(<EventReview ctx={makeCtx([festEvent], "unverified")} event={festEvent} />);
+    });
+    expect(screen.getByText("Upload a site plan")).toBeVisible();
   });
 });

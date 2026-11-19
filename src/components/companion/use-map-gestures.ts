@@ -1,34 +1,49 @@
 import { useRef, type PointerEvent, type RefObject } from "react";
 
 type Position = { x: number; y: number };
-type Gesture = { midpoint: Position; distance: number; left: number; top: number; zoom: number };
+type Gesture = {
+  midpoint: Position;
+  distance: number;
+  angle: number;
+  left: number;
+  top: number;
+  zoom: number;
+  bearing: number;
+};
 
 export function useMapGestures(
   viewport: RefObject<HTMLDivElement | null>,
   zoom: number,
   zoomAt: (zoom: number, x: number, y: number) => void,
+  bearing = 0,
+  onBearingChange?: (nextBearing: number) => void,
 ) {
   const pointers = useRef(new Map<number, Position>());
   const gesture = useRef<Gesture | null>(null);
   const dragged = useRef(false);
+
   const geometry = () => {
     const [first, second] = [...pointers.current.values()];
     if (!first) return null;
     return {
       midpoint: second ? { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 } : first,
       distance: second ? Math.hypot(first.x - second.x, first.y - second.y) : 0,
+      angle: second ? (Math.atan2(second.y - first.y, second.x - first.x) * 180) / Math.PI : 0,
     };
   };
+
   const begin = () => {
     const el = viewport.current;
     const current = geometry();
     gesture.current =
-      el && current ? { ...current, left: el.scrollLeft, top: el.scrollTop, zoom } : null;
+      el && current ? { ...current, left: el.scrollLeft, top: el.scrollTop, zoom, bearing } : null;
   };
+
   const finish = (event: PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(event.pointerId);
     begin();
   };
+
   return {
     onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
@@ -52,7 +67,13 @@ export function useMapGestures(
       )
         return;
       dragged.current = true;
-      el.setPointerCapture(event.pointerId);
+      if (typeof el.setPointerCapture === "function") {
+        try {
+          el.setPointerCapture(event.pointerId);
+        } catch {
+          /* Ignore synthetic pointer events in tests. */
+        }
+      }
       if (start.distance && current.distance) {
         const rect = el.getBoundingClientRect();
         zoomAt(
@@ -60,7 +81,15 @@ export function useMapGestures(
           current.midpoint.x - rect.left,
           current.midpoint.y - rect.top,
         );
-      } else el.scrollTo({ left: start.left - dx, top: start.top - dy });
+        if (onBearingChange) {
+          const angleDelta = current.angle - start.angle;
+          if (Math.abs(angleDelta) > 10) {
+            onBearingChange(Math.round((start.bearing + angleDelta) % 360));
+          }
+        }
+      } else {
+        el.scrollTo({ left: start.left - dx, top: start.top - dy });
+      }
     },
     onPointerUp: finish,
     onPointerCancel: finish,

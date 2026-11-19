@@ -29,6 +29,8 @@ function eventSubtitle(
     name: event.name,
     start_date: event.start_date,
     site_plan_path: event.site_plan_path,
+    event_type: event.event_type,
+    venue: event.venue,
     verification: verification as "unverified" | "pending" | "verified" | "rejected" | null,
   });
   return `${datePart} · ${venuePart} · ${blockers.length} step${blockers.length === 1 ? "" : "s"} before publish`;
@@ -72,9 +74,53 @@ export function EventsTab({ ctx }: { ctx: OrgCtx }) {
     { id: "org-past", title: "Past", items: groups.past },
   ];
 
+  const allGroups = groupEventsBySection(ctx.events, todayIso);
+  const needsAttentionCount = ctx.events.filter((ev) => {
+    if (ev.status === "published") return false;
+    return (
+      publishBlockers({
+        name: ev.name,
+        start_date: ev.start_date,
+        site_plan_path: ev.site_plan_path,
+        event_type: ev.event_type,
+        venue: ev.venue,
+        verification: verification as "unverified" | "pending" | "verified" | "rejected" | null,
+      }).length > 0
+    );
+  }).length;
+
   return (
     <div className="py-4">
       <h1 className="ios-large-title">Events</h1>
+
+      {/* Operational summary bar (concise, real metrics — no decorative charts) */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="ios-card p-3.5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Live
+          </p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums">{allGroups.live.length}</p>
+        </div>
+        <div className="ios-card p-3.5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Drafts
+          </p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums">{allGroups.drafts.length}</p>
+        </div>
+        <div className="ios-card p-3.5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Needs attention
+          </p>
+          <p className="mt-1 text-[24px] font-bold tabular-nums">{needsAttentionCount}</p>
+        </div>
+        <div className="ios-card p-3.5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Verification
+          </p>
+          <p className="mt-1 text-[16px] font-bold capitalize">{verification}</p>
+        </div>
+      </div>
+
       {ctx.events.length > 3 && (
         <div className="mt-4">
           <SearchField

@@ -9,11 +9,11 @@ import getMyCrew from "./tools/get-my-crew";
 const projectRef = import.meta.env["VITE_SUPABASE_PROJECT_ID"] ?? "project-ref-unset";
 
 export default defineMcp({
-  name: "festival-map-meetup-buddies",
-  title: "Festival Map Meetup Buddies",
-  version: "0.1.0",
+  name: "event-buddies",
+  title: "Event Buddies",
+  version: "0.2.0",
   instructions:
-    "Read-only facts about Sound of Summer 2026 (Langstrand, Namibia) plus the signed-in attendee’s synced saved artists, meeting plan and private crew. Set times and GPS are not published; never invent them.",
+    "Read-only verified event information for Event Buddies plus the signed-in attendee’s synced saved favourites, meeting plan and private crew. Never invent unpublished set times, prices or GPS coordinates.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

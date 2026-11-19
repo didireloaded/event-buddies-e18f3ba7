@@ -355,5 +355,39 @@ exception when others then
   null;
 end $$;
 
+-- 5. Optional live-GPS metadata on public.pins (additive, idempotent)
+alter table public.pins
+  add column if not exists accuracy_m numeric(6,1),
+  add column if not exists session_id uuid;
+
+-- 6. public.tickets table for personal ticket copies and map tier unlocks
+create table if not exists public.tickets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  event_id uuid not null,
+  label text not null check (char_length(btrim(label)) between 1 and 80),
+  tier text not null default 'general'
+    check (tier in ('general', 'vip', 'vvip', 'all_access', 'press', 'staff', 'experience', 'platinum')),
+  file_url text,
+  file_type text check (file_type is null or file_type in ('image', 'pdf', 'code')),
+  holder_name text,
+  ticket_code text,
+  added_at timestamptz not null default clock_timestamp(),
+  unique (user_id, event_id, label)
+);
+
+create index if not exists tickets_user_event_idx
+  on public.tickets(user_id, event_id, added_at desc);
+
+alter table public.tickets enable row level security;
+
+drop policy if exists "self manages tickets" on public.tickets;
+create policy "self manages tickets"
+  on public.tickets
+  for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 notify pgrst, 'reload schema';
 commit;

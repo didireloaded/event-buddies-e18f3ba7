@@ -32,8 +32,14 @@ export function EventAssistant() {
           setAnswer(null);
           try {
             if (!navigator.onLine) throw new Error("Offline");
+            const activeFacts = eventFacts(data);
             const result = await askEvent({
-              data: { question },
+              data: {
+                question,
+                eventId: data.event.id,
+                eventName: data.event.name,
+                facts: activeFacts,
+              },
               signal: AbortSignal.timeout(8000),
             });
             if (result.ok) setAnswer(result.facts);

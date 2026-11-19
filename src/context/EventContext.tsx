@@ -32,9 +32,11 @@ const EventContext = createContext<EventContextValue | null>(null);
 
 export function EventProvider({
   initialData,
+  initialEventSlug,
   children,
 }: {
   initialData?: DemoData | undefined;
+  initialEventSlug?: string | undefined;
   children: ReactNode;
 }) {
   const baseData = useMemo(() => initialData ?? getDemoData(), [initialData]);
@@ -47,8 +49,35 @@ export function EventProvider({
     return locals.map(organiserEventToDemoData);
   });
   const [activeEventId, setActiveEventId] = useState<string>(() => {
+    if (initialEventSlug) {
+      const normalized = initialEventSlug.trim().toLowerCase();
+      if (
+        baseData.event.slug.toLowerCase() === normalized ||
+        baseData.event.id === initialEventSlug
+      ) {
+        return baseData.event.id;
+      }
+      const locals = readLocalPublishedEvents().map(organiserEventToDemoData);
+      const match = locals.find(
+        (item) =>
+          item.event.slug.toLowerCase() === normalized || item.event.id === initialEventSlug,
+      );
+      if (match) return match.event.id;
+    }
     if (typeof window === "undefined") return baseData.event.id;
     try {
+      const paramSlug = new URLSearchParams(window.location.search).get("event");
+      if (paramSlug) {
+        const normalized = paramSlug.trim().toLowerCase();
+        if (baseData.event.slug.toLowerCase() === normalized || baseData.event.id === paramSlug) {
+          return baseData.event.id;
+        }
+        const locals = readLocalPublishedEvents().map(organiserEventToDemoData);
+        const match = locals.find(
+          (item) => item.event.slug.toLowerCase() === normalized || item.event.id === paramSlug,
+        );
+        if (match) return match.event.id;
+      }
       return localStorage.getItem(ACTIVE_EVENT_STORAGE_KEY) || baseData.event.id;
     } catch {
       return baseData.event.id;
@@ -74,7 +103,16 @@ export function EventProvider({
             byId.set(ev.id, organiserEventToDemoData(ev));
           }
         }
-        setExtraDemos([...byId.values()]);
+        const nextExtras = [...byId.values()];
+        setExtraDemos(nextExtras);
+        if (initialEventSlug) {
+          const normalized = initialEventSlug.trim().toLowerCase();
+          const matched = nextExtras.find(
+            (item) =>
+              item.event.slug.toLowerCase() === normalized || item.event.id === initialEventSlug,
+          );
+          if (matched) setActiveEventId(matched.event.id);
+        }
         setError(null);
       })
       .catch(() => {
@@ -86,7 +124,7 @@ export function EventProvider({
     return () => {
       mounted = false;
     };
-  }, [baseData.event.id, baseData.event.name]);
+  }, [baseData.event.id, baseData.event.name, initialEventSlug]);
 
   const availableEvents = useMemo(() => [baseData, ...extraDemos], [baseData, extraDemos]);
 

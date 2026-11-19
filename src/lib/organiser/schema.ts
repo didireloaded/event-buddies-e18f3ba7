@@ -1,12 +1,28 @@
 import { z } from "zod";
 
-export const EVENT_TYPES = ["festival", "conference", "corporate"] as const;
+export const EVENT_TYPES = [
+  "festival",
+  "concert",
+  "nightlife",
+  "conference",
+  "corporate",
+  "sports",
+  "expo",
+  "cultural",
+  "private",
+] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 export const TYPE_TERMS: Record<EventType, { program: string; people: string; places: string }> = {
   festival: { program: "Lineup", people: "Artists", places: "Stages" },
+  concert: { program: "Lineup", people: "Performers", places: "Stages" },
+  nightlife: { program: "Lineup", people: "DJs", places: "Rooms" },
   conference: { program: "Agenda", people: "Speakers", places: "Rooms" },
   corporate: { program: "Program", people: "Presenters", places: "Rooms" },
+  sports: { program: "Fixtures", people: "Teams", places: "Venues" },
+  expo: { program: "Schedule", people: "Exhibitors", places: "Booths" },
+  cultural: { program: "Programme", people: "Performers", places: "Areas" },
+  private: { program: "Schedule", people: "Hosts", places: "Areas" },
 };
 
 export const ZONE_TYPES = [
@@ -27,6 +43,9 @@ export const programItem = z.object({
   place: z.string().trim().max(120).default(""),
   time: z.string().trim().max(20).default(""),
   status: z.enum(["scheduled", "delayed", "cancelled", "moved"]).default("scheduled"),
+  featured: z.boolean().default(false),
+  headliner: z.boolean().default(false),
+  featuredOrder: z.number().int().min(0).max(99).nullable().default(null),
 });
 export type ProgramItem = z.infer<typeof programItem>;
 
@@ -143,14 +162,24 @@ export type ReadinessInput = {
   start_date: string | null;
   site_plan_path: string | null;
   verification: "unverified" | "pending" | "verified" | "rejected" | null;
+  event_type?: string | null;
+  venue?: string | null;
 };
 
-/** Mirrors the database publish guard so the UI explains what is missing. */
+/**
+ * Mirrors publish requirements so the UI explains what is missing.
+ * Multi-stage festivals require a site plan; conferences, concerts, corporate and smaller events
+ * can publish without a site plan when venue details are provided.
+ */
 export function publishBlockers(e: ReadinessInput): string[] {
   const out: string[] = [];
   if (!e.name.trim()) out.push("Add the event name");
   if (!e.start_date) out.push("Add the event date");
-  if (!e.site_plan_path) out.push("Upload a site plan");
+  const requiresSitePlan = !e.event_type || e.event_type === "festival";
+  if (requiresSitePlan && !e.site_plan_path) out.push("Upload a site plan");
+  if (!requiresSitePlan && !e.site_plan_path && e.venue !== undefined && !e.venue?.trim()) {
+    out.push("Add the event venue");
+  }
   if (e.verification !== "verified") out.push("Organiser verification must be approved");
   return out;
 }

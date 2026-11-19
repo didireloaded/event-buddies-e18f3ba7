@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from "react";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
+import { getTicketProviderName } from "@/lib/attendee/tickets";
 import { listEventBroadcasts, type OrganiserBroadcast } from "@/lib/organiser/cloud-extensions";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion, type Sheet as SheetState } from "./context";
@@ -26,6 +27,7 @@ import { MeetingForm, ProfileForm } from "./forms";
 import { ArtistAvatar } from "./ArtistAvatar";
 import { PrivacyPanel } from "./PrivacyPanel";
 import { EventAssistant } from "./EventAssistant";
+import { SafetyPanel } from "./SafetyAccess";
 import { TicketVault } from "./TicketVault";
 import { PlanBackup } from "./PlanBackup";
 import { OfflineReadiness } from "./OfflineReadiness";
@@ -59,8 +61,10 @@ export function sheetTitle(sheet: NonNullable<SheetState>, ctx: ReturnType<typeo
         updates: "Event updates",
         meeting: "Meeting plan",
         privacy: "Location & privacy",
-        assistant: "Ask about the festival",
-        ticket: "Your ticket",
+        assistant: "Ask about this event",
+        ticket: "My Tickets & Passes",
+        "buy-tickets": `Tickets · ${getTicketProviderName(ctx.data.event.ticketUrl ?? ctx.data.festival.ticketUrl)}`,
+        safety: "Safety & support",
         backup: "Your saved plan",
         offline: "Offline & installation",
         pings: "Quick message",
@@ -167,6 +171,42 @@ export function SheetContent({
       return <EventAssistant />;
     case "ticket":
       return <TicketVault />;
+    case "safety":
+      return <SafetyPanel onDone={closeSheet} />;
+    case "buy-tickets": {
+      const ticketUrl = data.event.ticketUrl || data.festival.ticketUrl;
+      const provider = getTicketProviderName(ticketUrl);
+      return (
+        <div className="space-y-4">
+          <div className="ios-card space-y-2 p-4">
+            <p className="text-[17px] font-semibold">{data.event.name}</p>
+            <p className="text-[15px] text-muted-foreground">
+              Official tickets are sold externally by <strong>{provider}</strong>. Event Buddies
+              does not run checkout or verify admission — once you buy, save your ticket copy here
+              for offline gate access and map tier unlock.
+            </p>
+          </div>
+          {ticketUrl ? (
+            <a
+              href={ticketUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-[3.125rem] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground"
+            >
+              Buy from {provider} <ArrowUpRight size={18} aria-hidden />
+              <span className="sr-only"> Opens {provider} externally</span>
+            </a>
+          ) : (
+            <p className="text-[15px] text-muted-foreground">
+              No external ticket link has been published by the organiser for this event yet.
+            </p>
+          )}
+          <SecondaryButton onClick={() => openSheet({ kind: "ticket" })}>
+            I already have a ticket — add it offline
+          </SecondaryButton>
+        </div>
+      );
+    }
     case "backup":
       return <PlanBackup />;
     case "offline":

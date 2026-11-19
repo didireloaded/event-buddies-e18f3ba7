@@ -1,10 +1,24 @@
-import { CalendarPlus, Check, Heart, Music2, Plus, Shuffle, TriangleAlert } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarPlus,
+  Check,
+  Heart,
+  MapPin,
+  Music2,
+  Plus,
+  Shuffle,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import type { PerformanceRecord } from "@/lib/event/types";
 import { downloadCalendar, eventTime, scheduleClashes } from "@/lib/attendee/schedule";
 import { createLineupPoster } from "@/lib/attendee/recap-card";
 import { getCrewArtistOverlap } from "@/lib/organiser/cloud-extensions";
+import {
+  getEventCategoryTerms,
+  selectFeaturedParticipants,
+} from "@/lib/intelligence/event-intelligence";
 import { cn } from "@/lib/utils";
 import { initials, useCompanion } from "./context";
 import { DayPlanPanel } from "./DayPlanPanel";
@@ -68,7 +82,7 @@ export function ArtistRow({
                   ))}
                   <span>
                     {sharedNames.slice(0, 2).join(" & ")}
-                    {sharedNames.length > 2 ? ` +${sharedNames.length - 2}` : ""} saved this artist
+                    {sharedNames.length > 2 ? ` +${sharedNames.length - 2}` : ""} saved this
                   </span>
                 </span>
               )}
@@ -141,13 +155,19 @@ function SetRow({
 }
 
 export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElement> }) {
-  const { data, attendee, crew, openSheet, spin } = useCompanion();
+  const { data, attendee, crew, openSheet, openPlace, spin } = useCompanion();
   const { preferences, ready, toggleArtist, toggleSaved } = attendee;
   const [query, setQuery] = useState("");
   const [onlySaved, setOnlySaved] = useState<"all" | "saved">("all");
   const [stage, setStage] = useState("all");
   const [exportingPoster, setExportingPoster] = useState(false);
   const [crewOverlap, setCrewOverlap] = useState<Record<string, string[]>>({});
+  const terms = getEventCategoryTerms(data.event.category);
+  const featured = selectFeaturedParticipants(data);
+
+  useEffect(() => {
+    setStage("all");
+  }, [data.event.id]);
 
   useEffect(() => {
     if (!attendee.auth.user || !crew?.crew) {
@@ -162,8 +182,13 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
       active = false;
     };
   }, [attendee.auth.user, crew?.crew, data.event.id]);
+
   const term = query.trim().toLowerCase();
-  const stageName = (id: string) => data.stages.find((s) => s.id === id)?.name ?? "Stage";
+  const stageName = (id: string) =>
+    data.stages.find((s) => s.id === id)?.name ?? terms.placeSingular;
+  const activeStage =
+    stage !== "all" && stage !== "tba" ? data.stages.find((s) => s.id === stage) : null;
+  const hasUnmapped = data.festival.artists.some((a) => !a.stageId);
 
   const artists = data.festival.artists.filter(
     (artist) =>
@@ -184,15 +209,48 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
   );
   const savedCount = preferences.savedArtists.length + mine.length;
   const hasTimetable = data.performances.length > 0;
+
   return (
     <>
-      <h1 className="ios-large-title px-4 pt-2">Lineup</h1>
+      <h1 className="ios-large-title px-4 pt-2">{terms.programLabel}</h1>
       <EventSections />
-      <div className="space-y-2 bg-background px-4 pb-2 pt-2">
+
+      {/* Visual Featured Headliners Header */}
+      {featured.length > 0 && onlySaved === "all" && stage === "all" && !term && (
+        <section className="mx-4 mb-3 space-y-2" aria-label="Featured">
+          <div className="scrollbar-none flex gap-2.5 overflow-x-auto pb-1">
+            {featured.map((act) => (
+              <button
+                key={act.id}
+                type="button"
+                onClick={() => openSheet({ kind: "artist", artist: act })}
+                className="ios-press flex w-44 flex-none items-center gap-3 rounded-2xl bg-popover p-3 text-left ring-1 ring-border/70"
+              >
+                <ArtistAvatar artist={act} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    {act.isHeadliner
+                      ? terms.isConferenceLike
+                        ? "Keynote"
+                        : "Headliner"
+                      : "Featured"}
+                  </span>
+                  <span className="block truncate text-[15px] font-bold">{act.name}</span>
+                  <span className="block truncate text-[12px] text-muted-foreground">
+                    {act.stageName ?? act.role}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="space-y-2 bg-background px-4 pb-2 pt-1">
         <SearchField
           id="lineup-search"
-          label="Search artists"
-          placeholder="Search artists"
+          label={`Search ${terms.peopleLabel.toLowerCase()}`}
+          placeholder={`Search ${terms.peopleLabel.toLowerCase()}`}
           value={query}
           onChange={setQuery}
           inputRef={searchRef}
@@ -202,46 +260,87 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           value={onlySaved}
           onChange={setOnlySaved}
           options={[
-            { value: "all", label: "All artists" },
+            { value: "all", label: `All ${terms.peopleLabel.toLowerCase()}` },
             { value: "saved", label: `Favourites (${savedCount})` },
           ]}
         />
       </div>
+
+      {/* Horizontal visual stage/room filter pills */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-1"
+        className="scrollbar-none flex gap-2 overflow-x-auto px-4 py-2"
         role="group"
-        aria-label="Filter by stage"
+        aria-label={`Filter by ${terms.placeSingular.toLowerCase()}`}
       >
-        <span className="text-[13px] text-muted-foreground">
-          {hasTimetable ? "Stage schedule" : "Set times drop soon · tap an artist for alerts"}
-        </span>
-        <label className="min-w-0 max-w-[60%]">
-          <span className="sr-only">Stage</span>
-          <select
-            className="min-h-11 w-full bg-transparent text-[15px] font-semibold"
-            value={stage}
-            onChange={(event) => setStage(event.target.value)}
+        <button
+          type="button"
+          className="ios-chip"
+          aria-pressed={stage === "all"}
+          onClick={() => setStage("all")}
+        >
+          All {terms.placesLabel.toLowerCase()}
+        </button>
+        {data.stages.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className="ios-chip"
+            aria-pressed={stage === item.id}
+            onClick={() => setStage(item.id)}
           >
-            <option value="all">All stages</option>
-            {data.stages.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-            <option value="tba">Stage not mapped</option>
-          </select>
-        </label>
+            {item.name}
+          </button>
+        ))}
+        {hasUnmapped && (
+          <button
+            type="button"
+            className="ios-chip"
+            aria-pressed={stage === "tba"}
+            onClick={() => setStage("tba")}
+          >
+            {terms.placeSingular} TBA
+          </button>
+        )}
       </div>
+
+      {/* Stage detail card when a specific stage/room is selected */}
+      {activeStage && (
+        <section className="mx-4 mt-2 rounded-2xl bg-popover p-4 ring-1 ring-border">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">
+                {terms.placeSingular}
+              </p>
+              <h2 className="text-[20px] font-bold">{activeStage.name}</h2>
+              <p className="mt-0.5 text-[14px] text-muted-foreground">
+                {artists.length}{" "}
+                {artists.length === 1
+                  ? terms.personSingular.toLowerCase()
+                  : terms.peopleLabel.toLowerCase()}{" "}
+                · {hasTimetable ? "Confirmed times below" : "Set times awaiting publication"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => openPlace(activeStage.id)}
+              className="ios-press inline-flex min-h-10 flex-none items-center gap-1 rounded-full bg-favorite-soft px-3.5 text-[14px] font-semibold text-primary"
+            >
+              <MapPin size={15} aria-hidden /> View on Map
+            </button>
+          </div>
+        </section>
+      )}
 
       {clashes.length > 0 && onlySaved === "saved" && (
         <div className="mt-3 px-4">
           <Notice icon={TriangleAlert} tone="warning">
             <strong className="font-semibold">
-              {clashes.length} {clashes.length === 1 ? "clash" : "clashes"} in your lineup
+              {clashes.length} {clashes.length === 1 ? "clash" : "clashes"} in your{" "}
+              {terms.programLabel.toLowerCase()}
             </strong>
             {clashes.map(([a, b]) => (
               <span key={`${a.id}-${b.id}`} className="block">
-                {a.artistName} & {b.artistName} overlap
+                {a.artistName} &amp; {b.artistName} overlap
               </span>
             ))}
           </Notice>
@@ -251,7 +350,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
       <DayPlanPanel key={attendee.scope} />
 
       <Section
-        title={`${artists.length} announced ${artists.length === 1 ? "artist" : "artists"}`}
+        title={`${artists.length} announced ${artists.length === 1 ? terms.personSingular.toLowerCase() : terms.peopleLabel.toLowerCase()}`}
         id="lineup-artists"
         className="mt-5 px-4"
       >
@@ -273,11 +372,13 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           <div className="ios-card px-6 py-8 text-center">
             <Music2 size={28} className="mx-auto text-tertiary-foreground" aria-hidden />
             <p className="mt-2 text-[17px] font-semibold">
-              {onlySaved === "saved" && !term ? "No favourites yet" : "No artists found"}
+              {onlySaved === "saved" && !term
+                ? "No favourites yet"
+                : `No ${terms.peopleLabel.toLowerCase()} found`}
             </p>
             <p className="mt-1 text-[15px] text-muted-foreground">
               {onlySaved === "saved" && !term
-                ? "Tap the heart beside an artist to save them here."
+                ? "Tap the heart beside any act to save them here."
                 : "Try another name or clear the filters."}
             </p>
             <button
@@ -289,7 +390,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
                 setOnlySaved("all");
               }}
             >
-              Show all artists
+              Show all {terms.peopleLabel.toLowerCase()}
             </button>
           </div>
         )}
@@ -297,7 +398,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
 
       {hasTimetable && (
         <Section
-          title="Sets"
+          title={terms.isConferenceLike ? "Sessions" : "Sets"}
           id="lineup-sets"
           className="px-4"
           footer={`All times ${data.event.timezone} (CAT)`}
@@ -323,8 +424,8 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           <button type="button" className="ios-row" onClick={spin}>
             <IconTile icon={Shuffle} tone="bg-favorite" />
             <RowText
-              title="Discover an artist"
-              subtitle="Random pick from artists you haven’t saved"
+              title={`Discover a ${terms.personSingular.toLowerCase()}`}
+              subtitle="Random pick from entries you haven’t saved"
             />
             <Chevron />
           </button>
@@ -354,8 +455,8 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
               title="Download my lineup poster"
               subtitle={
                 preferences.savedArtists.length
-                  ? "All your saved artists, ready to share"
-                  : "Save an artist to create your poster"
+                  ? "All your saved favourites, ready to share"
+                  : "Save a favourite to create your poster"
               }
             />
             <Chevron />
@@ -376,11 +477,12 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
               subtitle={
                 hasTimetable
                   ? mine.length
-                    ? `${mine.length} saved ${mine.length === 1 ? "set" : "sets"}`
-                    : "Save a set first"
+                    ? `${mine.length} saved ${mine.length === 1 ? "item" : "items"}`
+                    : "Save a scheduled item first"
                   : "Unavailable until set times are published"
               }
             />
+            <ArrowUpRight size={17} className="text-muted-foreground" aria-hidden />
           </button>
         </div>
       </Section>

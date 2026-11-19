@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { MapPin, Music2, Users } from "lucide-react";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { AvatarPicker } from "./AvatarPicker";
 import { initials, useCompanion } from "./context";
 import { PrimaryButton, SecondaryButton } from "./ui";
 
 export function Onboarding() {
   const { attendee, navigate, data } = useCompanion();
+  const terms = getEventCategoryTerms(data.event.category);
   const [step, setStep] = useState(attendee.preferences.onboardingDone ? 2 : 0);
   const [mode, setMode] = useState<"music" | "friends" | "both">(
     attendee.preferences.festivalMode ?? "both",
@@ -65,12 +67,26 @@ export function Onboarding() {
       )}
       {step === 1 && (
         <div className="flex-1 py-6">
-          <h1 className="text-[30px] font-bold leading-tight">What’s your festival mode?</h1>
+          <h1 className="text-[30px] font-bold leading-tight">
+            {terms.isConferenceLike ? "How do you want to explore?" : "What’s your festival mode?"}
+          </h1>
+          <p className="mt-2 text-[15px] text-muted-foreground">
+            This shapes what sits first on your Home screen. Nothing is hidden and you can switch
+            anytime.
+          </p>
           <div className="mt-6 space-y-3">
             {(
               [
-                { value: "music", label: "Here for the music", icon: Music2 },
-                { value: "friends", label: "Here to meet people", icon: Users },
+                {
+                  value: "music",
+                  label: terms.isConferenceLike ? "Here for the sessions" : "Here for the music",
+                  icon: Music2,
+                },
+                {
+                  value: "friends",
+                  label: terms.isConferenceLike ? "Here for networking" : "Here to meet people",
+                  icon: Users,
+                },
                 { value: "both", label: "A bit of both", icon: MapPin },
               ] as const
             ).map(({ value, label, icon: Icon }) => (

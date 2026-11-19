@@ -17,7 +17,7 @@ import {
 import { dayPlanSchema, type DayPlan } from "@/lib/day-plan/schema";
 
 export type { LocalMeeting };
-export type TicketTier = "general" | "experience" | "platinum";
+export type TicketTier = "general" | "vip" | "all_access" | "experience" | "platinum";
 export type MedicalCard = {
   contactName: string;
   contactPhone: string;
@@ -244,6 +244,8 @@ export function parseStoredPreferences(raw: unknown, data: DemoData): Preference
     ],
     ticketTier:
       stored["ticketTier"] === "general" ||
+      stored["ticketTier"] === "vip" ||
+      stored["ticketTier"] === "all_access" ||
       stored["ticketTier"] === "experience" ||
       stored["ticketTier"] === "platinum"
         ? stored["ticketTier"]

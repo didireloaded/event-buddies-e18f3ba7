@@ -5,6 +5,7 @@ import type { MapFilter, Place } from "@/lib/attendee/map";
 import type { useCrew } from "@/lib/crew/use-crew";
 import type { useAttendee } from "@/lib/attendee/use-attendee";
 import type { useAttendeeAvatar } from "@/lib/attendee/avatar";
+import type { SavedTicketMeta } from "@/lib/attendee/tickets";
 import type { OfflineStatus } from "@/lib/pwa";
 
 export type View = "home" | "lineup" | "map" | "crew" | "you" | "info" | "events";
@@ -23,6 +24,8 @@ export type Sheet =
         | "privacy"
         | "assistant"
         | "ticket"
+        | "buy-tickets"
+        | "safety"
         | "backup"
         | "offline"
         | "pings"
@@ -46,7 +49,11 @@ export type CompanionContext = {
   avatar?: ReturnType<typeof useAttendeeAvatar>;
   crew: ReturnType<typeof useCrew>;
   now: number | null;
+  online: boolean;
   offlineStatus: OfflineStatus;
+  eventTickets: SavedTicketMeta[];
+  allTicketsCount: number;
+  openGateCard: (initialIndex?: number) => void;
   view: View;
   navigate: (view: View) => void;
   openSheet: (sheet: Sheet) => void;

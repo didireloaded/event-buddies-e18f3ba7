@@ -16,11 +16,11 @@ import { getDemoData } from "@/lib/event/demo-data";
 const demo = getDemoData();
 
 const publicTestServer = defineMcp({
-  name: "festival-map-meetup-buddies",
-  title: "Festival Map Meetup Buddies",
-  version: "0.1.0",
+  name: "event-buddies",
+  title: "Event Buddies",
+  version: "0.2.0",
   instructions:
-    "Read-only facts about Sound of Summer 2026 (Langstrand, Namibia) plus the signed-in attendee’s synced saved artists, meeting plan and private crew. Set times and GPS are not published; never invent them.",
+    "Read-only verified event information for Event Buddies plus the signed-in attendee’s synced saved favourites, meeting plan and private crew. Never invent unpublished set times, prices or GPS coordinates.",
   tools: [getEventInfo, listLineup, searchVenuePlaces, getMySavedPlan, getMyCrew],
   metrics: false,
 });
@@ -265,6 +265,6 @@ describe("MCP HTTP protocol and OAuth boundary", () => {
     expect(json.resource).toBe("https://eventbudides.lovable.app/mcp");
     expect(json.authorization_servers[0]).toMatch(/^https:\/\/.*\.supabase\.co\/auth\/v1$/);
     expect(json.bearer_methods_supported).toEqual(["header"]);
-    expect(json.resource_name).toBe("Festival Map Meetup Buddies");
+    expect(json.resource_name).toBe("Event Buddies");
   });
 });

@@ -11,10 +11,12 @@ import { initials, useCompanion } from "./context";
 import { AccountPanel } from "./AccountPanel";
 import { AfterEventData } from "./AfterEventData";
 import { Avatar, Chevron, IconTile, RowText, Section } from "./ui";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 
 export function YouView() {
-  const { data, attendee, avatar, openSheet, offlineStatus } = useCompanion();
+  const { data, attendee, avatar, openSheet, offlineStatus, allTicketsCount } = useCompanion();
   const { preferences } = attendee;
+  const terms = getEventCategoryTerms(data.event.category);
   const totalCheckpoints =
     preferences.stamps.length + preferences.customStamps.filter((s) => s.checked).length;
   return (
@@ -93,9 +95,9 @@ export function YouView() {
               <option value="" disabled>
                 Choose
               </option>
-              <option value="music">Music</option>
-              <option value="friends">Friends</option>
-              <option value="both">Both</option>
+              <option value="music">{terms.modeMusicLabel}</option>
+              <option value="friends">{terms.modeFriendsLabel}</option>
+              <option value="both">{terms.modeBothLabel}</option>
             </select>
           </label>
         </div>
@@ -104,7 +106,10 @@ export function YouView() {
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "ticket" })}>
             <IconTile icon={Ticket} />
-            <RowText title="Ticket vault" subtitle="Your offline ticket copy" />
+            <RowText
+              title={allTicketsCount > 0 ? `Your tickets · ${allTicketsCount}` : "Your tickets"}
+              subtitle="My Tickets & Passes · Ticket vault offline copy"
+            />
             <Chevron />
           </button>
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "memories" })}>

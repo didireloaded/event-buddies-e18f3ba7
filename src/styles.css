@@ -210,62 +210,26 @@
     animation: navigation-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .venue-map-page {
-    --background: oklch(0.22 0.008 285);
-    --card: oklch(0.26 0.008 285);
-    --popover: oklch(0.29 0.008 285);
-    --foreground: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.8 0.005 285);
-    --fill: oklch(0.32 0.008 285);
-    --border: oklch(0.4 0.008 285);
-    --favorite: oklch(0.83 0.07 190);
-    --favorite-soft: oklch(0.34 0.035 190);
-    color: var(--foreground);
-    background: var(--background);
     min-height: calc(100dvh - 7rem);
   }
   .venue-map-canvas {
-    background: oklch(0.18 0.008 285);
+    background: #f2f2f7;
     height: max(
-      240px,
-      calc(100dvh - var(--companion-header-height, 44px) - 16.25rem - env(safe-area-inset-bottom))
+      260px,
+      calc(100dvh - var(--companion-header-height, 44px) - 16rem - env(safe-area-inset-bottom))
     );
-  }
-  .venue-map-page .ios-search {
-    background: var(--fill);
-    color: var(--foreground);
-  }
-  .venue-map-page .ios-search input {
-    color: var(--foreground);
-  }
-  .venue-map-page .ios-search input::placeholder {
-    color: var(--muted-foreground);
-  }
-  .venue-map-page .ios-chip {
-    background: var(--popover);
-    color: var(--foreground);
-    box-shadow: inset 0 0 0 0.5px var(--border);
-  }
-  .venue-map-page .ios-chip[aria-pressed="true"] {
-    background: var(--favorite-soft);
-    color: var(--favorite);
-  }
-  .venue-map-page .ios-chip[aria-pressed="true"] span {
-    color: var(--favorite);
   }
   dialog .venue-map-canvas {
     height: 100%;
   }
   .venue-map-image {
-    filter: grayscale(1) brightness(0.5) contrast(1.1);
-  }
-  .venue-map-canvas[data-original="true"] .venue-map-image {
     filter: none;
   }
   .venue-map-canvas .map-pin-dot {
     width: 32px;
     height: 32px;
     color: white;
-    border: 3px solid white;
+    border: 2.5px solid white;
     background: oklch(0.2 0.008 285);
     font-size: 14px;
   }
@@ -273,14 +237,17 @@
     border-color: var(--color-pin-stage);
     color: var(--color-pin-stage);
   }
+  .venue-map-canvas .map-pin[data-locked="true"] {
+    opacity: 0.55;
+  }
   .venue-map-canvas .map-pin .map-pin-dot.map-pin-here {
     background: var(--favorite);
     border-color: var(--favorite);
-    color: var(--background);
+    color: var(--primary-foreground);
   }
   .venue-map-canvas .map-pin-label {
-    font-size: 14px;
-    background: oklch(0.2 0.008 285);
+    font-size: 13px;
+    background: oklch(0.18 0.008 285 / 0.92);
     color: white;
   }
   .vibe-choice {
