@@ -19,14 +19,16 @@ export function PostEventState() {
           This event is marked cancelled. Check the organiser for ticket guidance and the latest
           information.
         </p>
-        <a
-          href={data.festival.officialUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 flex min-h-12 items-center font-semibold"
-        >
-          Official event information ↗<span className="sr-only"> Opens in a new tab</span>
-        </a>
+        {data.festival.officialUrl && (
+          <a
+            href={data.festival.officialUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 flex min-h-12 items-center font-semibold"
+          >
+            Official event information ↗<span className="sr-only"> Opens in a new tab</span>
+          </a>
+        )}
       </section>
     );
   if (life.phase !== "afterglow") return <EventRecap />;

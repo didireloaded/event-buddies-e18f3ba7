@@ -730,8 +730,8 @@ export function MapView() {
         </section>
       )}
 
-      <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
-        <div className="lg:sticky lg:top-20">
+      <div className="mt-2 lg:px-4">
+        <div>
           <div className="mx-4 mb-2 flex items-center justify-between rounded-xl bg-popover px-3 py-2 text-[13px] text-muted-foreground">
             <span>
               {(() => {

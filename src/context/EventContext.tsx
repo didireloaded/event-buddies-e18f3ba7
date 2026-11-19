@@ -40,51 +40,57 @@ export function EventProvider({
   children: ReactNode;
 }) {
   const baseData = useMemo(() => initialData ?? getDemoData(), [initialData]);
-  const [extraDemos, setExtraDemos] = useState<DemoData[]>(() => {
-    const locals = readLocalPublishedEvents().filter(
-      (ev) =>
-        ev.id !== baseData.event.id &&
-        ev.name.trim().toLowerCase() !== baseData.event.name.trim().toLowerCase(),
-    );
-    return locals.map(organiserEventToDemoData);
-  });
-  const [activeEventId, setActiveEventId] = useState<string>(() => {
-    if (initialEventSlug) {
-      const normalized = initialEventSlug.trim().toLowerCase();
-      if (
-        baseData.event.slug.toLowerCase() === normalized ||
-        baseData.event.id === initialEventSlug
-      ) {
+  const [extraDemos, setExtraDemos] = useState<DemoData[]>([]);
+  const [activeEventId, setActiveEventId] = useState<string>(baseData.event.id);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Hydrate locally published events & active event selection after mount so SSR and client initial HTML match
+  useEffect(() => {
+    const locals = readLocalPublishedEvents()
+      .filter(
+        (ev) =>
+          ev.id !== baseData.event.id &&
+          ev.name.trim().toLowerCase() !== baseData.event.name.trim().toLowerCase(),
+      )
+      .map(organiserEventToDemoData);
+    setExtraDemos(locals);
+
+    const resolveFromList = (slugOrId: string): string | null => {
+      const normalized = slugOrId.trim().toLowerCase();
+      if (baseData.event.slug.toLowerCase() === normalized || baseData.event.id === slugOrId) {
         return baseData.event.id;
       }
-      const locals = readLocalPublishedEvents().map(organiserEventToDemoData);
       const match = locals.find(
-        (item) =>
-          item.event.slug.toLowerCase() === normalized || item.event.id === initialEventSlug,
+        (item) => item.event.slug.toLowerCase() === normalized || item.event.id === slugOrId,
       );
-      if (match) return match.event.id;
+      return match?.event.id ?? null;
+    };
+
+    if (initialEventSlug) {
+      const matched = resolveFromList(initialEventSlug);
+      if (matched) {
+        setActiveEventId(matched);
+        return;
+      }
     }
-    if (typeof window === "undefined") return baseData.event.id;
     try {
       const paramSlug = new URLSearchParams(window.location.search).get("event");
       if (paramSlug) {
-        const normalized = paramSlug.trim().toLowerCase();
-        if (baseData.event.slug.toLowerCase() === normalized || baseData.event.id === paramSlug) {
-          return baseData.event.id;
+        const matched = resolveFromList(paramSlug);
+        if (matched) {
+          setActiveEventId(matched);
+          return;
         }
-        const locals = readLocalPublishedEvents().map(organiserEventToDemoData);
-        const match = locals.find(
-          (item) => item.event.slug.toLowerCase() === normalized || item.event.id === paramSlug,
-        );
-        if (match) return match.event.id;
       }
-      return localStorage.getItem(ACTIVE_EVENT_STORAGE_KEY) || baseData.event.id;
+      const stored = localStorage.getItem(ACTIVE_EVENT_STORAGE_KEY);
+      if (stored && (stored === baseData.event.id || locals.some((d) => d.event.id === stored))) {
+        setActiveEventId(stored);
+      }
     } catch {
-      return baseData.event.id;
+      /* Ignore storage failures. */
     }
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  }, [baseData.event.id, baseData.event.name, baseData.event.slug, initialEventSlug]);
 
   useEffect(() => {
     let mounted = true;

@@ -216,7 +216,7 @@
     background: #f2f2f7;
     height: max(
       260px,
-      calc(100dvh - var(--companion-header-height, 44px) - 16rem - env(safe-area-inset-bottom))
+      calc(100dvh - var(--companion-header-height, 44px) - 20.5rem - env(safe-area-inset-bottom))
     );
   }
   dialog .venue-map-canvas {

@@ -39,11 +39,9 @@ export function ConnectedCrew() {
     "create" | "join" | "invite" | "meeting" | "leave" | "pin" | "live-gps" | null
   >(null);
   const [name, setName] = useState("Our crew");
-  const [code, setCode] = useState(() => readPendingCrewInvite() ?? "");
-  const [pendingInvite, setPendingInvite] = useState<string | null>(() => readPendingCrewInvite());
-  const [inviteMeta, setInviteMeta] = useState<CrewInviteMeta | null>(() =>
-    readPendingCrewInviteMeta(),
-  );
+  const [code, setCode] = useState("");
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
+  const [inviteMeta, setInviteMeta] = useState<CrewInviteMeta | null>(null);
   const [pointId, setPointId] = useState(places[0]?.id ?? "");
   const [localError, setLocalError] = useState("");
   const [scanningQr, setScanningQr] = useState(false);
@@ -144,7 +142,7 @@ export function ConnectedCrew() {
   }
 
   useEffect(() => {
-    const captured = captureCrewInviteFromUrl();
+    const captured = captureCrewInviteFromUrl() ?? readPendingCrewInvite();
     if (captured) {
       setPendingInvite(captured);
       setInviteMeta(readPendingCrewInviteMeta());

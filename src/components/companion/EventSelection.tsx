@@ -5,7 +5,10 @@ import { useEvent } from "@/context/EventContext";
 import { dateLabel } from "@/lib/attendee/event-clock";
 import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
-import { selectFeaturedParticipants } from "@/lib/intelligence/event-intelligence";
+import {
+  getEventCategoryTerms,
+  selectFeaturedParticipants,
+} from "@/lib/intelligence/event-intelligence";
 import {
   defaultPreferences,
   EVENT_COLLECTIONS,
@@ -50,12 +53,11 @@ export function EventSelection() {
   const [mode, setMode] = useState<"browse" | "mine" | "calendar">("browse");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
-  const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>(() =>
-    readLocalPublishedEvents(),
-  );
+  const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>([]);
 
   useEffect(() => {
     let active = true;
+    setExtraEvents(readLocalPublishedEvents());
     void listPublishedOrganiserEvents().then((items) => {
       if (!active) return;
       const locals = readLocalPublishedEvents();
@@ -160,8 +162,28 @@ export function EventSelection() {
     navigate("home");
   };
 
+  const isDemoSavedLocally = (demo: DemoData): boolean => {
+    if (typeof window === "undefined") return false;
+    const key =
+      storageKey(demo.event.id) +
+      (attendee.auth.user?.id ? `:account:${attendee.auth.user.id}` : "");
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return false;
+      const parsed = parseStoredPreferences(JSON.parse(raw), demo);
+      return Boolean(
+        parsed.following ||
+        parsed.collections.length > 0 ||
+        parsed.selectedEventId === demo.event.id,
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const otherDemos = allPublishedDemos
     .filter((demo) => demo.event.id !== data.event.id)
+    .filter((demo) => (mode === "mine" ? isDemoSavedLocally(demo) : true))
     .filter((demo) => categoryFilter === "All" || demo.event.category === categoryFilter)
     .filter((demo) => (mode === "calendar" ? eventSpansDate(demo, selected) : true))
     .filter((demo) =>
@@ -179,8 +201,13 @@ export function EventSelection() {
     searchMatch &&
     categoryMatchesPrimary;
   const featuredPreview = selectFeaturedParticipants(data);
+  const terms = getEventCategoryTerms(data.event.category);
   const ticketUrl = data.event.ticketUrl || data.festival.ticketUrl;
   const ticketProvider = getTicketProviderName(ticketUrl);
+  const hasDistinctRelatedEvent =
+    Boolean(data.festival.relatedEvent.name) &&
+    data.festival.relatedEvent.name !== data.event.name &&
+    data.festival.relatedEvent.url.startsWith("http");
 
   return (
     <div className="event-discovery px-4 pt-3">
@@ -296,7 +323,9 @@ export function EventSelection() {
           <span className="discovery-card-glass absolute inset-x-3 bottom-3 rounded-[22px] p-5">
             <span className="mb-2 block text-[14px] font-medium">
               {data.event.category}
-              {data.stages.length > 0 ? ` · ${data.stages.length} stages` : ""}
+              {data.stages.length > 0
+                ? ` · ${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()}`
+                : ""}
             </span>
             <span className="block text-[30px] leading-9 font-bold">{data.event.name}</span>
             <span className="mt-3 flex items-start gap-2 text-[15px]">
@@ -315,14 +344,17 @@ export function EventSelection() {
       ) : otherDemos.length === 0 ? (
         <div className="rounded-2xl bg-popover p-5">
           <p className="text-[17px] font-medium">
-            {searchMatch && categoryMatchesPrimary
-              ? "No published events on this date."
-              : "No matching published events."}
+            {mode === "mine"
+              ? "No saved events yet."
+              : searchMatch && categoryMatchesPrimary
+                ? "No published events on this date."
+                : "No matching published events."}
           </p>
           <button
             type="button"
             className="mt-3 min-h-11 text-[17px] font-semibold text-favorite"
             onClick={() => {
+              if (mode === "mine") setMode("browse");
               setMonth(eventDay);
               setSelected(eventDay);
               setQuery("");
@@ -430,7 +462,14 @@ export function EventSelection() {
             </div>
             <PrimaryButton
               onClick={() => {
-                if (attendee.update({ selectedEventId: data.event.id, following: true })) {
+                if (
+                  attendee.update({
+                    selectedEventId: data.event.id,
+                    following: true,
+                    hasName: true,
+                    onboardingDone: true,
+                  })
+                ) {
                   setPreview(false);
                   navigate("home");
                 }
@@ -478,52 +517,56 @@ export function EventSelection() {
         </section>
       )}
 
-      <section className="mt-6 space-y-3" aria-label="Organiser and related coastal event">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[18px] font-semibold">From {data.festival.organiser}</h2>
-          <button
-            type="button"
-            aria-pressed={attendee.preferences.followedOrganisers.includes(data.festival.organiser)}
-            onClick={() => {
-              const followed = attendee.preferences.followedOrganisers.includes(
+      {hasDistinctRelatedEvent && (
+        <section className="mt-6 space-y-3" aria-label="Organiser and related coastal event">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[18px] font-semibold">From {data.festival.organiser}</h2>
+            <button
+              type="button"
+              aria-pressed={attendee.preferences.followedOrganisers.includes(
                 data.festival.organiser,
-              );
-              const next = followed
-                ? attendee.preferences.followedOrganisers.filter(
-                    (o) => o !== data.festival.organiser,
-                  )
-                : [...attendee.preferences.followedOrganisers, data.festival.organiser];
-              if (attendee.update({ followedOrganisers: next })) {
-                attendee.notify(
-                  followed
-                    ? `Unfollowed ${data.festival.organiser}`
-                    : `Following ${data.festival.organiser} on this device`,
+              )}
+              onClick={() => {
+                const followed = attendee.preferences.followedOrganisers.includes(
+                  data.festival.organiser,
                 );
-              }
-            }}
-            className="ios-chip text-[14px]"
-          >
-            {attendee.preferences.followedOrganisers.includes(data.festival.organiser)
-              ? "Following organiser"
-              : "Follow organiser"}
-          </button>
-        </div>
-        <div className="ios-card p-4">
-          <p className="text-[13px] font-semibold uppercase text-primary">Same organiser</p>
-          <p className="mt-1 text-[17px] font-semibold">{data.festival.relatedEvent.name}</p>
-          <p className="text-[14px] text-muted-foreground">
-            {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
-          </p>
-          <a
-            href={data.festival.relatedEvent.url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
-          >
-            Official details <ArrowUpRight size={16} />
-          </a>
-        </div>
-      </section>
+                const next = followed
+                  ? attendee.preferences.followedOrganisers.filter(
+                      (o) => o !== data.festival.organiser,
+                    )
+                  : [...attendee.preferences.followedOrganisers, data.festival.organiser];
+                if (attendee.update({ followedOrganisers: next })) {
+                  attendee.notify(
+                    followed
+                      ? `Unfollowed ${data.festival.organiser}`
+                      : `Following ${data.festival.organiser} on this device`,
+                  );
+                }
+              }}
+              className="ios-chip text-[14px]"
+            >
+              {attendee.preferences.followedOrganisers.includes(data.festival.organiser)
+                ? "Following organiser"
+                : "Follow organiser"}
+            </button>
+          </div>
+          <div className="ios-card p-4">
+            <p className="text-[13px] font-semibold uppercase text-primary">Same organiser</p>
+            <p className="mt-1 text-[17px] font-semibold">{data.festival.relatedEvent.name}</p>
+            <p className="text-[14px] text-muted-foreground">
+              {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
+            </p>
+            <a
+              href={data.festival.relatedEvent.url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
+            >
+              Official details <ArrowUpRight size={16} />
+            </a>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

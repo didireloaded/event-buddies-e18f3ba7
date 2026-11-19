@@ -133,7 +133,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
                     key={act.id}
                     type="button"
                     onClick={() => openSheet({ kind: "artist", artist: act })}
-                    className="ios-press flex w-40 flex-none items-center gap-2.5 rounded-2xl bg-popover p-2.5 text-left ring-1 ring-border/60"
+                    className="ios-press flex w-52 flex-none items-center gap-2.5 rounded-2xl bg-popover p-2.5 text-left ring-1 ring-border/60"
                   >
                     <ArtistAvatar artist={act} />
                     <span className="min-w-0 flex-1">
@@ -371,7 +371,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
       {/* Surface 1 — Persistent Sticky Event Hub Bottom Ticket Action Bar (Zero 5th tab!) */}
       <div
         data-testid="event-ticket-bar"
-        className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)-0.25rem)] z-20 mx-auto max-w-[720px] border-t border-border bg-bar/95 px-4 py-2.5 backdrop-blur-xl"
+        className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[720px] border-t border-border bg-bar/98 px-4 py-2.5 backdrop-blur-xl md:rounded-t-2xl md:border-x"
       >
         {primaryTicket ? (
           <div className="flex items-center justify-between gap-3">

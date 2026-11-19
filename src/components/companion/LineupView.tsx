@@ -424,7 +424,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
           <button type="button" className="ios-row" onClick={spin}>
             <IconTile icon={Shuffle} tone="bg-favorite" />
             <RowText
-              title={`Discover a ${terms.personSingular.toLowerCase()}`}
+              title={`Discover ${/^[aeiou]/i.test(terms.personSingular) ? "an" : "a"} ${terms.personSingular.toLowerCase()}`}
               subtitle="Random pick from entries you haven’t saved"
             />
             <Chevron />

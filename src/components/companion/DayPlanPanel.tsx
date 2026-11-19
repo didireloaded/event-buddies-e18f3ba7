@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { suggestDayPlan } from "@/lib/day-plan/day-plan.functions";
 import { buildPlanFacts } from "@/lib/day-plan/schema";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { useCompanion } from "./context";
 
 export function DayPlanPanel() {
   const { attendee, data } = useCompanion();
   const { preferences, ready } = attendee;
+  const terms = getEventCategoryTerms(data?.event?.category);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const request = useRef<AbortController | null>(null);
@@ -73,7 +75,8 @@ export function DayPlanPanel() {
       </h2>
       {empty && (
         <p className="mt-1 text-[15px] text-muted-foreground">
-          Save an artist using a heart below, or choose a meeting time in Crew.
+          Save {terms.isConferenceLike ? "a speaker" : "an artist"} using a heart below, or choose a
+          meeting time in Crew.
         </p>
       )}
       <button
@@ -133,8 +136,10 @@ export function DayPlanPanel() {
         </div>
       )}
       <p className="mt-1 text-[14px] text-muted-foreground">
-        Suggested plans stay on this device. Review your plan here. Set times drop closer to
-        festival day.
+        Suggested plans stay on this device. Review your plan here.{" "}
+        {(data?.performances?.length ?? 0) > 0
+          ? "Based on published times for this event."
+          : "Published times appear here once confirmed by the organiser."}
       </p>
     </section>
   );

@@ -69,7 +69,7 @@ export function EventRecap() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "sound-of-summer-crew-yearbook.png";
+      anchor.download = `${data.event.slug}-crew-yearbook.png`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       attendee.notify("Crew yearbook card downloaded.");
@@ -168,14 +168,16 @@ export function EventRecap() {
       <SecondaryButton className="mt-2" onClick={() => navigate("crew")}>
         Open saved plans
       </SecondaryButton>
-      <a
-        className="mt-3 flex min-h-11 items-center font-semibold"
-        href={data.festival.officialUrl}
-        target="_blank"
-        rel="noreferrer"
-      >
-        More from the organiser ↗<span className="sr-only"> Opens in a new tab</span>
-      </a>
+      {data.festival.officialUrl && (
+        <a
+          className="mt-3 flex min-h-11 items-center font-semibold"
+          href={data.festival.officialUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          More from the organiser ↗<span className="sr-only"> Opens in a new tab</span>
+        </a>
+      )}
       <AfterEventData />
     </section>
   );

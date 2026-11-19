@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { dbError } from "@/lib/organiser/data";
 import {
+  readLocalPublishedEvents,
+  readStoredSitePlanZoomUrl,
+  saveLocalPublishedEvent,
+} from "@/lib/organiser/event-adapter";
+import {
   cleanupExpiredEventData,
   getOrganiserEventAggregates,
   listEventBroadcasts,
@@ -129,6 +134,23 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       setError(dbError(updErr.message));
       return;
     }
+    const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
+    saveLocalPublishedEvent({
+      id: active.id,
+      eventType: active.event_type,
+      name: active.name,
+      startDate: active.start_date,
+      endDate: active.end_date,
+      venue: active.venue,
+      gatesOpen: active.gates_open,
+      entryRules: active.entry_rules,
+      program: nextProgram,
+      zones: parseZones(active.zones),
+      sitePlanPath: active.site_plan_path,
+      sitePlanUrl: cached?.sitePlanUrl ?? null,
+      sitePlanZoomUrl: cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
+      publishedAt: cached?.publishedAt ?? new Date().toISOString(),
+    });
     if (recordUndo) {
       setChangelog((prev) => [
         {
@@ -529,6 +551,24 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                         .from("organiser_events")
                         .update({ zones: nextZones as unknown as Json })
                         .eq("id", active.id);
+                      const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
+                      saveLocalPublishedEvent({
+                        id: active.id,
+                        eventType: active.event_type,
+                        name: active.name,
+                        startDate: active.start_date,
+                        endDate: active.end_date,
+                        venue: active.venue,
+                        gatesOpen: active.gates_open,
+                        entryRules: active.entry_rules,
+                        program: parseProgram(active.program),
+                        zones: nextZones,
+                        sitePlanPath: active.site_plan_path,
+                        sitePlanUrl: cached?.sitePlanUrl ?? null,
+                        sitePlanZoomUrl:
+                          cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
+                        publishedAt: cached?.publishedAt ?? new Date().toISOString(),
+                      });
                       await ctx.reload();
                     }}
                   >

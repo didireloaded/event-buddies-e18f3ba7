@@ -118,6 +118,17 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     setEntryRules(event.entry_rules);
     setProgram(parseProgram(event.program));
     setZones(parseZones(event.zones));
+    setCalRefs(
+      readStoredMapCalibration(event.id)?.refs ?? [
+        { x: 20, y: 60, lat: -22.821, lng: 14.539 },
+        { x: 80, y: 60, lat: -22.821, lng: 14.544 },
+        { x: 50, y: 20, lat: -22.818, lng: 14.5415 },
+      ],
+    );
+    setBarItems(readOrganiserBarMenus(event.id)[0]?.items ?? []);
+    setBarPaymentNote(
+      readOrganiserBarMenus(event.id)[0]?.paymentNote ?? "Cashless & card accepted at event bars.",
+    );
   }, [event]);
 
   useEffect(() => {
@@ -168,6 +179,25 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       setSaveState("error");
       setError(dbError(updErr.message));
       return false;
+    }
+    if (event.status === "published" && patch.status !== "draft") {
+      saveLocalPublishedEvent({
+        id: event.id,
+        eventType: (patch.event_type as EventType | undefined) ?? eventType,
+        name: (typeof patch.name === "string" ? patch.name : name).trim(),
+        startDate: patch.start_date !== undefined ? (patch.start_date ?? null) : startDate || null,
+        endDate: patch.end_date !== undefined ? (patch.end_date ?? null) : endDate || null,
+        venue: (typeof patch.venue === "string" ? patch.venue : venue).trim(),
+        gatesOpen: (typeof patch.gates_open === "string" ? patch.gates_open : gatesOpen).trim(),
+        entryRules: (typeof patch.entry_rules === "string" ? patch.entry_rules : entryRules).trim(),
+        program: patch.program !== undefined ? parseProgram(patch.program) : program,
+        zones: patch.zones !== undefined ? parseZones(patch.zones) : zones,
+        sitePlanPath:
+          patch.site_plan_path !== undefined ? patch.site_plan_path : event.site_plan_path,
+        sitePlanUrl,
+        sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
+        publishedAt: new Date().toISOString(),
+      });
     }
     setSaveState("saved");
     await ctx.reload();
@@ -774,6 +804,12 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                   />
                 </div>
               </div>
+            )}
+
+            {error && (
+              <p role="alert" className="rounded-xl bg-warning-soft px-3.5 py-2.5 text-[14px]">
+                {error}
+              </p>
             )}
 
             <label className="ios-press flex min-h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { photoStore } from "@/lib/attendee/ride-photo";
 import { avatarStorageKey } from "@/lib/attendee/avatar";
 import { clearMemories } from "@/lib/attendee/memories";
+import { clearEventTickets } from "@/lib/attendee/tickets";
 import { LandmarkCheckin } from "./LandmarkCheckin";
 import { storageKey } from "@/lib/attendee/use-attendee";
 import { useCompanion } from "./context";
@@ -17,10 +18,11 @@ export function PrivacyPanel() {
     <div className="space-y-4 pt-1 text-[16px] leading-relaxed">
       <LandmarkCheckin />
       <p>
-        Your phone’s GPS location is never requested. Landmark check-ins are chosen by you and stay
-        on this device. Pins expire after 60 minutes or two hours after the event ends, whichever
-        comes first. Expired pins are cleared when the app is open. Clear your pin from the status
-        bar at any time.
+        GPS location is off by default and only requested if you explicitly enable Share Live
+        Location or attach coordinates inside a private connected crew. Active-session GPS runs
+        while Event Buddies stays open and pauses if backgrounded. Manual landmark check-ins are
+        chosen by you, expire after 60 minutes (or two hours after the event ends), and can be
+        stopped immediately with Ghost Mode or from the status bar.
       </p>
       <p>
         QR codes, meetup links and quick messages share only the details you choose. Anyone who
@@ -29,16 +31,15 @@ export function PrivacyPanel() {
       </p>
       <p>
         Guest favourites and meetings, your local profile, imported plans and ride notes use this
-        browser’s storage. Signed-in favourites and your private meeting plan also sync to your
-        account. Landmark photos and ticket copies use local photo storage. Clearing browser data
-        removes those records. Your photo diary also stays on this device. Download photos you want
-        to keep.
+        browser’s storage. Signed-in favourites, ticket metadata and your private meeting plan also
+        sync to your account. Landmark photos, ticket images/PDFs and your photo diary stay on this
+        device. Clearing browser data removes those local records. Download photos you want to keep.
       </p>
       <p>
-        Continuous live GPS, public attendee discovery and crew chat aren’t enabled yet. Signed-in
-        crew members see only the landmark pin you choose to share, until it expires or you stop.
-        Your profile photo stays on this device. Clearing this phone signs you out. Synced
-        favourites and meetings remain in your account. Sync queued changes before clearing.
+        Background locked-screen GPS tracking, public attendee discovery and open event chat are not
+        enabled. Signed-in crew members see only the location you choose to share, until it expires
+        or you stop. Clearing this phone signs you out. Synced favourites and meetings remain in
+        your account. Sync queued changes before clearing.
       </p>
       <SecondaryButton
         disabled={clearing}
@@ -55,9 +56,11 @@ export function PrivacyPanel() {
             }
             if ("indexedDB" in window) {
               await photoStore(data.event.id, "remove");
-              await photoStore(`ticket:${data.event.id}`, "remove");
+              await clearEventTickets(data.event.id);
               await photoStore(avatarStorageKey(data.event.id), "remove");
               await clearMemories(data.event.id);
+            } else {
+              await clearEventTickets(data.event.id);
             }
             localStorage.removeItem(storageKey(data.event.id));
             attendee.notify(

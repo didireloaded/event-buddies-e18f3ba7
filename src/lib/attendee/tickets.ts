@@ -267,6 +267,18 @@ export async function removeSavedTicket(ticketId: string, eventId: string): Prom
   writeAllSavedTickets(all.filter((t) => t.id !== ticketId));
 }
 
+export async function clearEventTickets(eventId: string): Promise<void> {
+  const all = readAllSavedTickets();
+  const matching = all.filter((t) => t.eventId === eventId);
+  for (const ticket of matching) {
+    if (ticket.storageKey) {
+      await photoStore(ticket.storageKey, "remove");
+    }
+  }
+  await photoStore(primaryTicketStorageKey(eventId), "remove");
+  writeAllSavedTickets(all.filter((t) => t.eventId !== eventId));
+}
+
 export async function ensurePrimaryBlobIndexed(
   data: DemoData,
   holderName: string,

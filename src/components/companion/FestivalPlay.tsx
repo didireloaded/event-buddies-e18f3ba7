@@ -172,38 +172,45 @@ export function FestivalPlay() {
             <p className="text-[14px] text-muted-foreground">
               Grounded in verified 2026 event details.
             </p>
-            {SOUND_OF_SUMMER_TRIVIA.map((q) => {
-              const chosen = answers[q.id];
-              const answered = chosen !== undefined;
-              const correct = chosen === q.answerIndex;
-              return (
-                <div key={q.id} className="ios-card space-y-2 p-3">
-                  <p className="text-[16px] font-semibold">{q.question}</p>
-                  <div className="space-y-1.5">
-                    {q.options.map((opt, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        aria-pressed={chosen === idx}
-                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: idx }))}
-                        className="flex min-h-11 w-full items-center justify-between rounded-xl border border-border px-3 py-2 text-left text-[14px] font-medium aria-pressed:border-primary aria-pressed:bg-primary/15"
-                      >
-                        <span>{opt}</span>
-                        {answered && idx === q.answerIndex && (
-                          <span className="text-[12px] font-semibold text-primary">Correct</span>
-                        )}
-                      </button>
-                    ))}
+            {data.event.slug === "sound-of-summer-2026" ? (
+              SOUND_OF_SUMMER_TRIVIA.map((q) => {
+                const chosen = answers[q.id];
+                const answered = chosen !== undefined;
+                const correct = chosen === q.answerIndex;
+                return (
+                  <div key={q.id} className="ios-card space-y-2 p-3">
+                    <p className="text-[16px] font-semibold">{q.question}</p>
+                    <div className="space-y-1.5">
+                      {q.options.map((opt, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          aria-pressed={chosen === idx}
+                          onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: idx }))}
+                          className="flex min-h-11 w-full items-center justify-between rounded-xl border border-border px-3 py-2 text-left text-[14px] font-medium aria-pressed:border-primary aria-pressed:bg-primary/15"
+                        >
+                          <span>{opt}</span>
+                          {answered && idx === q.answerIndex && (
+                            <span className="text-[12px] font-semibold text-primary">Correct</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    {answered && (
+                      <p className="text-[13px] text-muted-foreground">
+                        {correct ? "Spot on — " : "Verified fact: "}
+                        {q.fact}
+                      </p>
+                    )}
                   </div>
-                  {answered && (
-                    <p className="text-[13px] text-muted-foreground">
-                      {correct ? "Spot on — " : "Verified fact: "}
-                      {q.fact}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className="ios-card p-4 text-[14px] text-muted-foreground">
+                Verified trivia questions for {data.event.name} appear here once added by the
+                organiser.
+              </p>
+            )}
           </section>
 
           <section className="space-y-3 border-t border-border pt-4">

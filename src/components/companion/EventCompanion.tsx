@@ -111,12 +111,12 @@ export function EventCompanion({
 }) {
   return (
     <EventProvider initialData={initialData} initialEventSlug={initialEventSlug}>
-      <EventCompanionInner />
+      <EventCompanionInner initialEventSlug={initialEventSlug} />
     </EventProvider>
   );
 }
 
-function EventCompanionInner() {
+function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string | undefined }) {
   const { data } = useEvent();
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
@@ -146,6 +146,15 @@ function EventCompanionInner() {
   useEffect(() => {
     let active = true;
     setAllTickets(readAllSavedTickets());
+    if (!attendee.ready) {
+      const unsubEarly = subscribeTicketChanges(() => {
+        if (active) setAllTickets(readAllSavedTickets());
+      });
+      return () => {
+        active = false;
+        unsubEarly();
+      };
+    }
     void ensurePrimaryBlobIndexed(
       data,
       attendee.preferences.profile.name,
@@ -174,6 +183,7 @@ function EventCompanionInner() {
     };
   }, [
     data,
+    attendee.ready,
     attendee.preferences.profile.name,
     attendee.preferences.ticketTier,
     attendee.auth.user?.id,
@@ -259,9 +269,9 @@ function EventCompanionInner() {
 
   const shareEvent = async () => {
     const payload = {
-      title: `${data.event.name} 2026`,
+      title: data.event.name,
       text: `${data.event.name} · ${dateLabel(data.event.startAt, data.event.timezone, { day: "numeric", month: "long" })} · ${data.event.city}`,
-      url: window.location.origin,
+      url: `${window.location.origin}/events/${data.event.slug}`,
     };
     try {
       if (navigator.share) await navigator.share(payload);
@@ -322,15 +332,27 @@ function EventCompanionInner() {
   };
 
   const savedCount = attendee.preferences.savedArtists.length + attendee.preferences.saved.length;
+  const directEventRoute = Boolean(
+    initialEventSlug &&
+    (data.event.slug.toLowerCase() === initialEventSlug.trim().toLowerCase() ||
+      data.event.id === initialEventSlug),
+  );
   const onboarding =
-    attendee.ready && view !== "crew" && view !== "events" && !attendee.preferences.hasName;
+    attendee.ready &&
+    !directEventRoute &&
+    view !== "crew" &&
+    view !== "events" &&
+    !attendee.preferences.hasName;
   const selecting =
     attendee.ready &&
     !onboarding &&
-    (view === "events" || (!attendee.preferences.selectedEventId && view !== "crew"));
+    (view === "events" ||
+      (!directEventRoute && !attendee.preferences.selectedEventId && view !== "crew"));
   const eventContent = attendee.ready && !onboarding && !selecting;
   const showNavigation =
-    eventContent && attendee.preferences.hasName && Boolean(attendee.preferences.selectedEventId);
+    eventContent &&
+    (directEventRoute ||
+      (attendee.preferences.hasName && Boolean(attendee.preferences.selectedEventId)));
   const activeTab = view === "you" || view === "info" ? "home" : view;
   const message = attendee.message;
 

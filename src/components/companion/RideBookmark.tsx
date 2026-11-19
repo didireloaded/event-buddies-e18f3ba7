@@ -9,7 +9,8 @@ export function RideBookmark() {
   const [editing, setEditing] = useState(false);
   const ride = attendee.preferences.ride;
   const gates = places.filter((p) => p.type === "entrance");
-  const [pointId, setPointId] = useState(gates[0]?.id ?? "");
+  const gateOptions = gates.length > 0 ? gates : places;
+  const [pointId, setPointId] = useState(gateOptions[0]?.id ?? "venue-main");
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<"car" | "shuttle">("car");
   const place = places.find((p) => p.id === ride?.pointId);
@@ -20,7 +21,7 @@ export function RideBookmark() {
           <h2 className="text-[20px] font-bold">Your ride home</h2>
           <p className="text-[15px] text-muted-foreground">
             {ride
-              ? `${ride.kind === "car" ? "Car" : "Shuttle"} · ${place?.name}`
+              ? `${ride.kind === "car" ? "Car" : "Shuttle"} · ${place?.name ?? "Venue entrance"}`
               : "Save a gate reference before heading in."}
           </p>
         </div>
@@ -29,7 +30,7 @@ export function RideBookmark() {
           disabled={!attendee.ready}
           className="min-h-11 flex-none px-2 font-semibold"
           onClick={() => {
-            setPointId(ride?.pointId ?? gates[0]?.id ?? "");
+            setPointId(ride?.pointId ?? gateOptions[0]?.id ?? "venue-main");
             setNote(ride?.note ?? "");
             setKind(ride?.kind ?? "car");
             setEditing(true);
@@ -82,11 +83,15 @@ export function RideBookmark() {
                 value={pointId}
                 onChange={(e) => setPointId(e.target.value)}
               >
-                {gates.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
+                {gateOptions.length > 0 ? (
+                  gateOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="venue-main">Main venue entrance</option>
+                )}
               </select>
             </label>
             <label className="block">
