@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Radio } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { dbError } from "@/lib/organiser/data";
@@ -22,7 +23,8 @@ import {
   type ProgramItem,
   type ZoneItem,
 } from "@/lib/organiser/schema";
-import { PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
+import { readStoredTemplateConfig } from "@/lib/templates/event-templates";
+import { EmptyState, PrimaryButton, SecondaryButton, Section } from "@/components/companion/ui";
 import type { OrgCtx } from "./OrganiserApp";
 
 type ChangeEntry = {
@@ -99,14 +101,20 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
 
   if (!active) {
     return (
-      <div className="py-10">
-        <h1 className="ios-large-title">Live event</h1>
-        <div className="ios-card mt-5 space-y-4 p-6 text-center">
-          <h2 className="text-[20px] font-semibold">No live published events</h2>
-          <p className="text-[15px] text-muted-foreground">
-            Publish an event from Events first to manage day-of schedule updates.
-          </p>
-          <PrimaryButton onClick={() => ctx.go("events")}>Go to Events</PrimaryButton>
+      <div className="py-6">
+        <p className="eb-kicker text-primary">Organiser Studio</p>
+        <h1 className="eb-page-title mt-0.5">Live event</h1>
+        <div className="mt-6">
+          <EmptyState
+            icon={Radio}
+            title="No live published events"
+            detail="Publish an event from Events first to manage day-of schedule updates, broadcasts and zone statuses."
+            action={
+              <PrimaryButton className="w-auto px-6" onClick={() => ctx.go("events")}>
+                Go to Events
+              </PrimaryButton>
+            }
+          />
         </div>
       </div>
     );
@@ -136,6 +144,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       return;
     }
     const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
+    const tpl = cached?.templateConfig ?? readStoredTemplateConfig(active.id);
     saveLocalPublishedEvent({
       id: active.id,
       eventType: active.event_type,
@@ -150,6 +159,10 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       sitePlanPath: active.site_plan_path,
       sitePlanUrl: cached?.sitePlanUrl ?? null,
       sitePlanZoomUrl: cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
+      barMenus: cached?.barMenus,
+      mapCalibration: cached?.mapCalibration,
+      templateConfig: tpl,
+      visibility: cached?.visibility ?? tpl?.visibility ?? "public",
       publishedAt: cached?.publishedAt ?? new Date().toISOString(),
     });
     if (recordUndo) {
@@ -215,12 +228,13 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
 
   return (
     <div className="py-4">
-      <h1 className="ios-large-title">Live event</h1>
+      <p className="eb-kicker text-primary">Day-of Operations</p>
+      <h1 className="eb-page-title mt-0.5">Live event</h1>
       {published.length > 1 && (
-        <label className="mt-3 block text-[15px] font-semibold">
+        <label className="mt-3 block max-w-md text-[14px] font-semibold">
           Event
           <select
-            className="ios-field mt-1"
+            className="eb-field mt-1"
             value={active.id}
             onChange={(e) => setSelectedId(e.target.value)}
           >
@@ -232,24 +246,27 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
           </select>
         </label>
       )}
-      <p className="mt-1 text-[16px] text-muted-foreground">
+      <p className="mt-1 text-[15px] text-muted-foreground">
         {active.name} · {active.venue || "Venue pending"}
       </p>
 
       {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-[15px]"
+        >
           {error}
         </p>
       )}
 
       {timed.length > 0 && (
         <Section title="Verified schedule" id="org-live-timed">
-          <div className="ios-group">
+          <div className="eb-list">
             {timed.map(({ item, index }) => (
-              <div key={index} className="ios-row items-center justify-between gap-2">
+              <div key={index} className="eb-row items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[16px] font-semibold">
-                    <span className="tabular-nums">{item.time}</span> · {item.title}
+                    <span className="tabular-nums text-primary">{item.time}</span> · {item.title}
                   </p>
                   <p className="text-[14px] text-muted-foreground">
                     {item.place || "Place pending"} · {item.status}
@@ -257,7 +274,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                 </div>
                 <button
                   type="button"
-                  className="min-h-11 px-2 text-[15px] font-semibold text-primary"
+                  className="min-h-11 px-2 text-[14px] font-semibold text-primary"
                   onClick={() => {
                     setEditingIndex(index);
                     setDraftTime(item.time);
@@ -275,9 +292,9 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
 
       {untimed.length > 0 && (
         <Section title="Unscheduled items" id="org-live-untimed">
-          <div className="ios-group">
+          <div className="eb-list">
             {untimed.map(({ item, index }) => (
-              <div key={index} className="ios-row items-center justify-between gap-2">
+              <div key={index} className="eb-row items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[16px] font-semibold">{item.title}</p>
                   <p className="text-[14px] text-muted-foreground">
@@ -286,7 +303,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                 </div>
                 <button
                   type="button"
-                  className="min-h-11 px-2 text-[15px] font-semibold text-primary"
+                  className="min-h-11 px-2 text-[14px] font-semibold text-primary"
                   onClick={() => {
                     setEditingIndex(index);
                     setDraftTime(item.time);
@@ -304,12 +321,12 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
 
       {editingIndex !== null && program[editingIndex] && (
         <Section title={`Update ${program[editingIndex]!.title}`} id="org-live-edit">
-          <div className="ios-card space-y-3 p-4">
+          <div className="eb-panel space-y-3 p-4">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="block text-[14px] font-semibold">
                 Time (HH:MM)
                 <input
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={draftTime}
                   placeholder="18:30"
                   onChange={(e) => setDraftTime(e.target.value)}
@@ -318,7 +335,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               <label className="block text-[14px] font-semibold">
                 Place
                 <input
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={draftPlace}
                   onChange={(e) => setDraftPlace(e.target.value)}
                 />
@@ -327,7 +344,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
             <label className="block text-[14px] font-semibold">
               Status
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={draftStatus}
                 onChange={(e) => setDraftStatus(e.target.value as ProgramItem["status"])}
               >
@@ -367,11 +384,11 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
 
       {changelog.length > 0 && (
         <Section title="Recent session updates" id="org-live-changelog">
-          <ul className="ios-card divide-y divide-border p-4 text-[14px]">
+          <ul className="eb-list text-[14px]">
             {changelog.map((entry, idx) => (
-              <li key={idx} className="flex items-center justify-between gap-2 py-2">
+              <li key={idx} className="eb-row justify-between gap-2">
                 <span>
-                  <strong>{entry.at}</strong> — {entry.summary}
+                  <strong className="tabular-nums">{entry.at}</strong> — {entry.summary}
                 </span>
                 {idx === 0 && (
                   <button
@@ -394,7 +411,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       )}
 
       <Section title="One-way attendee broadcast" id="org-live-broadcast">
-        <div className="ios-card space-y-3 p-4">
+        <div className="eb-panel space-y-3.5 p-4 sm:p-5">
           <p className="text-[14px] text-muted-foreground">
             Posts to the in-app Event updates sheet for this event. Push notifications require a
             push provider before background delivery is available.
@@ -402,7 +419,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
           <label className="block text-[14px] font-semibold">
             Broadcast type
             <select
-              className="ios-field mt-1"
+              className="eb-field mt-1"
               value={broadcastKind}
               onChange={(e) => {
                 setBroadcastKind(e.target.value as "update" | "emergency");
@@ -418,7 +435,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
             <textarea
               rows={3}
               maxLength={BROADCAST_LIMIT}
-              className="ios-field mt-1"
+              className="eb-field mt-1"
               value={broadcastText}
               placeholder="Stage delay, gate advice or safety notice…"
               onChange={(e) => setBroadcastText(e.target.value)}
@@ -455,11 +472,14 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
             </p>
           )}
           {broadcasts.length > 0 && (
-            <ul className="divide-y divide-border border-t border-border pt-2 text-[14px]">
+            <ul className="divide-y divide-separator border-t border-separator pt-2 text-[14px]">
               {broadcasts.map((b) => (
-                <li key={b.id} className="py-2">
-                  <span className="font-semibold uppercase text-primary">{b.kind}</span> ·{" "}
-                  <span className="text-muted-foreground">
+                <li key={b.id} className="py-2.5">
+                  <span className="text-[12px] font-bold uppercase tracking-wider text-primary">
+                    {b.kind}
+                  </span>{" "}
+                  ·{" "}
+                  <span className="tabular-nums text-muted-foreground">
                     {new Date(b.createdAt).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -474,27 +494,33 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       </Section>
 
       <Section title="Aggregate attendance counts" id="org-live-aggregates">
-        <div className="ios-card space-y-3 p-4 text-[14px]">
+        <div className="eb-panel space-y-4 p-4 sm:p-5 text-[14px]">
           {aggregates ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-[22px] font-bold tabular-nums">{aggregates.savedPlansCount}</p>
-                  <p className="text-muted-foreground">Saved plans</p>
+              <div className="grid grid-cols-2 gap-4 border-b border-separator pb-4 sm:grid-cols-4">
+                <div>
+                  <p className="eb-display text-[26px] font-extrabold tabular-nums">
+                    {aggregates.savedPlansCount}
+                  </p>
+                  <p className="eb-kicker mt-0.5">Saved plans</p>
                 </div>
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-[22px] font-bold tabular-nums">{aggregates.crewsCount}</p>
-                  <p className="text-muted-foreground">Private crews</p>
+                <div>
+                  <p className="eb-display text-[26px] font-extrabold tabular-nums">
+                    {aggregates.crewsCount}
+                  </p>
+                  <p className="eb-kicker mt-0.5">Private crews</p>
                 </div>
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-[22px] font-bold tabular-nums">
+                <div>
+                  <p className="eb-display text-[26px] font-extrabold tabular-nums">
                     {aggregates.crewMembersCount}
                   </p>
-                  <p className="text-muted-foreground">Crew members</p>
+                  <p className="eb-kicker mt-0.5">Crew members</p>
                 </div>
-                <div className="rounded-xl bg-secondary p-3">
-                  <p className="text-[22px] font-bold tabular-nums">{aggregates.activePinsCount}</p>
-                  <p className="text-muted-foreground">Active landmark pins</p>
+                <div>
+                  <p className="eb-display text-[26px] font-extrabold tabular-nums">
+                    {aggregates.activePinsCount}
+                  </p>
+                  <p className="eb-kicker mt-0.5">Active pins</p>
                 </div>
               </div>
               <SecondaryButton onClick={exportAggregatesCsv}>
@@ -509,7 +535,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               exposed to organisers.
             </p>
           )}
-          <div className="border-t border-border pt-3">
+          <div className="border-t border-separator pt-3">
             <SecondaryButton
               disabled={cleanupBusy}
               onClick={async () => {
@@ -544,10 +570,10 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
       </Section>
 
       <Section title="Venue operations & issue log" id="org-live-issues">
-        <div className="ios-card space-y-3 p-4">
+        <div className="eb-panel space-y-4 p-4 sm:p-5">
           {parseZones(active.zones).length > 0 && (
-            <div className="space-y-2 border-b border-border pb-3">
-              <p className="text-[14px] font-semibold">Live zone status</p>
+            <div className="space-y-2 border-b border-separator pb-3">
+              <p className="eb-kicker">Live zone status</p>
               {parseZones(active.zones).map((z, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2 text-[14px]">
                   <span className="min-w-0 flex-1 break-words font-medium">
@@ -556,7 +582,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                   <select
                     aria-label={`${z.name} live status`}
                     disabled={busy}
-                    className="ios-field w-auto py-1"
+                    className="eb-field w-auto py-1"
                     value={z.status}
                     onChange={async (e) => {
                       if (busy) return;
@@ -576,6 +602,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                           return;
                         }
                         const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
+                        const tpl = cached?.templateConfig ?? readStoredTemplateConfig(active.id);
                         saveLocalPublishedEvent({
                           id: active.id,
                           eventType: active.event_type,
@@ -591,6 +618,10 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
                           sitePlanUrl: cached?.sitePlanUrl ?? null,
                           sitePlanZoomUrl:
                             cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
+                          barMenus: cached?.barMenus,
+                          mapCalibration: cached?.mapCalibration,
+                          templateConfig: tpl,
+                          visibility: cached?.visibility ?? tpl?.visibility ?? "public",
                           publishedAt: cached?.publishedAt ?? new Date().toISOString(),
                         });
                         await ctx.reload();
@@ -609,7 +640,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
           )}
 
           <form
-            className="space-y-2"
+            className="space-y-2.5"
             onSubmit={(e) => {
               e.preventDefault();
               if (!issueNote.trim()) return;
@@ -633,7 +664,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 aria-label="Issue zone or point"
-                className="ios-field"
+                className="eb-field"
                 maxLength={60}
                 placeholder="Zone (e.g. North Gate, Bar 2)"
                 value={issueZone}
@@ -641,7 +672,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               />
               <input
                 aria-label="Operational issue description"
-                className="ios-field"
+                className="eb-field"
                 maxLength={140}
                 placeholder="Restock ice, queue support…"
                 value={issueNote}
@@ -654,9 +685,9 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
           </form>
 
           {issues.length > 0 && (
-            <ul className="divide-y divide-border pt-2 text-[14px]">
+            <ul className="divide-y divide-separator pt-2 text-[14px]">
               {issues.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-2 py-2">
+                <li key={item.id} className="flex items-center justify-between gap-2 py-2.5">
                   <span
                     className={`min-w-0 flex-1 break-words ${item.resolved ? "line-through text-muted-foreground" : ""}`}
                   >

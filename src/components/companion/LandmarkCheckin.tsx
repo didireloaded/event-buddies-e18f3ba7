@@ -32,7 +32,7 @@ export function LandmarkCheckin() {
       <div className="mt-2 flex items-center gap-2">
         <label className="min-w-0 flex-1">
           <span className="sr-only">Your current landmark</span>
-          <select className="ios-field" value={chosen} onChange={(e) => setChosen(e.target.value)}>
+          <select className="eb-field" value={chosen} onChange={(e) => setChosen(e.target.value)}>
             {landmarks.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}

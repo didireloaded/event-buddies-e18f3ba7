@@ -92,6 +92,7 @@ const Paragraph = ({ children, className }: { children: React.ReactNode; classNa
 function EventUpdatesSheet({ eventId }: { eventId: string }) {
   const { data } = useCompanion();
   const [broadcasts, setBroadcasts] = useState<OrganiserBroadcast[]>([]);
+  const [filter, setFilter] = useState<"all" | "emergency" | "update">("all");
   useEffect(() => {
     let active = true;
     void listEventBroadcasts(eventId).then((items) => {
@@ -105,32 +106,61 @@ function EventUpdatesSheet({ eventId }: { eventId: string }) {
   if (!data.announcements.length && !broadcasts.length) {
     return (
       <Notice icon={Bell}>
-        <strong className="font-semibold">No updates yet.</strong> Organiser announcements appear
-        here when published. Check the official event page for the latest news.
+        <strong className="font-semibold">No updates yet.</strong> Official organiser updates,
+        schedule changes and safety alerts appear here when published.
       </Notice>
     );
   }
 
+  const filteredBroadcasts =
+    filter === "all" ? broadcasts : broadcasts.filter((b) => b.kind === filter);
+
   return (
-    <div className="space-y-3">
-      {broadcasts.map((b) => (
-        <article key={b.id} className="ios-card p-4">
-          <p className="text-[13px] font-semibold uppercase text-primary">
-            {b.kind === "emergency" ? "Emergency alert" : "Organiser update"} ·{" "}
-            {eventTime(new Date(b.createdAt))}
-          </p>
-          <p className="mt-1 text-[16px]">{b.message}</p>
-        </article>
-      ))}
-      {data.announcements.map((a) => (
-        <article key={a.id} className="ios-card p-4">
-          <p className="text-[13px] text-muted-foreground">
-            {eventTime(a.publishAt)} · {a.category}
-          </p>
-          <h3 className="text-[17px] font-semibold">{a.title}</h3>
-          <p className="text-[15px]">{a.body}</p>
-        </article>
-      ))}
+    <div className="space-y-4">
+      <div className="flex gap-2" role="group" aria-label="Filter updates">
+        {(
+          [
+            { id: "all", label: "All updates" },
+            { id: "update", label: "Official" },
+            { id: "emergency", label: "Safety" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            aria-pressed={filter === tab.id}
+            onClick={() => setFilter(tab.id)}
+            className="eb-chip text-[13px]"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="eb-list">
+        {filteredBroadcasts.map((b) => (
+          <article key={b.id} className="py-3.5">
+            <p
+              className={`eb-kicker text-[12px] ${
+                b.kind === "emergency" ? "text-destructive" : "text-primary"
+              }`}
+            >
+              {b.kind === "emergency" ? "Safety alert" : "Organiser update"} ·{" "}
+              {eventTime(new Date(b.createdAt))}
+            </p>
+            <p className="mt-1 text-[15px] leading-relaxed text-foreground">{b.message}</p>
+          </article>
+        ))}
+        {filter !== "emergency" &&
+          data.announcements.map((a) => (
+            <article key={a.id} className="py-3.5">
+              <p className="eb-kicker text-[12px]">
+                {eventTime(a.publishAt)} · {a.category}
+              </p>
+              <h3 className="mt-0.5 text-[16px] font-bold">{a.title}</h3>
+              <p className="mt-0.5 text-[14px] text-muted-foreground">{a.body}</p>
+            </article>
+          ))}
+      </div>
     </div>
   );
 }
@@ -182,7 +212,7 @@ export function SheetContent({
       const provider = getTicketProviderName(ticketUrl);
       return (
         <div className="space-y-4">
-          <div className="ios-card space-y-2 p-4">
+          <div className="eb-panel space-y-2 p-4">
             <p className="text-[17px] font-semibold">{data.event.name}</p>
             <p className="text-[15px] text-muted-foreground">
               Official tickets are sold externally by <strong>{provider}</strong>. Event Buddies
@@ -227,11 +257,11 @@ export function SheetContent({
       return <OfflineReadiness />;
     case "places":
       return (
-        <div className="ios-group ios-group-indent">
+        <div className="eb-list">
           {places
             .filter((p) => sheet.ids.includes(p.id))
             .map((p) => (
-              <button key={p.id} type="button" className="ios-row" onClick={() => openPlace(p.id)}>
+              <button key={p.id} type="button" className="eb-row" onClick={() => openPlace(p.id)}>
                 <IconTile icon={placeIcon(p.type)} tone={placeTone(p.type)} />
                 <RowText title={p.name} subtitle={TYPE_LABELS[p.type] ?? p.type} />
                 <Chevron />
@@ -309,12 +339,12 @@ export function SheetContent({
             </SecondaryButton>
           )}
           {!terms.isConferenceLike && (
-            <div className="ios-group">
+            <div className="eb-list">
               <a
                 href={`https://open.spotify.com/search/${q}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ios-row font-semibold"
+                className="eb-row font-semibold"
               >
                 Listen on Spotify <ArrowUpRight size={18} className="ml-auto" />
                 <span className="sr-only"> Opens in a new tab</span>
@@ -323,7 +353,7 @@ export function SheetContent({
                 href={`https://music.apple.com/search?term=${q}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ios-row font-semibold"
+                className="eb-row font-semibold"
               >
                 Apple Music search <ArrowUpRight size={18} className="ml-auto" />
                 <span className="sr-only"> Opens in a new tab</span>
@@ -332,7 +362,7 @@ export function SheetContent({
                 href={`https://music.youtube.com/search?q=${q}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ios-row font-semibold"
+                className="eb-row font-semibold"
               >
                 YouTube Music search <ArrowUpRight size={18} className="ml-auto" />
                 <span className="sr-only"> Opens in a new tab</span>
@@ -341,7 +371,7 @@ export function SheetContent({
                 href={`https://soundcloud.com/search?q=${q}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ios-row font-semibold"
+                className="eb-row font-semibold"
               >
                 SoundCloud sets <ArrowUpRight size={18} className="ml-auto" />
                 <span className="sr-only"> Opens in a new tab</span>
@@ -365,15 +395,15 @@ export function SheetContent({
       const reminded = preferences.reminders.includes(p.id);
       return (
         <div className="space-y-4">
-          <div className="ios-group ios-group-indent">
-            <div className="ios-row">
+          <div className="eb-list">
+            <div className="eb-row">
               <IconTile icon={CalendarDays} tone="bg-destructive" />
               <RowText
                 title={dateLabel(p.scheduledStart, tz)}
                 subtitle={`${eventTime(p.scheduledStart)}–${eventTime(p.scheduledEnd)} CAT`}
               />
             </div>
-            <div className="ios-row">
+            <div className="eb-row">
               <IconTile icon={Music2} />
               <RowText
                 title={data.stages.find((s) => s.id === p.stageId)?.name ?? "Stage"}
@@ -427,7 +457,7 @@ export function SheetContent({
         <div className="space-y-4 pt-2">
           {sheet.performance ? (
             <>
-              <div className="ios-card p-4">
+              <div className="eb-panel p-4">
                 <p className="text-[15px] text-muted-foreground">{sheet.performance.genre}</p>
                 <p className="text-[22px] font-bold">{sheet.performance.artistName}</p>
                 <p className="text-[15px] text-muted-foreground">
@@ -475,9 +505,9 @@ export function SheetContent({
           <p className="text-[15px] text-muted-foreground">
             Published by the organiser and ticketing provider.
           </p>
-          <ul className="ios-group">
+          <ul className="eb-list">
             {data.festival.rules.map((rule) => (
-              <li key={rule} className="ios-row items-start py-3 text-[17px] leading-snug">
+              <li key={rule} className="eb-row items-start py-3 text-[17px] leading-snug">
                 {rule}
               </li>
             ))}
@@ -498,7 +528,7 @@ export function SheetContent({
     case "transport":
       return (
         <div className="space-y-4">
-          <div className="ios-card p-4">
+          <div className="eb-panel p-4">
             <p className="text-[17px] font-semibold">{data.event.venueName}</p>
             <p className="text-[15px] text-muted-foreground">
               {data.event.city}, {data.event.country}
@@ -522,8 +552,8 @@ export function SheetContent({
 
     case "events":
       return (
-        <div className="ios-group ios-group-indent">
-          <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
+        <div className="eb-list">
+          <button type="button" className="eb-row" onClick={() => openSheet({ kind: "event" })}>
             <RowText
               title={
                 data.event.dateConfirmed === false
@@ -536,7 +566,7 @@ export function SheetContent({
           </button>
           {data.festival.relatedEvent.name && data.festival.relatedEvent.url && (
             <a
-              className="ios-row"
+              className="eb-row"
               href={data.festival.relatedEvent.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -557,74 +587,73 @@ export function SheetContent({
     case "menu":
       return (
         <div className="space-y-6">
-          <div className="ios-group ios-group-indent">
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => openSheet({ kind: "profile" })}
-            >
-              <IconTile icon={User} /> <RowText title="My profile" /> <Chevron />
-            </button>
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => openSheet({ kind: "updates" })}
-            >
-              <IconTile icon={Bell} tone="bg-destructive" /> <RowText title="Event updates" />{" "}
-              <Chevron />
-            </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
-              <IconTile icon={CalendarDays} tone="bg-pin-amenity" />{" "}
-              <RowText title="Event details" /> <Chevron />
-            </button>
-            <button type="button" className="ios-row" onClick={() => openSheet({ kind: "rules" })}>
-              <IconTile icon={IdCard} tone="bg-pin-amenity" /> <RowText title="Rules & entry" />{" "}
-              <Chevron />
-            </button>
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => openSheet({ kind: "transport" })}
-            >
-              <IconTile icon={MapPin} tone="bg-pin-entrance" />{" "}
-              <RowText title="Transport & parking" /> <Chevron />
-            </button>
+          <div>
+            <p className="eb-kicker mb-2">This event</p>
+            <div className="eb-list">
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => openSheet({ kind: "profile" })}
+              >
+                <IconTile icon={User} /> <RowText title="My profile" /> <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => openSheet({ kind: "updates" })}
+              >
+                <IconTile icon={Bell} /> <RowText title="Event updates" /> <Chevron />
+              </button>
+              <button type="button" className="eb-row" onClick={() => openSheet({ kind: "event" })}>
+                <IconTile icon={CalendarDays} /> <RowText title="Event details" /> <Chevron />
+              </button>
+              <button type="button" className="eb-row" onClick={() => openSheet({ kind: "rules" })}>
+                <IconTile icon={IdCard} /> <RowText title="Rules & entry" /> <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => openSheet({ kind: "transport" })}
+              >
+                <IconTile icon={MapPin} /> <RowText title="Transport & parking" /> <Chevron />
+              </button>
+            </div>
           </div>
-          <div className="ios-group ios-group-indent">
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => {
-                closeSheet();
-                ctx.focusLineupSearch();
-              }}
-            >
-              <IconTile icon={Search} tone="bg-pin-other" />{" "}
-              <RowText
-                title={`Find ${/^[aeiou]/i.test(terms.personSingular) ? "an" : "a"} ${terms.personSingular.toLowerCase()}`}
-              />{" "}
-              <Chevron />
-            </button>
-            <button type="button" className="ios-row" onClick={() => showOnMap("safety")}>
-              <IconTile icon={Cross} tone="bg-pin-safety" /> <RowText title="Medic points" />{" "}
-              <Chevron />
-            </button>
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => openSheet({ kind: "privacy" })}
-            >
-              <IconTile icon={ShieldCheck} tone="bg-pin-entrance" />{" "}
-              <RowText title="Location & privacy" /> <Chevron />
-            </button>
-            <button
-              type="button"
-              className="ios-row"
-              onClick={() => openSheet({ kind: "install" })}
-            >
-              <IconTile icon={Download} tone="bg-pin-other" />{" "}
-              <RowText title="Add to Home Screen" /> <Chevron />
-            </button>
+          <div>
+            <p className="eb-kicker mb-2">Shortcuts &amp; privacy</p>
+            <div className="eb-list">
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => {
+                  closeSheet();
+                  ctx.focusLineupSearch();
+                }}
+              >
+                <IconTile icon={Search} />{" "}
+                <RowText
+                  title={`Find ${/^[aeiou]/i.test(terms.personSingular) ? "an" : "a"} ${terms.personSingular.toLowerCase()}`}
+                />{" "}
+                <Chevron />
+              </button>
+              <button type="button" className="eb-row" onClick={() => showOnMap("safety")}>
+                <IconTile icon={Cross} /> <RowText title="Medic points" /> <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => openSheet({ kind: "privacy" })}
+              >
+                <IconTile icon={ShieldCheck} /> <RowText title="Location & privacy" /> <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row"
+                onClick={() => openSheet({ kind: "install" })}
+              >
+                <IconTile icon={Download} /> <RowText title="Add to Home Screen" /> <Chevron />
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -636,15 +665,15 @@ export function SheetContent({
       return (
         <div className="space-y-4">
           <Paragraph className="text-muted-foreground">{data.event.description}</Paragraph>
-          <div className="ios-group ios-group-indent">
-            <div className="ios-row">
+          <div className="eb-list">
+            <div className="eb-row">
               <IconTile icon={MapPin} tone="bg-pin-entrance" />
               <RowText
                 title={data.event.venueName}
                 subtitle={`${data.event.city}, ${data.event.country}`}
               />
             </div>
-            <div className="ios-row">
+            <div className="eb-row">
               <IconTile icon={CalendarDays} tone="bg-destructive" />
               <RowText
                 title={formatEventDate(data.event, {
@@ -656,7 +685,7 @@ export function SheetContent({
                 subtitle={`${formatEventHours(data.event)}${hasAge18Rule ? " · 18+ with ID" : ""}`}
               />
             </div>
-            <div className="ios-row">
+            <div className="eb-row">
               <IconTile icon={Music2} />
               <RowText
                 title={`${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()} · ${data.festival.artists.length} announced ${data.festival.artists.length === 1 ? terms.personSingular.toLowerCase() : terms.peopleLabel.toLowerCase()}`}
@@ -722,16 +751,16 @@ export function SheetContent({
     case "install":
       return (
         <div className="space-y-4 pt-1">
-          <ol className="ios-group ios-group-indent list-none">
-            <li className="ios-row">
+          <ol className="eb-list list-none">
+            <li className="eb-row">
               <IconTile icon={Search} tone="bg-pin-other" />
               <RowText title="Open this app in Safari on iPhone" />
             </li>
-            <li className="ios-row">
+            <li className="eb-row">
               <IconTile icon={Share2} />
               <RowText title="Tap the Share button" />
             </li>
-            <li className="ios-row">
+            <li className="eb-row">
               <IconTile icon={Download} tone="bg-pin-entrance" />
               <RowText title="Choose Add to Home Screen, then Add" />
             </li>
@@ -799,7 +828,7 @@ export function SheetContent({
             </p>
           </div>
           {isMe ? (
-            <div role="group" aria-label="Your status" className="ios-group">
+            <div role="group" aria-label="Your status" className="eb-list">
               {[
                 "Enjoying the music",
                 "At the bar",
@@ -810,7 +839,7 @@ export function SheetContent({
                 <button
                   key={status}
                   type="button"
-                  className="ios-row"
+                  className="eb-row"
                   aria-pressed={preferences.status === status}
                   disabled={!ready}
                   onClick={() => update({ status }) && notify("Status saved on this device")}

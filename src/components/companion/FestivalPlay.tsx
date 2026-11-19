@@ -178,7 +178,7 @@ export function FestivalPlay() {
                 const answered = chosen !== undefined;
                 const correct = chosen === q.answerIndex;
                 return (
-                  <div key={q.id} className="ios-card space-y-2 p-3">
+                  <div key={q.id} className="eb-panel space-y-2 p-3">
                     <p className="text-[16px] font-semibold">{q.question}</p>
                     <div className="space-y-1.5">
                       {q.options.map((opt, idx) => (
@@ -206,7 +206,7 @@ export function FestivalPlay() {
                 );
               })
             ) : (
-              <p className="ios-card p-4 text-[14px] text-muted-foreground">
+              <p className="eb-panel p-4 text-[14px] text-muted-foreground">
                 Verified trivia questions for {data.event.name} appear here once added by the
                 organiser.
               </p>
@@ -235,7 +235,7 @@ export function FestivalPlay() {
               <label className="block text-[14px] font-semibold">
                 First stage our crew visits
                 <select
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={predStage}
                   onChange={(e) => setPredStage(e.target.value)}
                 >
@@ -249,7 +249,7 @@ export function FestivalPlay() {
               <label className="block text-[14px] font-semibold">
                 Artist set of the night
                 <select
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={predArtist}
                   onChange={(e) => setPredArtist(e.target.value)}
                 >
@@ -263,7 +263,7 @@ export function FestivalPlay() {
               <label className="block text-[14px] font-semibold">
                 Personal prediction note (optional)
                 <input
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   maxLength={140}
                   placeholder="Closing track by the tidal pools…"
                   value={predNote}

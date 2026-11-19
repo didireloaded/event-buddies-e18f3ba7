@@ -273,9 +273,27 @@ test("2. onboarding mode personalisation genuinely reorders Home DOM and /events
   await page.getByRole("button", { name: "Save on this device", exact: true }).click();
   await expect(page.getByText("Level 2 basement bay 14")).toBeVisible();
 
-  // Conference Crew -> Festival extras -> Trivia does NOT leak Sound of Summer trivia!
+  // Conference Crew hides "Festival extras" by default (zero festival jargon); when activities module is explicitly enabled, uses "Event activities" and does NOT leak Sound of Summer trivia!
   await page.goto("/events/tech-summit-2026#crew");
-  await page.getByRole("button", { name: /Festival extras/ }).click();
+  await expect(page.getByRole("button", { name: /Festival extras/ })).toHaveCount(0);
+  await page.evaluate((techId) => {
+    localStorage.setItem(
+      `event-buddies:${techId}:template-config:v1`,
+      JSON.stringify({
+        version: 1,
+        templateId: "conference_summit",
+        layoutFamily: "professional",
+        surfaceMode: "light",
+        palettePreset: "cobalt",
+        fontPreset: "swiss",
+        visibility: "public",
+        enabledModules: ["tickets", "programme", "map", "crew", "activities", "updates"],
+        homeSectionOrder: ["featured", "essentials", "crew", "upcoming"],
+      }),
+    );
+  }, TECH_ID);
+  await page.reload();
+  await page.getByRole("button", { name: /Event activities/ }).click();
   await page.getByRole("button", { name: "Trivia & picks", exact: true }).click();
   await expect(
     page.getByText("Verified trivia questions for Tech Summit 2026 appear here"),

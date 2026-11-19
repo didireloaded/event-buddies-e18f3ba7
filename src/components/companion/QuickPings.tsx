@@ -54,7 +54,7 @@ export function QuickPings() {
       <label className="block text-[15px] font-semibold">
         Landmark
         <select
-          className="ios-field mt-2"
+          className="eb-field mt-2"
           value={chosen}
           onChange={(event) => setChosen(event.target.value)}
         >
@@ -71,7 +71,7 @@ export function QuickPings() {
             key={label}
             type="button"
             disabled={busy || !attendee.ready}
-            className="ios-press flex min-h-12 items-center justify-center gap-2 rounded-full bg-popover px-3 text-[15px] font-semibold"
+            className="eb-press flex min-h-12 items-center justify-center gap-2 rounded-full bg-popover px-3 text-[15px] font-semibold"
             onClick={() => send(message)}
           >
             <Icon size={18} strokeWidth={1.75} aria-hidden />
@@ -87,7 +87,7 @@ export function QuickPings() {
         <label className="mt-3 block text-[15px]">
           Your message
           <textarea
-            className="ios-field mt-1"
+            className="eb-field mt-1"
             readOnly
             value={copy}
             onFocus={(event) => event.target.select()}

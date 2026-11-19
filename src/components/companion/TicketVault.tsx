@@ -114,7 +114,7 @@ export function TicketVault() {
       aria-labelledby="ticket-title"
     >
       <div>
-        <h2 id="ticket-title" className="ios-section-title px-0">
+        <h2 id="ticket-title" className="eb-kicker px-0">
           My Tickets &amp; Passes · Saved offline
         </h2>
         <p className="text-[15px] text-muted-foreground">
@@ -140,7 +140,7 @@ export function TicketVault() {
               <button
                 key={card.value}
                 type="button"
-                className="ios-press flex min-h-20 flex-col items-center justify-center rounded-xl border border-border bg-secondary px-2 py-3 text-center"
+                className="eb-press flex min-h-20 flex-col items-center justify-center rounded-xl border border-border bg-secondary px-2 py-3 text-center"
                 onClick={() => applyTier(card.value)}
               >
                 <span className="text-[15px] font-bold">{card.label}</span>
@@ -155,7 +155,7 @@ export function TicketVault() {
               <button
                 key={tier}
                 type="button"
-                className="ios-chip text-[13px]"
+                className="eb-chip text-[13px]"
                 onClick={() => applyTier(tier)}
               >
                 {formatTicketTier(tier)} tier
@@ -172,9 +172,9 @@ export function TicketVault() {
             <QrCode size={19} aria-hidden />
             Show my ticket
           </PrimaryButton>
-          <div className="ios-group">
+          <div className="eb-list">
             {eventTickets.map((ticket, idx) => (
-              <div key={ticket.id} className="ios-row items-center justify-between gap-3 py-3">
+              <div key={ticket.id} className="eb-row items-center justify-between gap-3 py-3">
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -446,7 +446,7 @@ export function TicketVault() {
             <label className="block text-[14px] font-semibold">
               Ticket code or reference
               <input
-                className="ios-field mt-1 font-mono"
+                className="eb-field mt-1 font-mono"
                 maxLength={120}
                 placeholder="e.g. HWL-2026-84920"
                 value={manualCode}
@@ -457,7 +457,7 @@ export function TicketVault() {
               <label className="block text-[14px] font-semibold">
                 Holder name
                 <input
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   maxLength={60}
                   placeholder="Sam Nghidinwa"
                   value={manualHolder}
@@ -467,7 +467,7 @@ export function TicketVault() {
               <label className="block text-[14px] font-semibold">
                 Label (optional)
                 <input
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   maxLength={60}
                   placeholder="VIP Pass"
                   value={manualLabel}
@@ -527,13 +527,13 @@ export function TicketVault() {
       {otherEventTickets.length > 0 && (
         <div className="space-y-2 border-t border-border pt-4">
           <h3 className="text-[15px] font-semibold text-muted-foreground">Other events</h3>
-          <div className="ios-group">
+          <div className="eb-list">
             {otherEventTickets.map((t, idx) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => openGateCard(idx, otherEventTickets)}
-                className="ios-row justify-between py-2.5 text-left"
+                className="eb-row justify-between py-2.5 text-left"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[15px] font-semibold">{t.eventName}</span>

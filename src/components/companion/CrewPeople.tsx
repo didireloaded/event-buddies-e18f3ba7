@@ -15,7 +15,7 @@ export function CrewPeople({ action }: { action?: ReactNode } = {}) {
   const place = places.find((point) => point.id === meeting?.pointId);
   return (
     <Section title="Your crew" id="crew-people" className="px-4" action={action}>
-      <div className="ios-card scrollbar-none flex gap-4 overflow-x-auto px-4 py-4">
+      <div className="scrollbar-none flex gap-4 overflow-x-auto border-y border-separator py-4">
         <button
           type="button"
           className="flex min-w-16 flex-col items-center gap-1.5"
@@ -52,24 +52,24 @@ export function CrewPeople({ action }: { action?: ReactNode } = {}) {
           className="flex min-w-16 flex-col items-center gap-1.5"
           aria-label="Share with a friend"
         >
-          <span className="grid size-16 place-items-center rounded-full border-2 border-dashed border-primary/35 bg-favorite-soft text-favorite">
+          <span className="grid size-[4.25rem] place-items-center rounded-full border-2 border-dashed border-primary/45 bg-favorite-soft text-primary">
             <Plus size={24} />
           </span>
-          <span className="text-[14px] font-medium text-primary">Add</span>
+          <span className="text-[14px] font-semibold text-primary">Add</span>
         </a>
       </div>
       {plans.length > 0 && (
-        <p className="mt-1.5 px-1 text-[13px] text-muted-foreground">
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
           Tap a friend to view their meetup plan.
         </p>
       )}
       {entry && (
         <Sheet title={entry.plan.name} onClose={() => setSelected(null)}>
           <div className="space-y-4">
-            <p className="text-[15px] text-muted-foreground">
+            <p className="text-[14px] text-muted-foreground">
               Saved copy · received {new Date(entry.receivedAt).toLocaleDateString()}
             </p>
-            <p className="text-[20px] font-semibold">
+            <p className="eb-display text-[22px]">
               {place && meeting
                 ? `${place.name} · ${eventTime(meeting.at)} CAT`
                 : "No meeting point shared"}
@@ -84,13 +84,13 @@ export function CrewPeople({ action }: { action?: ReactNode } = {}) {
                 Show meeting point
               </PrimaryButton>
             )}
-            <p className="text-[15px] text-muted-foreground">
+            <p className="text-[14px] text-muted-foreground">
               This copy stays on your phone. Sign in to share expiring landmark pins with a
               connected crew.
             </p>
             <button
               type="button"
-              className="min-h-11 text-[17px] text-destructive"
+              className="min-h-11 text-[16px] font-semibold text-destructive"
               onClick={() => {
                 if (
                   attendee.update({ sharedPlans: plans.filter((_, index) => index !== selected) })

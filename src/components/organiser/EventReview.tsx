@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, RotateCw, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Globe,
+  Lock,
+  MapPin,
+  Palette,
+  Plus,
+  RotateCw,
+  Trash2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
@@ -43,6 +54,17 @@ import {
   type ProgramItem,
   type ZoneItem,
 } from "@/lib/organiser/schema";
+import {
+  buildDefaultTemplateConfig,
+  defaultTemplateIdForEventType,
+  EVENT_TEMPLATES,
+  LAYOUT_FAMILY_META,
+  PALETTE_PRESET_META,
+  readStoredTemplateConfig,
+  saveStoredTemplateConfig,
+  switchTemplatePreservingData,
+  type EventTemplateConfig,
+} from "@/lib/templates/event-templates";
 import { Sheet } from "@/components/companion/Sheet";
 import {
   Chevron,
@@ -51,7 +73,9 @@ import {
   SecondaryButton,
   Section,
 } from "@/components/companion/ui";
+import { cn } from "@/lib/utils";
 import type { OrgCtx } from "./OrganiserApp";
+import { TemplateEditor } from "./TemplateEditor";
 
 type ReviewSheet =
   | "basics"
@@ -64,7 +88,10 @@ type ReviewSheet =
   | "delete"
   | null;
 
+type EditorTab = "setup" | "template";
+
 export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
+  const [editorTab, setEditorTab] = useState<EditorTab>("setup");
   const [sheet, setSheet] = useState<ReviewSheet>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const savingRef = useRef(false);
@@ -77,6 +104,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       ? (event.event_type as EventType)
       : "festival",
   );
+  const [templateConfig, setTemplateConfig] = useState<EventTemplateConfig>(
+    () => readStoredTemplateConfig(event.id) ?? buildDefaultTemplateConfig(event.event_type),
+  );
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateSaveNotice, setTemplateSaveNotice] = useState("");
   const [startDate, setStartDate] = useState(event.start_date ?? "");
   const [endDate, setEndDate] = useState(event.end_date ?? "");
   const [venue, setVenue] = useState(event.venue);
@@ -118,12 +150,14 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
 
   useEffect(() => {
     let active = true;
+    const resolvedType: EventType = (EVENT_TYPES as readonly string[]).includes(event.event_type)
+      ? (event.event_type as EventType)
+      : "festival";
     setName(event.name);
-    setEventType(
-      (EVENT_TYPES as readonly string[]).includes(event.event_type)
-        ? (event.event_type as EventType)
-        : "festival",
-    );
+    setEventType(resolvedType);
+    const localTpl = readStoredTemplateConfig(event.id);
+    setTemplateConfig(localTpl ?? buildDefaultTemplateConfig(resolvedType));
+    setTemplateSaveNotice("");
     setStartDate(event.start_date ?? "");
     setEndDate(event.end_date ?? "");
     setVenue(event.venue);
@@ -159,6 +193,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         );
         saveOrganiserBarMenus(event.id, extras.barMenus);
       }
+      if (extras.templateConfig) {
+        setTemplateConfig(extras.templateConfig);
+        saveStoredTemplateConfig(event.id, extras.templateConfig);
+      }
     });
     return () => {
       active = false;
@@ -176,6 +214,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   }, [event.site_plan_path]);
 
   const terms = TYPE_TERMS[eventType];
+  const activeTemplateDef = EVENT_TEMPLATES[templateConfig.templateId];
+  const activeAccentHex =
+    templateConfig.surfaceMode === "dark"
+      ? PALETTE_PRESET_META[templateConfig.palettePreset].darkHex
+      : PALETTE_PRESET_META[templateConfig.palettePreset].lightHex;
   const verification = (ctx.profile?.verification_status ?? "unverified") as
     "unverified" | "pending" | "verified" | "rejected";
   const blockers = publishBlockers({
@@ -199,7 +242,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
 
   async function savePatch(
     patch: Database["public"]["Tables"]["organiser_events"]["Update"],
-    options?: { nested?: boolean },
+    options?: { nested?: boolean; nextTemplateConfig?: EventTemplateConfig },
   ) {
     if (!options?.nested && savingRef.current) return false;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -210,6 +253,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     if (!options?.nested) savingRef.current = true;
     setSaveState("saving");
     setError("");
+    const activeTpl = options?.nextTemplateConfig ?? templateConfig;
     try {
       const { error: updErr } = await supabase
         .from("organiser_events")
@@ -245,6 +289,8 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             const c = readStoredMapCalibration(event.id);
             return c ? { ...c, version: c.version ?? 1 } : null;
           })(),
+          templateConfig: activeTpl,
+          visibility: activeTpl.visibility,
           publishedAt: new Date().toISOString(),
         });
       }
@@ -256,18 +302,64 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     }
   }
 
+  async function saveTemplate(next: EventTemplateConfig) {
+    if (templateSaving) return;
+    setTemplateSaving(true);
+    setTemplateSaveNotice("");
+    const nextLegacyType = EVENT_TEMPLATES[next.templateId].legacyEventType;
+    setTemplateConfig(next);
+    setEventType(nextLegacyType);
+    saveStoredTemplateConfig(event.id, next);
+    try {
+      await savePatch({ event_type: nextLegacyType }, { nextTemplateConfig: next });
+      const cloud = await saveOrganiserEventExtras({
+        eventId: event.id,
+        templateConfig: next,
+        visibility: next.visibility,
+      });
+      if (cloud.ok) {
+        setTemplateSaveNotice(
+          `Saved “${EVENT_TEMPLATES[next.templateId].name}” (${LAYOUT_FAMILY_META[next.layoutFamily].name}) and synced to Cloud.`,
+        );
+      } else {
+        setTemplateSaveNotice(
+          `Saved “${EVENT_TEMPLATES[next.templateId].name}” on this device — apply the Cloud SQL update to share template styling across phones.`,
+        );
+      }
+    } finally {
+      setTemplateSaving(false);
+    }
+  }
+
   async function saveBasics(e: FormEvent) {
     e.preventDefault();
+    let nextTpl = templateConfig;
+    if (EVENT_TEMPLATES[templateConfig.templateId].legacyEventType !== eventType) {
+      nextTpl = switchTemplatePreservingData(
+        templateConfig,
+        defaultTemplateIdForEventType(eventType),
+      );
+      setTemplateConfig(nextTpl);
+      saveStoredTemplateConfig(event.id, nextTpl);
+      void saveOrganiserEventExtras({
+        eventId: event.id,
+        templateConfig: nextTpl,
+        visibility: nextTpl.visibility,
+      });
+    }
     if (
-      await savePatch({
-        name: name.trim(),
-        event_type: eventType,
-        start_date: startDate || null,
-        end_date: endDate || null,
-        venue: venue.trim(),
-        gates_open: gatesOpen.trim(),
-        entry_rules: entryRules.trim(),
-      })
+      await savePatch(
+        {
+          name: name.trim(),
+          event_type: eventType,
+          start_date: startDate || null,
+          end_date: endDate || null,
+          venue: venue.trim(),
+          gates_open: gatesOpen.trim(),
+          entry_rules: entryRules.trim(),
+        },
+        { nextTemplateConfig: nextTpl },
+      )
     )
       setSheet(null);
   }
@@ -291,7 +383,6 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       setUploadProgress({ percent: 85, label: "Uploading optimized map…" });
       const path = await uploadOwnFile(ctx.userId, optimized.displayFile, "site-plans");
       if (optimized.zoomFile) {
-        // Upload high-res zoom variant alongside display version (best-effort) and store signed URL
         void uploadOwnFile(ctx.userId, optimized.zoomFile, "site-plans-zoom")
           .then((zoomPath) => signedUrl(zoomPath))
           .then((zoomSigned) => {
@@ -337,6 +428,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         setError(dbError(dupErr?.message));
         return;
       }
+      saveStoredTemplateConfig(data.id, templateConfig);
       setSaveState("saved");
       await ctx.reload();
       ctx.go("events", data.id);
@@ -349,6 +441,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     const payload = {
       name: name || "Untitled event",
       eventType,
+      templateConfig,
       startDate: startDate || null,
       endDate: endDate || null,
       venue: venue || null,
@@ -370,21 +463,42 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     <div className="py-4">
       <button
         type="button"
-        className="flex min-h-11 items-center gap-1 text-[16px] font-semibold text-primary"
+        className="flex min-h-11 items-center gap-1.5 text-[15px] font-semibold text-primary"
         onClick={() => ctx.go("events")}
       >
-        <ArrowLeft size={18} aria-hidden /> All events
+        <ArrowLeft size={17} aria-hidden /> All events
       </button>
 
-      <div className="mt-2 flex items-start justify-between gap-3">
+      <div className="mt-2 flex flex-wrap items-start justify-between gap-3 border-b border-separator pb-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {event.status} · {eventType}
-          </p>
-          <h1 className="ios-large-title break-words">{name || "Untitled draft"}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="eb-kicker text-muted-foreground">
+              {event.status} · {eventType}
+            </p>
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2 py-0.5 text-[11px] font-semibold text-foreground">
+              <span
+                aria-hidden
+                className="size-2 rounded-full"
+                style={{ backgroundColor: activeAccentHex }}
+              />
+              {activeTemplateDef.name}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+              {templateConfig.visibility === "private_invite" ? (
+                <>
+                  <Lock size={11} aria-hidden /> Private invite
+                </>
+              ) : (
+                <>
+                  <Globe size={11} aria-hidden /> Public
+                </>
+              )}
+            </span>
+          </div>
+          <h1 className="eb-page-title mt-1 break-words">{name || "Untitled draft"}</h1>
         </div>
         {saveState !== "idle" && (
-          <p role="status" className="pt-2 text-[14px] text-muted-foreground">
+          <p role="status" className="pt-1 text-[14px] font-medium text-muted-foreground">
             {saveState === "saving"
               ? "Saving…"
               : saveState === "saved"
@@ -394,191 +508,299 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         )}
       </div>
 
+      {/* Editorial view switcher: Setup & Publish | Template & Preview */}
+      <div
+        role="tablist"
+        aria-label="Event studio views"
+        className="mt-3 flex items-center gap-6 border-b border-separator"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={editorTab === "setup"}
+          onClick={() => setEditorTab("setup")}
+          className={cn(
+            "relative min-h-11 py-2 text-[15px] font-semibold transition-colors",
+            editorTab === "setup"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Setup &amp; Publish
+          {editorTab === "setup" && (
+            <span
+              aria-hidden
+              className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
+            />
+          )}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={editorTab === "template"}
+          onClick={() => setEditorTab("template")}
+          className={cn(
+            "relative inline-flex min-h-11 items-center gap-1.5 py-2 text-[15px] font-semibold transition-colors",
+            editorTab === "template"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Palette size={15} aria-hidden />
+          Template &amp; Preview
+          {editorTab === "template" && (
+            <span
+              aria-hidden
+              className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
+            />
+          )}
+        </button>
+      </div>
+
       {event.extraction_missing.length > 0 && (
-        <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-[14px] text-muted-foreground">
+        <p className="mt-4 rounded-xl border border-border bg-secondary px-4 py-3 text-[14px] text-muted-foreground">
           Not found in PDF: {event.extraction_missing.join(", ")}. Tap any row below to add them.
         </p>
       )}
 
       {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-warning-soft px-4 py-3 text-[15px]">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-[15px]"
+        >
           {error}
         </p>
       )}
 
-      <Section title="Review details" id="org-review-rows">
-        <div className="ios-group">
-          <button
-            type="button"
-            className="ios-row w-full text-left"
-            onClick={() => setSheet("basics")}
-          >
-            <RowText
-              title="Event basics & rules"
-              subtitle={`${startDate || "Add date"} · ${venue || "Add venue"}${gatesOpen ? ` · Gates ${gatesOpen}` : ""}`}
-            />
-            <Chevron />
-          </button>
-          <button
-            type="button"
-            className="ios-row w-full text-left"
-            onClick={() => setSheet("program")}
-          >
-            <RowText
-              title={terms.program}
-              subtitle={
-                program.length
-                  ? `${program.length} ${terms.people.toLowerCase()} added`
-                  : `Add ${terms.people.toLowerCase()}`
-              }
-            />
-            <Chevron />
-          </button>
-          <button
-            type="button"
-            className="ios-row w-full text-left"
-            onClick={() => setSheet("site-plan")}
-          >
-            <RowText
-              title="Site plan"
-              subtitle={
-                event.site_plan_path
-                  ? "Uploaded — tap to view, rotate or replace"
-                  : eventType === "festival"
-                    ? "Required before publishing (≥2000px)"
-                    : "Optional for this event type"
-              }
-            />
-            <Chevron />
-          </button>
-          <button
-            type="button"
-            className="ios-row w-full text-left"
-            onClick={() => setSheet("zones")}
-          >
-            <RowText
-              title={`Venue zones & ${terms.places.toLowerCase()}`}
-              subtitle={
-                zones.length ? `${zones.length} mapped points` : "Add stages, bars, gates or medics"
-              }
-            />
-            <Chevron />
-          </button>
-          <button
-            type="button"
-            className="ios-row w-full text-left"
-            onClick={() => setSheet("bar-menus")}
-          >
-            <RowText
-              title="Bar drinks menu"
-              subtitle={
-                barItems.length
-                  ? `${barItems.length} confirmed drinks published`
-                  : "Optional · bars show Sample Menu until configured"
-              }
-            />
-            <Chevron />
-          </button>
+      {editorTab === "template" ? (
+        <div className="mt-5">
+          <TemplateEditor
+            eventId={event.id}
+            userId={ctx.userId}
+            eventName={name}
+            startDate={startDate}
+            endDate={endDate}
+            venue={venue}
+            gatesOpen={gatesOpen}
+            entryRules={entryRules}
+            program={program}
+            zones={zones}
+            sitePlanUrl={sitePlanUrl}
+            config={templateConfig}
+            onChange={(next) => {
+              setTemplateConfig(next);
+              setEventType(EVENT_TEMPLATES[next.templateId].legacyEventType);
+            }}
+            onSave={saveTemplate}
+            saving={templateSaving}
+            saveNotice={templateSaveNotice}
+          />
         </div>
-      </Section>
-
-      {readinessIssues.length > 0 && (
-        <Section title="Readiness checks" id="org-readiness-checks">
-          <div className="ios-group">
-            {readinessIssues.map((issue) => (
-              <div key={issue.id} className="ios-row items-start py-3">
-                <RowText
-                  title={
-                    <span
-                      className={
-                        issue.severity === "warning" ? "font-semibold text-warning" : "font-medium"
-                      }
-                    >
-                      {issue.title}
-                    </span>
-                  }
-                  subtitle={issue.detail}
-                />
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      <Section title="Publish" id="org-publish">
-        <div className="ios-card space-y-3 p-4">
-          {event.status === "published" ? (
-            <>
-              <p className="text-[15px]">
-                Marked published{event.published_at ? ` on ${event.published_at.slice(0, 10)}` : ""}
-                .
+      ) : (
+        <>
+          {/* Quick launch banner into Visual Template Editor */}
+          <div className="eb-panel mt-5 flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="min-w-0 flex-1">
+              <p className="eb-kicker text-primary">Attendee Experience Template</p>
+              <p className="mt-0.5 text-[16px] font-bold">
+                {activeTemplateDef.name} · {LAYOUT_FAMILY_META[templateConfig.layoutFamily].name}{" "}
+                layout
               </p>
-              <SecondaryButton onClick={() => setSheet("unpublish")}>Unpublish</SecondaryButton>
-            </>
-          ) : (
-            <>
-              {blockers.length > 0 && (
-                <ul className="list-disc space-y-1 pl-5 text-[14px] text-muted-foreground">
-                  {blockers.map((b) => (
-                    <li key={b}>{b}</li>
-                  ))}
-                </ul>
-              )}
-              <PrimaryButton disabled={blockers.length > 0} onClick={() => setSheet("publish")}>
-                Publish event
-              </PrimaryButton>
-            </>
-          )}
-        </div>
-      </Section>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                {templateConfig.surfaceMode === "dark" ? "Dark obsidian" : "Light paper"} surface ·{" "}
+                {templateConfig.enabledModules.length} active modules ·{" "}
+                {templateConfig.visibility === "private_invite"
+                  ? "Private invite-only (hidden from Discover)"
+                  : "Public Discover listing"}
+              </p>
+            </div>
+            <SecondaryButton className="w-auto px-4" onClick={() => setEditorTab("template")}>
+              <Palette size={15} aria-hidden /> Open Template Editor
+            </SecondaryButton>
+          </div>
 
-      <Section title="Actions" id="org-actions">
-        <div className="ios-group">
-          <button
-            type="button"
-            disabled={saveState === "saving"}
-            className="ios-row w-full text-left disabled:opacity-50"
-            onClick={() => void duplicateEdition()}
-          >
-            <RowText
-              title="Duplicate for next edition"
-              subtitle="Keeps venue, rules, zones and site plan; clears dates and program"
-            />
-            <Chevron />
-          </button>
-          <button type="button" className="ios-row w-full text-left" onClick={exportProgramJson}>
-            <RowText title={`Export ${terms.program.toLowerCase()} JSON`} />
-            <Chevron />
-          </button>
-          {event.status !== "published" && (
-            <button
-              type="button"
-              className="ios-row w-full text-left text-destructive"
-              onClick={() => setSheet("delete")}
-            >
-              <RowText title="Delete draft" />
-              <Chevron />
-            </button>
+          <Section title="Review details" id="org-review-rows">
+            <div className="eb-list">
+              <button
+                type="button"
+                className="eb-row w-full text-left"
+                onClick={() => setSheet("basics")}
+              >
+                <RowText
+                  title="Event basics & rules"
+                  subtitle={`${startDate || "Add date"} · ${venue || "Add venue"}${gatesOpen ? ` · Gates ${gatesOpen}` : ""}`}
+                />
+                <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row w-full text-left"
+                onClick={() => setSheet("program")}
+              >
+                <RowText
+                  title={terms.program}
+                  subtitle={
+                    program.length
+                      ? `${program.length} ${terms.people.toLowerCase()} added`
+                      : `Add ${terms.people.toLowerCase()}`
+                  }
+                />
+                <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row w-full text-left"
+                onClick={() => setSheet("site-plan")}
+              >
+                <RowText
+                  title="Site plan"
+                  subtitle={
+                    event.site_plan_path
+                      ? "Uploaded — tap to view, rotate or replace"
+                      : eventType === "festival"
+                        ? "Required before publishing (≥2000px)"
+                        : "Optional for this event type"
+                  }
+                />
+                <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row w-full text-left"
+                onClick={() => setSheet("zones")}
+              >
+                <RowText
+                  title={`Venue zones & ${terms.places.toLowerCase()}`}
+                  subtitle={
+                    zones.length
+                      ? `${zones.length} mapped points`
+                      : "Add stages, bars, gates or medics"
+                  }
+                />
+                <Chevron />
+              </button>
+              <button
+                type="button"
+                className="eb-row w-full text-left"
+                onClick={() => setSheet("bar-menus")}
+              >
+                <RowText
+                  title="Bar drinks menu"
+                  subtitle={
+                    barItems.length
+                      ? `${barItems.length} confirmed drinks published`
+                      : "Optional · bars show Sample Menu until configured"
+                  }
+                />
+                <Chevron />
+              </button>
+            </div>
+          </Section>
+
+          {readinessIssues.length > 0 && (
+            <Section title="Readiness checks" id="org-readiness-checks">
+              <div className="eb-list">
+                {readinessIssues.map((issue) => (
+                  <div key={issue.id} className="eb-row items-start py-3">
+                    <RowText
+                      title={
+                        <span
+                          className={
+                            issue.severity === "warning"
+                              ? "font-semibold text-warning"
+                              : "font-medium"
+                          }
+                        >
+                          {issue.title}
+                        </span>
+                      }
+                      subtitle={issue.detail}
+                    />
+                  </div>
+                ))}
+              </div>
+            </Section>
           )}
-        </div>
-      </Section>
+
+          <Section title="Publish" id="org-publish">
+            <div className="eb-panel space-y-3 p-4 sm:p-5">
+              {event.status === "published" ? (
+                <>
+                  <p className="text-[15px]">
+                    Marked published
+                    {event.published_at ? ` on ${event.published_at.slice(0, 10)}` : ""}.{" "}
+                    {templateConfig.visibility === "private_invite"
+                      ? "Private invite-only link (excluded from public Discover)."
+                      : "Visible in public Discover and direct event link."}
+                  </p>
+                  <SecondaryButton onClick={() => setSheet("unpublish")}>Unpublish</SecondaryButton>
+                </>
+              ) : (
+                <>
+                  {blockers.length > 0 && (
+                    <ul className="list-disc space-y-1 pl-5 text-[14px] text-muted-foreground">
+                      {blockers.map((b) => (
+                        <li key={b}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <PrimaryButton disabled={blockers.length > 0} onClick={() => setSheet("publish")}>
+                    Publish event
+                  </PrimaryButton>
+                </>
+              )}
+            </div>
+          </Section>
+
+          <Section title="Actions" id="org-actions">
+            <div className="eb-list">
+              <button
+                type="button"
+                disabled={saveState === "saving"}
+                className="eb-row w-full text-left disabled:opacity-50"
+                onClick={() => void duplicateEdition()}
+              >
+                <RowText
+                  title="Duplicate for next edition"
+                  subtitle="Keeps template, venue, rules, zones and site plan; clears dates and program"
+                />
+                <Chevron />
+              </button>
+              <button type="button" className="eb-row w-full text-left" onClick={exportProgramJson}>
+                <RowText title={`Export ${terms.program.toLowerCase()} JSON`} />
+                <Chevron />
+              </button>
+              {event.status !== "published" && (
+                <button
+                  type="button"
+                  className="eb-row w-full text-left text-destructive"
+                  onClick={() => setSheet("delete")}
+                >
+                  <RowText title="Delete draft" />
+                  <Chevron />
+                </button>
+              )}
+            </div>
+          </Section>
+        </>
+      )}
 
       {sheet === "basics" && (
         <Sheet title="Event basics & rules" onClose={() => setSheet(null)}>
           <form onSubmit={(e) => void saveBasics(e)} className="space-y-4">
-            <label className="block text-[15px] font-semibold">
+            <label className="block text-[14px] font-semibold">
               Event name
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={160}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </label>
-            <label className="block text-[15px] font-semibold">
+            <label className="block text-[14px] font-semibold">
               Event type
               <select
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={eventType}
                 onChange={(e) => setEventType(e.target.value as EventType)}
               >
@@ -594,50 +816,50 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               </select>
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block text-[15px] font-semibold">
+              <label className="block text-[14px] font-semibold">
                 Start date
                 <input
                   type="date"
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </label>
-              <label className="block text-[15px] font-semibold">
+              <label className="block text-[14px] font-semibold">
                 End date
                 <input
                   type="date"
-                  className="ios-field mt-1"
+                  className="eb-field mt-1"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
               </label>
             </div>
-            <label className="block text-[15px] font-semibold">
+            <label className="block text-[14px] font-semibold">
               Venue
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={200}
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
               />
             </label>
-            <label className="block text-[15px] font-semibold">
+            <label className="block text-[14px] font-semibold">
               Gates open
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={20}
                 placeholder="12:00"
                 value={gatesOpen}
                 onChange={(e) => setGatesOpen(e.target.value)}
               />
             </label>
-            <label className="block text-[15px] font-semibold">
+            <label className="block text-[14px] font-semibold">
               Entry rules
               <textarea
                 rows={4}
                 maxLength={2000}
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={entryRules}
                 onChange={(e) => setEntryRules(e.target.value)}
               />
@@ -653,10 +875,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         <Sheet title={terms.program} onClose={() => setSheet(null)}>
           <div className="space-y-4">
             {program.map((item, idx) => (
-              <div key={idx} className="ios-card space-y-2 p-3">
+              <div key={idx} className="eb-panel space-y-2.5 p-3.5">
                 <input
                   aria-label={`${terms.people} item ${idx + 1} name`}
-                  className="ios-field"
+                  className="eb-field"
                   value={item.title}
                   placeholder="Artist, speaker or session"
                   onChange={(e) =>
@@ -668,7 +890,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input
                     aria-label={`Item ${idx + 1} place`}
-                    className="ios-field"
+                    className="eb-field"
                     value={item.place}
                     placeholder={terms.places}
                     onChange={(e) =>
@@ -679,7 +901,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                   />
                   <input
                     aria-label={`Item ${idx + 1} time`}
-                    className="ios-field"
+                    className="eb-field"
                     value={item.time}
                     placeholder="HH:MM (optional)"
                     onChange={(e) =>
@@ -728,7 +950,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <div className="flex items-center gap-2">
                   <select
                     aria-label={`Item ${idx + 1} status`}
-                    className="ios-field flex-1"
+                    className="eb-field flex-1"
                     value={item.status}
                     onChange={(e) =>
                       setProgram((prev) =>
@@ -837,14 +1059,13 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               </p>
             )}
 
-            {/* Orientation rotation control (0°, 90°, 180°, 270°) */}
-            <div className="flex items-center justify-between rounded-xl bg-secondary px-3.5 py-2.5">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-secondary px-3.5 py-2.5">
               <span className="text-[14px] font-medium">
                 Rotation before upload: <strong>{sitePlanRotation}°</strong>
               </span>
               <button
                 type="button"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-popover px-3 text-[14px] font-semibold"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[14px] font-semibold"
                 onClick={() =>
                   setSitePlanRotation(((sitePlanRotation + 90) % 360) as SitePlanRotation)
                 }
@@ -854,7 +1075,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             </div>
 
             {uploadProgress && (
-              <div role="status" className="space-y-1.5 rounded-xl bg-popover p-3">
+              <div role="status" className="eb-panel space-y-1.5 p-3">
                 <div className="flex items-center justify-between text-[13px] font-medium">
                   <span>{uploadProgress.label}</span>
                   <span className="tabular-nums">{uploadProgress.percent}%</span>
@@ -869,13 +1090,16 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             )}
 
             {error && (
-              <p role="alert" className="rounded-xl bg-warning-soft px-3.5 py-2.5 text-[14px]">
+              <p
+                role="alert"
+                className="rounded-xl border border-warning/40 bg-warning-soft px-3.5 py-2.5 text-[14px]"
+              >
                 {error}
               </p>
             )}
 
             <label
-              className={`ios-press flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground ${
+              className={`eb-press flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-4 text-[16px] font-semibold text-primary-foreground ${
                 saveState === "saving" ? "pointer-events-none opacity-50" : "cursor-pointer"
               }`}
             >
@@ -901,9 +1125,8 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               display + zoom layers automatically.
             </p>
 
-            {/* Option A — 3-Point GPS Calibration (affine transform pixel% <-> lat/lng) */}
             {sitePlanUrl && (
-              <details className="rounded-xl border border-border bg-popover p-3">
+              <details className="eb-panel p-3.5">
                 <summary className="min-h-11 cursor-pointer content-center text-[15px] font-semibold">
                   Calibrate GPS (3 reference points)
                 </summary>
@@ -943,7 +1166,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     </button>
                   )}
                   {calRefs.map((ref, idx) => (
-                    <div key={idx} className="space-y-1.5 rounded-lg bg-secondary/60 p-2.5">
+                    <div
+                      key={idx}
+                      className="space-y-1.5 rounded-lg border border-border bg-secondary/60 p-2.5"
+                    >
                       <div className="flex items-center justify-between text-[13px] font-semibold">
                         <span>
                           Point {idx + 1} ({ref.x}%, {ref.y}%)
@@ -961,7 +1187,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                           type="number"
                           step="0.0001"
                           aria-label={`Point ${idx + 1} latitude`}
-                          className="ios-field"
+                          className="eb-field"
                           value={ref.lat}
                           onChange={(e) =>
                             setCalRefs((prev) =>
@@ -975,7 +1201,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                           type="number"
                           step="0.0001"
                           aria-label={`Point ${idx + 1} longitude`}
-                          className="ios-field"
+                          className="eb-field"
                           value={ref.lng}
                           onChange={(e) =>
                             setCalRefs((prev) =>
@@ -1048,16 +1274,16 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             <label className="block text-[14px] font-semibold">
               Payment &amp; bar note
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={160}
                 value={barPaymentNote}
                 onChange={(e) => setBarPaymentNote(e.target.value)}
               />
             </label>
             {barItems.length > 0 && (
-              <div className="ios-group">
+              <div className="eb-list">
                 {barItems.map((drink) => (
-                  <div key={drink.id} className="ios-row justify-between py-2.5">
+                  <div key={drink.id} className="eb-row justify-between py-2.5">
                     <div>
                       <p className="text-[15px] font-semibold">{drink.name}</p>
                       <p className="text-[13px] text-muted-foreground">
@@ -1078,10 +1304,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 ))}
               </div>
             )}
-            <div className="space-y-2 rounded-2xl bg-popover p-3">
+            <div className="eb-panel space-y-2.5 p-3.5">
               <input
                 aria-label="Drink name"
-                className="ios-field"
+                className="eb-field"
                 placeholder="Drink name (e.g. Windhoek Lager 330ml)"
                 value={newDrinkName}
                 onChange={(e) => setNewDrinkName(e.target.value)}
@@ -1089,7 +1315,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <select
                   aria-label="Drink category"
-                  className="ios-field"
+                  className="eb-field"
                   value={newDrinkCat}
                   onChange={(e) => setNewDrinkCat(e.target.value as DrinkCategory)}
                 >
@@ -1101,7 +1327,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 </select>
                 <input
                   aria-label="Drink price (optional)"
-                  className="ios-field"
+                  className="eb-field"
                   placeholder="Price (optional, e.g. N$ 45)"
                   value={newDrinkPrice}
                   onChange={(e) => setNewDrinkPrice(e.target.value)}
@@ -1209,11 +1435,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             )}
 
             {zones.map((zone, idx) => (
-              <div key={idx} className="ios-card space-y-2 p-3">
+              <div key={idx} className="eb-panel space-y-2.5 p-3.5">
                 <div className="flex gap-2">
                   <input
                     aria-label={`Zone ${idx + 1} name`}
-                    className="ios-field flex-1"
+                    className="eb-field flex-1"
                     value={zone.name}
                     placeholder="Main Stage, North Gate, Medics..."
                     onChange={(e) =>
@@ -1234,7 +1460,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <div className="flex items-center gap-2">
                   <select
                     aria-label={`Zone ${idx + 1} category`}
-                    className="ios-field flex-1"
+                    className="eb-field flex-1"
                     value={zone.type}
                     onChange={(e) =>
                       setZones((prev) =>
@@ -1253,10 +1479,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                   {sitePlanUrl && (
                     <button
                       type="button"
-                      className="min-h-11 rounded-xl bg-secondary px-3 text-[14px] font-semibold"
+                      className="min-h-11 rounded-full border border-border bg-secondary px-3 text-[13px] font-semibold"
                       onClick={() => setActiveZoneIndex(idx)}
                     >
-                      <MapPin size={15} className="mr-1 inline" />
+                      <MapPin size={14} className="mr-1 inline" />
                       {zone.x !== null && zone.y !== null ? `${zone.x}%, ${zone.y}%` : "Set pin"}
                     </button>
                   )}
@@ -1264,7 +1490,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <select
                     aria-label={`Zone ${idx + 1} access tier`}
-                    className="ios-field"
+                    className="eb-field"
                     value={zone.accessTier}
                     onChange={(e) =>
                       setZones((prev) =>
@@ -1283,7 +1509,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                   </select>
                   <select
                     aria-label={`Zone ${idx + 1} status`}
-                    className="ios-field"
+                    className="eb-field"
                     value={zone.status}
                     onChange={(e) =>
                       setZones((prev) =>
@@ -1300,7 +1526,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 </div>
                 <input
                   aria-label={`Zone ${idx + 1} vendor or facility note`}
-                  className="ios-field"
+                  className="eb-field"
                   maxLength={200}
                   value={zone.vendorNote}
                   placeholder="Menu, payment methods (card/cashless), or access notes…"
@@ -1348,14 +1574,21 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       {sheet === "publish" && (
         <Sheet title="Publish event?" onClose={() => setSheet(null)}>
           <div className="space-y-4">
-            <p className="text-[16px]">
-              Publishing makes this event’s details visible to attendees when synced. Confirm the
-              event name, date and site plan are accurate.
+            <p className="text-[15px]">
+              {templateConfig.visibility === "private_invite"
+                ? "Publishing activates this private invite-only event link. It remains hidden from public Discover, Search and Calendar feeds."
+                : "Publishing makes this event’s details visible to attendees in Discover and via its direct link. Confirm the event name, date and template look right."}
             </p>
             <PrimaryButton
               disabled={saveState === "saving"}
               onClick={async () => {
                 if (await savePatch({ status: "published" })) {
+                  saveStoredTemplateConfig(event.id, templateConfig);
+                  void saveOrganiserEventExtras({
+                    eventId: event.id,
+                    templateConfig,
+                    visibility: templateConfig.visibility,
+                  });
                   saveLocalPublishedEvent({
                     id: event.id,
                     eventType,
@@ -1375,6 +1608,8 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                       const c = readStoredMapCalibration(event.id);
                       return c ? { ...c, version: c.version ?? 1 } : null;
                     })(),
+                    templateConfig,
+                    visibility: templateConfig.visibility,
                     publishedAt: new Date().toISOString(),
                   });
                   setSheet(null);
@@ -1391,7 +1626,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       {sheet === "unpublish" && (
         <Sheet title="Unpublish event?" onClose={() => setSheet(null)}>
           <div className="space-y-4">
-            <p className="text-[16px]">
+            <p className="text-[15px]">
               Unpublishing returns this event to draft status. Attendees keep their existing crew
               records.
             </p>
@@ -1414,7 +1649,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       {sheet === "delete" && (
         <Sheet title="Delete draft?" onClose={() => setSheet(null)}>
           <div className="space-y-4">
-            <p className="text-[16px]">This permanently deletes this unpublished draft.</p>
+            <p className="text-[15px]">This permanently deletes this unpublished draft.</p>
             <PrimaryButton
               className="bg-destructive"
               disabled={saveState === "saving"}

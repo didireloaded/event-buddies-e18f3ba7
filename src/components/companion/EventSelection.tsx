@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, MapPin, Clock, ArrowUpRight, Heart } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Clock,
+  ArrowUpRight,
+  Heart,
+  Users,
+  UserPlus,
+  Trash2,
+  Compass,
+  Ticket,
+  Lock,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { useEvent } from "@/context/EventContext";
 import { formatEventDate, formatEventHours } from "@/lib/attendee/event-clock";
@@ -16,14 +28,21 @@ import {
   storageKey,
 } from "@/lib/attendee/use-attendee";
 import {
+  addGlobalBuddy,
+  readGlobalBuddies,
+  removeGlobalBuddy,
+  type GlobalBuddy,
+} from "@/lib/crew/buddies";
+import {
   listPublishedOrganiserEvents,
   type PublishedOrganiserEvent,
 } from "@/lib/organiser/cloud-extensions";
 import { organiserEventToDemoData, readLocalPublishedEvents } from "@/lib/organiser/event-adapter";
+import { resolveEventTemplate } from "@/lib/templates/event-templates";
 import type { DemoData } from "@/lib/event/types";
-import { useCompanion } from "./context";
+import { initials, useCompanion } from "./context";
 import { Sheet } from "./Sheet";
-import { PrimaryButton, Segmented, SearchField } from "./ui";
+import { Avatar, EmptyState, PrimaryButton, Segmented, SearchField } from "./ui";
 
 function toLocalNoonDate(d: Date, tz: string): Date {
   return new Date(
@@ -47,14 +66,27 @@ function eventSpansDate(demo: DemoData, target: Date | undefined): boolean {
   return t >= start && t <= end;
 }
 
+function isPrivateEvent(demo: DemoData): boolean {
+  const vis = demo.event.visibility ?? demo.event.templateConfig?.visibility;
+  return vis === "private_invite";
+}
+
 export function EventSelection() {
-  const { data, attendee, navigate, now } = useCompanion();
+  const { data, attendee, navigate, now, allTicketsCount, openSheet } = useCompanion();
   const { availableEvents, selectEvent } = useEvent();
-  const [preview, setPreview] = useState(false);
-  const [mode, setMode] = useState<"browse" | "mine" | "calendar">("browse");
+  const [previewEvent, setPreviewEvent] = useState<DemoData | null>(null);
+  const [mode, setMode] = useState<"browse" | "mine" | "buddies" | "calendar">("browse");
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [extraEvents, setExtraEvents] = useState<PublishedOrganiserEvent[]>([]);
+  const [buddies, setBuddies] = useState<GlobalBuddy[]>([]);
+  const [addingBuddy, setAddingBuddy] = useState(false);
+  const [buddyName, setBuddyName] = useState("");
+  const [buddyHandle, setBuddyHandle] = useState("");
+
+  useEffect(() => {
+    setBuddies(readGlobalBuddies());
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -86,13 +118,19 @@ export function EventSelection() {
     return [...map.values()];
   }, [availableEvents, extraEvents]);
 
+  // Public discovery strictly excludes private invite-only events (Private Celebration, Wedding, etc.)
+  const publicDemos = useMemo(
+    () => allPublishedDemos.filter((demo) => !isPrivateEvent(demo)),
+    [allPublishedDemos],
+  );
+
   const categories = useMemo(() => {
     const unique = new Set<string>(["All"]);
-    for (const demo of allPublishedDemos) {
+    for (const demo of publicDemos) {
       if (demo.event.category) unique.add(demo.event.category);
     }
     return [...unique];
-  }, [allPublishedDemos]);
+  }, [publicDemos]);
 
   const eventDay = useMemo(
     () =>
@@ -102,10 +140,9 @@ export function EventSelection() {
     [data.event.dateConfirmed, data.event.startAt, data.event.timezone],
   );
 
-  // Mark every confirmed published event's date(s) on the calendar (multi-event calendar support!)
   const allEventDays = useMemo(() => {
     const days: Date[] = [];
-    for (const demo of allPublishedDemos) {
+    for (const demo of publicDemos) {
       if (demo.event.dateConfirmed === false) continue;
       const start = toLocalNoonDate(demo.event.startAt, demo.event.timezone);
       const end = toLocalNoonDate(demo.event.endAt, demo.event.timezone);
@@ -114,7 +151,7 @@ export function EventSelection() {
       }
     }
     return days;
-  }, [allPublishedDemos]);
+  }, [publicDemos]);
 
   const [selected, setSelected] = useState<Date | undefined>(eventDay);
   const [month, setMonth] = useState(eventDay);
@@ -187,7 +224,7 @@ export function EventSelection() {
     }
   };
 
-  const otherDemos = allPublishedDemos
+  const otherDemos = (mode === "mine" ? allPublishedDemos : publicDemos)
     .filter((demo) => demo.event.id !== data.event.id)
     .filter((demo) => (mode === "mine" ? isDemoSavedLocally(demo) : true))
     .filter((demo) => categoryFilter === "All" || demo.event.category === categoryFilter)
@@ -202,68 +239,77 @@ export function EventSelection() {
     attendee.preferences.following ||
     attendee.preferences.collections.length > 0 ||
     attendee.preferences.selectedEventId === data.event.id;
+  const primaryPublic = !isPrivateEvent(data);
   const primaryVisible =
-    (mode === "browse" || (mode === "mine" ? isPrimarySaved : matches)) &&
+    (mode === "mine" ? isPrimarySaved : primaryPublic && (mode === "browse" || matches)) &&
     searchMatch &&
     categoryMatchesPrimary;
-  const featuredPreview = selectFeaturedParticipants(data);
-  const terms = getEventCategoryTerms(data.event.category);
-  const ticketUrl = data.event.ticketUrl || data.festival.ticketUrl;
-  const ticketProvider = getTicketProviderName(ticketUrl);
+
+  const terms = getEventCategoryTerms(data.event.category, data.event.templateConfig);
   const hasDistinctRelatedEvent =
     Boolean(data.festival.relatedEvent.name) &&
     data.festival.relatedEvent.name !== data.event.name &&
     data.festival.relatedEvent.url.startsWith("http");
 
+  const activePreview = previewEvent;
+  const previewFeatured = activePreview ? selectFeaturedParticipants(activePreview) : [];
+  const previewTicketUrl = activePreview
+    ? activePreview.event.ticketUrl || activePreview.festival.ticketUrl
+    : "";
+  const previewTicketProvider = getTicketProviderName(previewTicketUrl);
+  const previewDate = activePreview
+    ? formatEventDate(activePreview.event, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+  const previewHours = activePreview ? formatEventHours(activePreview.event) : "";
+
   return (
-    <div className="event-discovery px-4 pt-3">
-      <div className="mb-5">
-        <p className="mb-1.5 text-[15px] font-medium text-muted-foreground">Event Buddies</p>
-        <h1 className="ios-large-title">Choose your event</h1>
-      </div>
-
-      <div className="mb-3">
-        <SearchField
-          id="event-search"
-          label="Search events, artists or venues"
-          placeholder="Event, artist, city or venue"
-          value={query}
-          onChange={setQuery}
-        />
-      </div>
-
-      {/* Category filters working together with search & calendar */}
-      {categories.length > 1 && (
-        <div
-          className="scrollbar-none mb-3 flex gap-2 overflow-x-auto py-1"
-          role="group"
-          aria-label="Filter events by category"
-        >
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className="ios-chip"
-              aria-pressed={categoryFilter === cat}
-              onClick={() => setCategoryFilter(cat)}
-            >
-              {cat}
-            </button>
-          ))}
+    <div className="event-discovery px-4 pt-4">
+      {/* Global Event Buddies Masthead — deliberately distinct warm editorial paper identity */}
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="eb-kicker flex items-center gap-1.5 text-primary">
+            <Compass size={13} aria-hidden />
+            {data.event.city}, {data.event.country}
+          </p>
+          <h1 className="eb-page-title mt-1">
+            {mode === "mine"
+              ? "My Events"
+              : mode === "buddies"
+                ? "Buddies"
+                : mode === "calendar"
+                  ? "Calendar"
+                  : "Discover"}
+          </h1>
         </div>
-      )}
+        {allTicketsCount > 0 && (
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "ticket" })}
+            className="eb-chip text-[14px]"
+          >
+            <Ticket size={15} aria-hidden /> {allTicketsCount}{" "}
+            {allTicketsCount === 1 ? "pass" : "passes"}
+          </button>
+        )}
+      </div>
 
+      {/* Global Platform 4-Section Switcher (Discover · My Events · Buddies · Calendar) */}
       <Segmented
         label="Event discovery view"
         value={mode}
         options={[
           { value: "browse", label: "Explore" },
           { value: "mine", label: "My Events" },
+          { value: "buddies", label: "Buddies" },
           {
             value: "calendar",
             label: (
               <>
-                <CalendarDays size={17} className="mr-1.5 inline" />
+                <CalendarDays size={15} className="mr-1 inline" />
                 Calendar
               </>
             ),
@@ -272,316 +318,562 @@ export function EventSelection() {
         onChange={setMode}
       />
 
-      {mode === "calendar" && (
-        <section
-          className="event-calendar mt-5 rounded-[20px] bg-popover p-2"
-          aria-label="Upcoming events calendar"
-        >
-          <Calendar
-            mode="single"
-            weekStartsOn={1}
-            selected={selected}
-            onSelect={setSelected}
-            month={month}
-            onMonthChange={setMonth}
-            modifiers={{ event: allEventDays }}
-            modifiersClassNames={{ event: "calendar-event-day" }}
-            classNames={{
-              day: "group/day relative h-11 min-w-0 flex-1 select-none p-0 text-center",
-            }}
-            className="w-full bg-transparent p-1 [--cell-size:2.75rem]"
-          />
-        </section>
-      )}
+      {mode === "buddies" ? (
+        <section className="mt-6 space-y-5" aria-label="Your global buddies">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="eb-section-heading">Your Event Buddies</h2>
+              <p className="mt-0.5 text-[14px] text-muted-foreground">
+                Friends you attend events with. Invite them into any event crew in one tap.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAddingBuddy((prev) => !prev)}
+              className="eb-press inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+            >
+              <UserPlus size={16} aria-hidden /> Add buddy
+            </button>
+          </div>
 
-      <div className="mb-3 mt-6 flex items-center justify-between">
-        <h2 className="text-[20px] font-semibold">
-          {mode === "calendar"
-            ? "On this date"
-            : mode === "mine"
-              ? "My saved events"
-              : ended
-                ? "Past events"
-                : "Coming up"}
-        </h2>
-        {mode === "browse" && (
-          <span className="text-[14px] text-muted-foreground">{data.event.city}</span>
-        )}
-      </div>
+          {addingBuddy && (
+            <form
+              className="eb-panel space-y-3 p-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (buddyName.trim().length < 2) return;
+                setBuddies(
+                  addGlobalBuddy({
+                    name: buddyName,
+                    handle: buddyHandle,
+                    lastEventName: data.event.name,
+                  }),
+                );
+                setBuddyName("");
+                setBuddyHandle("");
+                setAddingBuddy(false);
+                attendee.notify("Buddy saved to your global list");
+              }}
+            >
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <input
+                  aria-label="Buddy name"
+                  className="eb-field"
+                  maxLength={50}
+                  placeholder="Friend’s name"
+                  value={buddyName}
+                  onChange={(e) => setBuddyName(e.target.value)}
+                />
+                <input
+                  aria-label="Buddy handle (optional)"
+                  className="eb-field"
+                  maxLength={30}
+                  placeholder="@handle (optional)"
+                  value={buddyHandle}
+                  onChange={(e) => setBuddyHandle(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <PrimaryButton type="submit" disabled={buddyName.trim().length < 2}>
+                  Save buddy
+                </PrimaryButton>
+                <button
+                  type="button"
+                  onClick={() => setAddingBuddy(false)}
+                  className="min-h-11 px-4 text-[15px] font-medium text-muted-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
 
-      {primaryVisible ? (
-        <button
-          type="button"
-          className="discovery-event-card ios-press relative block w-full overflow-hidden rounded-[28px] bg-gradient-to-br from-[#16232b] via-[#133842] to-[#0d1419] text-left"
-          onClick={() => setPreview(true)}
-          aria-label={`Preview ${data.event.name}`}
-        >
-          {data.event.heroImageUrl && (
-            <img
-              src={data.event.heroImageUrl}
-              alt={`${data.event.name} crowd`}
-              width={1200}
-              height={800}
-              decoding="async"
-              className="absolute inset-0 h-full w-full object-cover"
+          {buddies.length > 0 ? (
+            <ul className="eb-list">
+              {buddies.map((b, idx) => (
+                <li key={b.id} className="eb-row justify-between py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar label={initials(b.name)} index={idx + 1} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[16px] font-semibold">{b.name}</p>
+                      <p className="truncate text-[14px] text-muted-foreground">
+                        @{b.handle}
+                        {b.lastEventName ? ` · ${b.lastEventName}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => navigate("crew")}
+                      className="min-h-11 rounded-full border border-border px-3 text-[13px] font-semibold text-foreground"
+                    >
+                      Crew
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${b.name} from buddies`}
+                      onClick={() => setBuddies(removeGlobalBuddy(b.id))}
+                      className="grid size-11 place-items-center text-destructive"
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="No buddies saved yet"
+              detail="Add the friends you usually go to concerts, festivals or summits with so crew invites take one tap."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setAddingBuddy(true)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground"
+                >
+                  <UserPlus size={16} aria-hidden /> Add your first buddy
+                </button>
+              }
             />
           )}
-          <span className="discovery-date absolute left-4 top-4 rounded-full px-4 py-2 text-[14px] font-semibold">
-            {date}
-          </span>
-          <span className="discovery-card-glass absolute inset-x-3 bottom-3 rounded-[22px] p-5">
-            <span className="mb-2 block text-[14px] font-medium">
-              {data.event.category}
-              {data.stages.length > 0
-                ? ` · ${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()}`
-                : ""}
-            </span>
-            <span className="block text-[30px] leading-9 font-bold">{data.event.name}</span>
-            <span className="mt-3 flex items-start gap-2 text-[15px]">
-              <MapPin size={17} className="mt-0.5 flex-none" />
-              {data.event.venueName}
-            </span>
-            <span className="mt-2 flex items-center gap-2 text-[15px]">
-              <Clock size={17} />
-              {hours}
-            </span>
-            <span className="mt-5 flex min-h-11 items-center justify-between border-t border-white/25 pt-3 text-[17px] font-semibold">
-              View event <ArrowUpRight size={21} />
-            </span>
-          </span>
-        </button>
-      ) : otherDemos.length === 0 ? (
-        <div className="rounded-2xl bg-popover p-5">
-          <p className="text-[17px] font-medium">
-            {mode === "mine"
-              ? "No saved events yet."
-              : searchMatch && categoryMatchesPrimary
-                ? "No published events on this date."
-                : "No matching published events."}
-          </p>
-          <button
-            type="button"
-            className="mt-3 min-h-11 text-[17px] font-semibold text-favorite"
-            onClick={() => {
-              if (mode === "mine") setMode("browse");
-              setMonth(eventDay);
-              setSelected(eventDay);
-              setQuery("");
-              setCategoryFilter("All");
-            }}
-          >
-            Show {data.event.name}
-          </button>
-        </div>
-      ) : null}
+        </section>
+      ) : (
+        <>
+          <div className="mt-4 space-y-3">
+            <SearchField
+              id="event-search"
+              label="Search events, artists or venues"
+              placeholder="Search events, speakers, artists or venues"
+              value={query}
+              onChange={setQuery}
+            />
 
-      {preview && (
-        <Sheet title={data.event.name} onClose={() => setPreview(false)}>
-          <div className="event-preview-facts space-y-4">
-            {data.event.heroImageUrl && (
-              <div className="overflow-hidden rounded-2xl bg-foreground">
+            {categories.length > 1 && (
+              <div
+                className="scrollbar-none flex gap-2 overflow-x-auto py-0.5"
+                role="group"
+                aria-label="Filter events by category"
+              >
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className="eb-chip"
+                    aria-pressed={categoryFilter === cat}
+                    onClick={() => setCategoryFilter(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {mode === "calendar" && (
+            <section
+              className="event-calendar eb-panel mt-5 p-2"
+              aria-label="Upcoming events calendar"
+            >
+              <Calendar
+                mode="single"
+                weekStartsOn={1}
+                selected={selected}
+                onSelect={setSelected}
+                month={month}
+                onMonthChange={setMonth}
+                modifiers={{ event: allEventDays }}
+                modifiersClassNames={{ event: "calendar-event-day" }}
+                classNames={{
+                  day: "group/day relative h-11 min-w-0 flex-1 select-none p-0 text-center",
+                }}
+                className="w-full bg-transparent p-1 [--cell-size:2.75rem]"
+              />
+            </section>
+          )}
+
+          <div className="mb-3 mt-6 flex items-baseline justify-between gap-2">
+            <h2 className="eb-section-heading">
+              {mode === "calendar"
+                ? "On this date"
+                : mode === "mine"
+                  ? "My saved events"
+                  : ended
+                    ? "Past events"
+                    : "Featured event"}
+            </h2>
+            {mode === "browse" && (
+              <span className="text-[14px] text-muted-foreground">
+                {publicDemos.length} published {publicDemos.length === 1 ? "event" : "events"}
+              </span>
+            )}
+          </div>
+
+          {primaryVisible ? (
+            <article className="overflow-hidden rounded-2xl border border-border bg-[#121417] text-white">
+              <button
+                type="button"
+                className="eb-press relative block w-full text-left"
+                onClick={() => setPreviewEvent(data)}
+                aria-label={`Preview ${data.event.name}`}
+              >
+                <div className="relative h-[320px] w-full overflow-hidden bg-gradient-to-br from-[#16232b] via-[#133842] to-[#0d1419] sm:h-[380px]">
+                  {data.event.heroImageUrl && (
+                    <img
+                      src={data.event.heroImageUrl}
+                      alt={`${data.event.name} crowd`}
+                      width={1200}
+                      height={800}
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
+                  )}
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-gradient-to-t from-[#0d0f12] via-[#0d0f12]/45 to-black/20"
+                  />
+                  <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-black/70 px-3 py-1 text-[13px] font-semibold text-white">
+                      {date}
+                    </span>
+                    <span className="rounded-full bg-primary px-3 py-1 text-[13px] font-semibold text-primary-foreground">
+                      {data.event.category}
+                    </span>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                    <p className="text-[13px] font-semibold uppercase tracking-wider text-white/75">
+                      {data.festival.organiser}
+                      {data.stages.length > 0
+                        ? ` · ${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()}`
+                        : ""}
+                    </p>
+                    <h3 className="eb-display mt-1 text-[32px] leading-[1.02] text-white sm:text-[38px]">
+                      {data.event.name}
+                    </h3>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-white/90">
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPin size={15} aria-hidden />
+                        {data.event.venueName}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock size={15} aria-hidden />
+                        {hours}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3 text-[15px] font-semibold text-white">
+                      <span>View event details</span>
+                      <ArrowUpRight size={18} aria-hidden />
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </article>
+          ) : otherDemos.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title={
+                mode === "mine"
+                  ? "No saved events yet."
+                  : searchMatch && categoryMatchesPrimary
+                    ? "No published events on this date."
+                    : "No matching published events."
+              }
+              detail={
+                mode === "mine"
+                  ? "Explore published festivals, conferences and live events to save them to your collection."
+                  : "Try clearing your filters or jump back to the next confirmed date."
+              }
+              action={
+                <button
+                  type="button"
+                  className="min-h-11 rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
+                  onClick={() => {
+                    if (mode === "mine") setMode("browse");
+                    setMonth(eventDay);
+                    setSelected(eventDay);
+                    setQuery("");
+                    setCategoryFilter("All");
+                  }}
+                >
+                  Show {data.event.name}
+                </button>
+              }
+            />
+          ) : null}
+
+          {/* Hairline Upcoming / Additional Published Events (Distinct from Featured cover!) */}
+          {otherDemos.length > 0 && (
+            <section className="mt-7 space-y-2" aria-label="Additional published events">
+              <h2 className="eb-section-heading">
+                {mode === "mine" ? "Saved & invited" : "More upcoming events"}
+              </h2>
+              <div className="eb-list">
+                {otherDemos.map((demo) => {
+                  const resolved = resolveEventTemplate({
+                    category: demo.event.category,
+                    templateConfig: demo.event.templateConfig,
+                  });
+                  const isPrivate = isPrivateEvent(demo);
+                  return (
+                    <div
+                      key={demo.event.id}
+                      className="eb-row flex-wrap items-center justify-between gap-3 py-3.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEvent(demo)}
+                        className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
+                      >
+                        <div className="grid size-14 flex-none place-items-center overflow-hidden rounded-xl border border-border bg-secondary text-[13px] font-bold text-foreground">
+                          {demo.event.heroImageUrl ? (
+                            <img
+                              src={demo.event.heroImageUrl}
+                              alt=""
+                              width={56}
+                              height={56}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="eb-display text-[17px]">
+                              {initials(demo.event.name)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-primary">
+                            <span>{demo.event.category}</span>
+                            {isPrivate && (
+                              <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                                · <Lock size={11} aria-hidden /> Invite only
+                              </span>
+                            )}
+                          </div>
+                          <p className="truncate text-[17px] font-bold text-foreground">
+                            {demo.event.name}
+                          </p>
+                          <p className="truncate text-[14px] text-muted-foreground">
+                            {formatEventDate(demo.event, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}{" "}
+                            · {demo.event.venueName}
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="eb-press min-h-11 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+                        onClick={() => openPublishedEvent(demo)}
+                      >
+                        {resolved.definition.terms.isPrivateLike ? "Open invite" : "I’m going"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {hasDistinctRelatedEvent && mode === "browse" && (
+            <section className="mt-7 space-y-2.5" aria-label="Organiser and related coastal event">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="eb-section-heading">From {data.festival.organiser}</h2>
+                <button
+                  type="button"
+                  aria-pressed={attendee.preferences.followedOrganisers.includes(
+                    data.festival.organiser,
+                  )}
+                  onClick={() => {
+                    const followed = attendee.preferences.followedOrganisers.includes(
+                      data.festival.organiser,
+                    );
+                    const next = followed
+                      ? attendee.preferences.followedOrganisers.filter(
+                          (o) => o !== data.festival.organiser,
+                        )
+                      : [...attendee.preferences.followedOrganisers, data.festival.organiser];
+                    if (attendee.update({ followedOrganisers: next })) {
+                      attendee.notify(
+                        followed
+                          ? `Unfollowed ${data.festival.organiser}`
+                          : `Following ${data.festival.organiser} on this device`,
+                      );
+                    }
+                  }}
+                  className="eb-chip text-[13px]"
+                >
+                  {attendee.preferences.followedOrganisers.includes(data.festival.organiser)
+                    ? "Following"
+                    : "Follow organiser"}
+                </button>
+              </div>
+              <div className="eb-list">
+                <div className="eb-row justify-between py-3">
+                  <div className="min-w-0">
+                    <p className="text-[16px] font-semibold">{data.festival.relatedEvent.name}</p>
+                    <p className="text-[14px] text-muted-foreground">
+                      {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
+                    </p>
+                  </div>
+                  {data.festival.relatedEvent.url && (
+                    <a
+                      href={data.festival.relatedEvent.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 flex-none items-center gap-1 text-[14px] font-semibold text-primary"
+                    >
+                      Details <ArrowUpRight size={15} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {/* Complete Event Detail Preview Sheet */}
+      {activePreview && (
+        <Sheet title={activePreview.event.name} onClose={() => setPreviewEvent(null)}>
+          <div className="event-preview-facts space-y-5">
+            {activePreview.event.heroImageUrl && (
+              <div className="overflow-hidden rounded-xl bg-foreground">
                 <img
-                  src={data.event.heroImageUrl}
-                  alt={`${data.event.name}`}
+                  src={activePreview.event.heroImageUrl}
+                  alt={activePreview.event.name}
                   width={800}
                   height={450}
                   decoding="async"
-                  className="h-44 w-full object-cover"
+                  className="h-48 w-full object-cover"
                 />
               </div>
             )}
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">
-                  {data.event.category} · {data.festival.organiser}
+              <div className="min-w-0">
+                <p className="eb-kicker text-primary">
+                  {activePreview.event.category} · {activePreview.festival.organiser}
                 </p>
-                <p className="mt-1 border-l-4 border-favorite pl-3 text-[20px] font-semibold">
-                  {data.event.venueName}
+                <p className="mt-1 text-[20px] font-bold leading-snug">
+                  {activePreview.event.venueName}
                 </p>
               </div>
-              <button
-                type="button"
-                aria-label="Save event"
-                aria-pressed={attendee.preferences.following}
-                onClick={attendee.toggleFollow}
-                className="ios-press grid size-11 flex-none place-items-center rounded-full bg-popover text-favorite ring-1 ring-border"
-              >
-                <Heart size={20} fill={attendee.preferences.following ? "currentColor" : "none"} />
-              </button>
+              {activePreview.event.id === data.event.id && (
+                <button
+                  type="button"
+                  aria-label="Save event"
+                  aria-pressed={attendee.preferences.following}
+                  onClick={attendee.toggleFollow}
+                  className="eb-press grid size-11 flex-none place-items-center rounded-full border border-border bg-card text-primary"
+                >
+                  <Heart
+                    size={20}
+                    fill={attendee.preferences.following ? "currentColor" : "none"}
+                  />
+                </button>
+              )}
             </div>
+
             <p className="text-[15px] leading-relaxed text-muted-foreground">
-              {data.event.description}
+              {activePreview.event.description}
             </p>
-            <p className="flex items-center gap-3 text-[17px]">
-              <CalendarDays size={21} className="text-favorite" />
-              {date}
-            </p>
-            <p className="flex items-center gap-3 text-[17px]">
-              <Clock size={21} className="text-favorite" />
-              {hours}
-            </p>
-            {featuredPreview.length > 0 && (
-              <div className="rounded-xl bg-secondary/70 p-3 text-[14px]">
-                <p className="font-semibold">Featured highlights</p>
+
+            <div className="eb-list">
+              <p className="eb-row py-2.5 text-[15px]">
+                <CalendarDays size={18} className="text-primary" aria-hidden />
+                <span>{previewDate}</span>
+              </p>
+              <p className="eb-row py-2.5 text-[15px]">
+                <Clock size={18} className="text-primary" aria-hidden />
+                <span>{previewHours}</span>
+              </p>
+            </div>
+
+            {previewFeatured.length > 0 && (
+              <div className="border-l-2 border-primary pl-3.5 text-[14px]">
+                <p className="font-semibold text-foreground">Featured highlights</p>
                 <p className="mt-0.5 text-muted-foreground">
-                  {featuredPreview.map((p) => p.name).join(" · ")}
+                  {previewFeatured.map((p) => p.name).join(" · ")}
                 </p>
               </div>
             )}
-            <p className="text-[15px] text-muted-foreground">
-              {data.festival.rules[0] ?? "Follow organiser entry rules at the gates."}
+
+            <p className="text-[14px] text-muted-foreground">
+              {activePreview.festival.rules[0] ?? "Follow organiser entry rules at the gates."}
             </p>
-            <div>
-              <p className="mb-1.5 text-[14px] font-semibold">Save to collection</p>
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Event collections">
-                {EVENT_COLLECTIONS.map((col) => {
-                  const active = attendee.preferences.collections.includes(col);
-                  return (
-                    <button
-                      key={col}
-                      type="button"
-                      className="ios-chip"
-                      aria-pressed={active}
-                      onClick={() => {
-                        const next = active
-                          ? attendee.preferences.collections.filter((c) => c !== col)
-                          : [...attendee.preferences.collections, col];
-                        attendee.update({ collections: next });
-                      }}
-                    >
-                      {col}
-                    </button>
-                  );
-                })}
+
+            {activePreview.event.id === data.event.id && (
+              <div>
+                <p className="mb-2 text-[14px] font-semibold">Save to collection</p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Event collections">
+                  {EVENT_COLLECTIONS.map((col) => {
+                    const active = attendee.preferences.collections.includes(col);
+                    return (
+                      <button
+                        key={col}
+                        type="button"
+                        className="eb-chip"
+                        aria-pressed={active}
+                        onClick={() => {
+                          const next = active
+                            ? attendee.preferences.collections.filter((c) => c !== col)
+                            : [...attendee.preferences.collections, col];
+                          attendee.update({ collections: next });
+                        }}
+                      >
+                        {col}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
-                className="min-h-11 text-[16px] font-semibold underline"
-                onClick={() => downloadEventCalendar(data)}
+                className="min-h-11 text-[15px] font-semibold text-foreground underline underline-offset-4"
+                onClick={() => downloadEventCalendar(activePreview)}
               >
                 Add event to my calendar
               </button>
-              {ticketUrl && (
+              {previewTicketUrl && (
                 <a
-                  href={ticketUrl}
+                  href={previewTicketUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center gap-1 text-[16px] font-semibold text-primary"
+                  className="inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
                 >
-                  Buy tickets on {ticketProvider} <ArrowUpRight size={16} aria-hidden />
+                  Buy tickets on {previewTicketProvider} <ArrowUpRight size={16} aria-hidden />
                 </a>
               )}
             </div>
+
             <PrimaryButton
               onClick={() => {
-                if (
-                  attendee.update({
-                    selectedEventId: data.event.id,
-                    following: true,
-                    hasName: true,
-                    onboardingDone: true,
-                  })
-                ) {
-                  setPreview(false);
-                  navigate("home");
+                if (activePreview.event.id === data.event.id) {
+                  if (
+                    attendee.update({
+                      selectedEventId: data.event.id,
+                      following: true,
+                      hasName: true,
+                      onboardingDone: true,
+                    })
+                  ) {
+                    setPreviewEvent(null);
+                    navigate("home");
+                  }
+                } else {
+                  setPreviewEvent(null);
+                  openPublishedEvent(activePreview);
                 }
               }}
             >
-              {ended ? "View recap" : "I’m going"}
+              {activePreview.event.id === data.event.id && ended ? "View recap" : "I’m going"}
             </PrimaryButton>
           </div>
         </Sheet>
-      )}
-
-      {otherDemos.length > 0 && (
-        <section className="mt-6 space-y-3" aria-label="Additional published events">
-          <h2 className="text-[18px] font-semibold">Also published</h2>
-          <div className="ios-group">
-            {otherDemos.map((demo) => (
-              <div
-                key={demo.event.id}
-                className="ios-row flex-wrap items-center justify-between gap-3 py-3"
-              >
-                <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">
-                    {demo.event.category}
-                  </p>
-                  <p className="text-[17px] font-semibold">{demo.event.name}</p>
-                  <p className="text-[14px] text-muted-foreground">
-                    {formatEventDate(demo.event, {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}{" "}
-                    · {demo.event.venueName}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-full bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
-                  onClick={() => openPublishedEvent(demo)}
-                >
-                  I’m going
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {hasDistinctRelatedEvent && (
-        <section className="mt-6 space-y-3" aria-label="Organiser and related coastal event">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[18px] font-semibold">From {data.festival.organiser}</h2>
-            <button
-              type="button"
-              aria-pressed={attendee.preferences.followedOrganisers.includes(
-                data.festival.organiser,
-              )}
-              onClick={() => {
-                const followed = attendee.preferences.followedOrganisers.includes(
-                  data.festival.organiser,
-                );
-                const next = followed
-                  ? attendee.preferences.followedOrganisers.filter(
-                      (o) => o !== data.festival.organiser,
-                    )
-                  : [...attendee.preferences.followedOrganisers, data.festival.organiser];
-                if (attendee.update({ followedOrganisers: next })) {
-                  attendee.notify(
-                    followed
-                      ? `Unfollowed ${data.festival.organiser}`
-                      : `Following ${data.festival.organiser} on this device`,
-                  );
-                }
-              }}
-              className="ios-chip text-[14px]"
-            >
-              {attendee.preferences.followedOrganisers.includes(data.festival.organiser)
-                ? "Following organiser"
-                : "Follow organiser"}
-            </button>
-          </div>
-          <div className="ios-card p-4">
-            <p className="text-[13px] font-semibold uppercase text-primary">Same organiser</p>
-            <p className="mt-1 text-[17px] font-semibold">{data.festival.relatedEvent.name}</p>
-            <p className="text-[14px] text-muted-foreground">
-              {data.festival.relatedEvent.date} · {data.festival.relatedEvent.venue}
-            </p>
-            {data.festival.relatedEvent.url && (
-              <a
-                href={data.festival.relatedEvent.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex min-h-11 items-center gap-1 text-[15px] font-semibold text-primary"
-              >
-                Official details <ArrowUpRight size={16} />
-              </a>
-            )}
-          </div>
-        </section>
       )}
     </div>
   );

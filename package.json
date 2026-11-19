@@ -15,7 +15,7 @@
     "check:client-secrets": "node scripts/check-client-secrets.mjs",
     "test:security": "node --test scripts/check-client-secrets.test.mjs",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && eslint src/components/companion src/components/organiser src/lib/account src/lib/crew src/lib/mcp src/lib/organiser src/lib/oauth-return-path.ts src/routes/login.tsx src/routes/organiser.tsx 'src/routes/[.]lovable.oauth.consent.tsx' src/lib/attendee src/lib/day-plan src/lib/event-assistant src/lib/pwa.ts --quiet && npm run test && npm run test:security && npm run build",
+    "check": "npm run typecheck && eslint src/components/companion src/components/organiser src/lib/account src/lib/crew src/lib/mcp src/lib/organiser src/lib/templates src/lib/oauth-return-path.ts src/routes/login.tsx src/routes/organiser.tsx 'src/routes/[.]lovable.oauth.consent.tsx' src/lib/attendee src/lib/day-plan src/lib/event-assistant src/lib/pwa.ts --quiet && npm run test && npm run test:security && npm run build",
     "test:watch": "vitest"
   },
   "overrides": {

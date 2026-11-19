@@ -85,7 +85,7 @@ export function FestivalBump() {
   const meetingPlace = incoming?.meeting && places.find((p) => p.id === incoming.meeting?.pointId);
   return (
     <Section title="Share with a friend" id="crew-bump" className="px-4">
-      <div className="ios-card space-y-2 p-3">
+      <div className="eb-panel space-y-2 p-3">
         <div className="grid grid-cols-2 gap-2">
           <PrimaryButton disabled={!attendee.ready} onClick={() => setMode("show")}>
             <QrCode size={18} aria-hidden /> Show QR
@@ -108,7 +108,7 @@ export function FestivalBump() {
         <label className="mt-2 block text-[14px] text-muted-foreground">
           Anyone with this link can read the shared plan.
           <input
-            className="ios-field mt-1"
+            className="eb-field mt-1"
             readOnly
             value={shareLink}
             onFocus={(event) => event.target.select()}
@@ -140,7 +140,7 @@ export function FestivalBump() {
               <label className="mt-4 block text-[15px]">
                 Emergency contact name (optional)
                 <input
-                  className="ios-field mt-1 w-full"
+                  className="eb-field mt-1 w-full"
                   maxLength={50}
                   value={contact.name}
                   onChange={(e) => setContact({ ...contact, name: e.target.value })}
@@ -149,7 +149,7 @@ export function FestivalBump() {
               <label className="mt-3 block text-[15px]">
                 Emergency contact phone (optional)
                 <input
-                  className="ios-field mt-1 w-full"
+                  className="eb-field mt-1 w-full"
                   type="tel"
                   maxLength={30}
                   value={contact.phone}
@@ -162,7 +162,7 @@ export function FestivalBump() {
               <label className="block text-[15px]">
                 Sharing code
                 <textarea
-                  className="ios-field mt-1 w-full text-[16px]"
+                  className="eb-field mt-1 w-full text-[16px]"
                   readOnly
                   value={payload}
                   onFocus={(e) => e.target.select()}
@@ -191,7 +191,7 @@ export function FestivalBump() {
               <label className="mt-4 block text-[15px]">
                 Or paste a sharing code
                 <textarea
-                  className="ios-field mt-1 w-full text-[16px]"
+                  className="eb-field mt-1 w-full text-[16px]"
                   maxLength={3000}
                   value={raw}
                   onChange={(e) => setRaw(e.target.value)}
@@ -211,7 +211,7 @@ export function FestivalBump() {
                     <label className="mb-4 block text-[15px] font-semibold">
                       Your name
                       <input
-                        className="ios-field mt-2"
+                        className="eb-field mt-2"
                         autoComplete="nickname"
                         maxLength={50}
                         value={receiverName}

@@ -14,7 +14,7 @@ export function PostEventState() {
   if (life.phase === "cancelled")
     return (
       <section className="px-4 py-6">
-        <h1 className="ios-large-title">Event update</h1>
+        <h1 className="eb-page-title">Event update</h1>
         <p className="mt-4 text-[17px]">
           This event is marked cancelled. Check the organiser for ticket guidance and the latest
           information.
@@ -35,7 +35,7 @@ export function PostEventState() {
   return (
     <>
       <section className="mx-4 border-b border-border py-4">
-        <h1 className="ios-large-title">That’s a wrap.</h1>
+        <h1 className="eb-page-title">That’s a wrap.</h1>
         <p className="mt-2 text-[15px] text-muted-foreground">
           Your recap opens{" "}
           {dateLabel(new Date(life.recapAt), data.event.timezone, {

@@ -22,7 +22,7 @@ export function NearbyPlaces() {
       <label className="mt-3 block text-[15px]">
         I’m at
         <select
-          className="ios-field mt-1"
+          className="eb-field mt-1"
           value={originId}
           onChange={(e) => setOriginId(e.target.value)}
         >
@@ -45,7 +45,7 @@ export function NearbyPlaces() {
           <button
             key={type}
             type="button"
-            className="ios-chip"
+            className="eb-chip"
             aria-pressed={category === type}
             onClick={() => {
               setCategory(type);

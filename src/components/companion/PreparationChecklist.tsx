@@ -23,11 +23,11 @@ export function PreparationChecklist() {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="ios-group divide-y divide-border">
+      <div className="eb-list">
         {PREPARATION_ITEMS.map((item) => {
           const checked = completed.includes(item.id);
           return (
-            <label key={item.id} className="ios-row py-2.5">
+            <label key={item.id} className="eb-row py-2.5">
               <input
                 type="checkbox"
                 className="size-5 flex-none accent-favorite"
@@ -57,14 +57,14 @@ export function PreparationChecklist() {
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          className="ios-chip text-[14px] text-primary"
+          className="eb-chip text-[14px] text-primary"
           onClick={() => openSheet({ kind: "ticket" })}
         >
           <Ticket size={15} aria-hidden /> Open ticket vault
         </button>
         <button
           type="button"
-          className="ios-chip text-[14px]"
+          className="eb-chip text-[14px]"
           onClick={() => openSheet({ kind: "offline" })}
         >
           <Smartphone size={15} aria-hidden /> Check offline copy

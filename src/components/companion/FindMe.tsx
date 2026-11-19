@@ -146,7 +146,7 @@ function SignalScreen({ onClose }: { onClose: () => void }) {
           />
           {mode === "message" && (
             <input
-              className="ios-field"
+              className="eb-field"
               aria-label="Big screen message"
               maxLength={60}
               value={message}
@@ -248,7 +248,7 @@ export function FindMe() {
     <>
       <button
         type="button"
-        className="ios-press min-h-11 rounded-full bg-favorite-soft px-4 text-[15px] font-semibold text-favorite"
+        className="eb-press min-h-11 rounded-full bg-favorite-soft px-4 text-[15px] font-semibold text-favorite"
         onClick={() => setOpen(true)}
       >
         Find me screen

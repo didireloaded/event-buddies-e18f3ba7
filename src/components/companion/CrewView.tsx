@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, MapPin, Dices, UserPlus, Trash2, Stamp } from "lucide-react";
+import { MessageCircle, MapPin, Dices, UserPlus, Trash2, Stamp, ChevronRight } from "lucide-react";
 import { eventTime } from "@/lib/attendee/schedule";
 import {
   addGlobalBuddy,
@@ -7,6 +7,8 @@ import {
   removeGlobalBuddy,
   type GlobalBuddy,
 } from "@/lib/crew/buddies";
+import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
+import { isModuleEnabled, resolveEventTemplate } from "@/lib/templates/event-templates";
 import { initials, useCompanion } from "./context";
 import { ConnectedCrew } from "./ConnectedCrew";
 import { CrewCoordination } from "./CrewCoordination";
@@ -27,23 +29,35 @@ export function CrewView() {
   const [buddyName, setBuddyName] = useState("");
   const [buddyHandle, setBuddyHandle] = useState("");
 
+  const { config: templateConfig } = resolveEventTemplate({
+    category: data.event.category,
+    templateConfig: data.event.templateConfig,
+  });
+  const terms = getEventCategoryTerms(data.event.category, templateConfig);
+  const passportEnabled = isModuleEnabled(templateConfig, "passport");
+  const activitiesEnabled = isModuleEnabled(templateConfig, "activities");
+
   useEffect(() => {
     setBuddies(readGlobalBuddies());
   }, []);
 
   return (
-    <>
-      <h1 className="ios-large-title px-4 pt-2">Crew</h1>
+    <div className="pb-6">
+      <div className="px-4 pt-4">
+        <p className="eb-kicker text-primary">{data.event.name}</p>
+        <h1 className="eb-page-title mt-1">{terms.crewLabel}</h1>
+      </div>
+
       <ConnectedCrew />
       <CrewPeople />
 
-      {/* Global Buddies — personal friend connections across events, separate from event crew */}
+      {/* Global Buddies — personal friend connections across events */}
       <Section title="Your Buddies" id="global-buddies" className="px-4">
-        <div className="ios-card space-y-3 p-4">
+        <div className="space-y-3">
           {buddies.length > 0 ? (
-            <ul className="divide-y divide-border">
+            <ul className="eb-list">
               {buddies.map((b, idx) => (
-                <li key={b.id} className="flex min-h-12 items-center gap-3 py-2">
+                <li key={b.id} className="eb-row py-2.5">
                   <Avatar label={initials(b.name)} index={idx + 1} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[16px] font-semibold">{b.name}</p>
@@ -64,17 +78,17 @@ export function CrewView() {
               ))}
             </ul>
           ) : !addingBuddy ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-y border-separator py-3.5">
               <div className="min-w-0">
                 <p className="text-[15px] font-semibold">Friends across all events</p>
                 <p className="text-[13px] text-muted-foreground">
-                  Quick-invite across festivals &amp; shows
+                  Quick-invite across festivals, parties &amp; conferences
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setAddingBuddy(true)}
-                className="ios-press inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full bg-favorite-soft px-3.5 text-[14px] font-semibold text-primary"
+                className="eb-press inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full bg-favorite-soft px-4 text-[14px] font-semibold text-primary"
               >
                 <UserPlus size={16} aria-hidden /> Add a buddy
               </button>
@@ -82,7 +96,7 @@ export function CrewView() {
           ) : null}
           {addingBuddy ? (
             <form
-              className="space-y-2.5 border-t border-border pt-3 first:border-t-0 first:pt-0"
+              className="eb-panel space-y-2.5 p-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (buddyName.trim().length < 2) return;
@@ -102,7 +116,7 @@ export function CrewView() {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input
                   aria-label="Buddy name"
-                  className="ios-field"
+                  className="eb-field"
                   maxLength={50}
                   placeholder="Friend’s name"
                   value={buddyName}
@@ -110,7 +124,7 @@ export function CrewView() {
                 />
                 <input
                   aria-label="Buddy handle (optional)"
-                  className="ios-field"
+                  className="eb-field"
                   maxLength={30}
                   placeholder="@handle (optional)"
                   value={buddyHandle}
@@ -142,74 +156,103 @@ export function CrewView() {
         </div>
       </Section>
 
-      <div className="mx-4 mt-5">
-        <h2 className="ios-section-title">Find each other</h2>
-        <div className="mt-1 flex flex-wrap gap-2">
+      <div className="mx-4 mt-7">
+        <h2 className="eb-section-heading mb-3">Find each other</h2>
+        <div className="flex flex-wrap gap-2.5">
           <Regroup />
           <FindMe />
         </div>
       </div>
+
       <FestivalBump />
       <CrewCoordination />
-      <section className="mx-4 mt-5" aria-label="Activities and meetup">
-        <h2 className="ios-section-title">Activities &amp; meetup</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => openSheet({ kind: "passport" })}
-            className="ios-card ios-press flex flex-col items-start p-4 text-left"
-          >
-            <span className="grid size-10 place-items-center rounded-xl bg-favorite-soft text-primary">
-              <Stamp size={20} aria-hidden />
-            </span>
-            <span className="mt-3 text-[16px] font-semibold leading-snug">Event Passport</span>
-            <span className="mt-0.5 text-[13px] text-muted-foreground">Venue stamps</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openSheet({ kind: "play" })}
-            className="ios-card ios-press flex flex-col items-start p-4 text-left"
-          >
-            <span className="grid size-10 place-items-center rounded-xl bg-favorite-soft text-primary">
-              <Dices size={20} aria-hidden />
-            </span>
-            <span className="mt-3 text-[16px] font-semibold leading-snug">Festival extras</span>
-            <span className="mt-0.5 text-[13px] text-muted-foreground">Picks &amp; bingo</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openSheet({ kind: "pings" })}
-            className="ios-card ios-press flex flex-col items-start p-4 text-left"
-          >
-            <span className="grid size-10 place-items-center rounded-xl bg-secondary text-foreground">
-              <MessageCircle size={20} aria-hidden />
-            </span>
-            <span className="mt-3 text-[16px] font-semibold leading-snug">Where are you?</span>
-            <span className="mt-0.5 text-[13px] text-muted-foreground">Quick message</span>
-          </button>
+
+      {/* Clean Editorial Hairline List — Zero 2-Column Utility Card Grid */}
+      <section className="mx-4 mt-7" aria-label="Activities and meetup">
+        <h2 className="eb-section-heading mb-3">Activities &amp; meetup</h2>
+        <div className="eb-list">
           <button
             type="button"
             onClick={() => openSheet({ kind: "meeting" })}
-            className="ios-card ios-press flex flex-col items-start p-4 text-left"
+            className="eb-row py-3.5"
           >
-            <span className="grid size-10 place-items-center rounded-xl bg-secondary text-foreground">
-              <MapPin size={20} aria-hidden />
+            <span className="grid size-10 flex-none place-items-center rounded-lg bg-favorite-soft text-primary">
+              <MapPin size={19} aria-hidden />
             </span>
-            <span className="mt-3 text-[16px] font-semibold leading-snug">
-              {place ? `Meet at ${place.name}` : "Choose a meetup spot"}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold leading-snug">
+                {place ? `Meet at ${place.name}` : "Choose a meetup spot"}
+              </span>
+              <span
+                aria-hidden={!meeting || undefined}
+                className="block text-[14px] text-muted-foreground"
+              >
+                {meeting ? `${eventTime(meeting.at)} CAT` : "Set place & time"}
+              </span>
             </span>
-            <span
-              aria-hidden={!meeting || undefined}
-              className="mt-0.5 text-[13px] text-muted-foreground"
-            >
-              {meeting ? `${eventTime(meeting.at)} CAT` : "Set place & time"}
-            </span>
+            <ChevronRight size={17} className="text-tertiary-foreground" aria-hidden />
           </button>
+
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: "pings" })}
+            className="eb-row py-3.5"
+          >
+            <span className="grid size-10 flex-none place-items-center rounded-lg bg-secondary text-foreground">
+              <MessageCircle size={19} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-semibold leading-snug">Where are you?</span>
+              <span className="block text-[14px] text-muted-foreground">Quick status message</span>
+            </span>
+            <ChevronRight size={17} className="text-tertiary-foreground" aria-hidden />
+          </button>
+
+          {passportEnabled && (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: "passport" })}
+              className="eb-row py-3.5"
+            >
+              <span className="grid size-10 flex-none place-items-center rounded-lg bg-favorite-soft text-primary">
+                <Stamp size={19} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[16px] font-semibold leading-snug">Event Passport</span>
+                <span className="block text-[14px] text-muted-foreground">
+                  Collect {terms.passportStampNoun}
+                </span>
+              </span>
+              <ChevronRight size={17} className="text-tertiary-foreground" aria-hidden />
+            </button>
+          )}
+
+          {activitiesEnabled && (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: "play" })}
+              className="eb-row py-3.5"
+            >
+              <span className="grid size-10 flex-none place-items-center rounded-lg bg-favorite-soft text-primary">
+                <Dices size={19} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[16px] font-semibold leading-snug">
+                  {terms.activitiesLabel}
+                </span>
+                <span className="block text-[14px] text-muted-foreground">
+                  Picks, trivia &amp; bingo
+                </span>
+              </span>
+              <ChevronRight size={17} className="text-tertiary-foreground" aria-hidden />
+            </button>
+          )}
         </div>
       </section>
-      <p className="px-5 pt-4 text-[12px] text-muted-foreground">
+
+      <p className="px-4 pt-5 text-[13px] text-muted-foreground">
         QR &amp; links work offline · Connected crews sync when signed in.
       </p>
-    </>
+    </div>
   );
 }

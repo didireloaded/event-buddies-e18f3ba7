@@ -184,7 +184,7 @@ export function EventMemories() {
         <label className="block text-[16px]">
           Caption
           <input
-            className="ios-field mt-1"
+            className="eb-field mt-1"
             maxLength={140}
             disabled={busy}
             value={caption}
@@ -195,7 +195,7 @@ export function EventMemories() {
           Landmark
           <select
             disabled={busy}
-            className="ios-field mt-1"
+            className="eb-field mt-1"
             value={pointId}
             onChange={(event) => setPointId(event.target.value)}
           >

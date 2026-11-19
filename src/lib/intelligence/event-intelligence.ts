@@ -2,81 +2,52 @@ import type { DemoData, PerformanceRecord } from "@/lib/event/types";
 import type { FestivalArtist } from "@/lib/event/sound-of-summer";
 import { scheduleClashes } from "@/lib/attendee/schedule";
 import type { ProgramItem, ZoneItem } from "@/lib/organiser/schema";
+import {
+  EVENT_TEMPLATES,
+  resolveEventTemplate,
+  type EventTemplateConfig,
+} from "@/lib/templates/event-templates";
 
 export type EventCategoryTerms = {
   isConferenceLike: boolean;
+  isPrivateLike: boolean;
   programLabel: string;
   peopleLabel: string;
   personSingular: string;
   placesLabel: string;
   placeSingular: string;
+  crewLabel: string;
+  featuredHeading: string;
+  headlinerBadge: string;
+  essentialsHeading: string;
+  activitiesLabel: string;
+  passportLabel: string;
+  passportStampNoun: string;
   modeMusicLabel: string;
   modeFriendsLabel: string;
   modeBothLabel: string;
   entryRulesLabel: string;
+  askLabel: string;
+  primaryCtaLabel: string;
 };
 
-export function getEventCategoryTerms(category: string | null | undefined): EventCategoryTerms {
-  const lower = (category ?? "").toLowerCase();
-  const isConference =
-    lower.includes("conference") || lower.includes("summit") || lower.includes("expo");
-  const isCorporate = lower.includes("corporate");
-  const isSports = lower.includes("sport");
-
-  if (isConference) {
+export function getEventCategoryTerms(
+  category: string | null | undefined,
+  templateConfig?: EventTemplateConfig | null | undefined,
+): EventCategoryTerms {
+  const { definition } = resolveEventTemplate({ category, templateConfig });
+  // Preserve exact Conference/Expo terms when templateConfig wasn't explicitly set for expo
+  if (!templateConfig && (category ?? "").toLowerCase().includes("expo") && !(category ?? "").toLowerCase().includes("market")) {
     return {
-      isConferenceLike: true,
+      ...EVENT_TEMPLATES.expo_trade_show.terms,
       programLabel: "Agenda",
       peopleLabel: "Speakers",
       personSingular: "Speaker",
       placesLabel: "Rooms",
       placeSingular: "Room",
-      modeMusicLabel: "Sessions",
-      modeFriendsLabel: "Networking",
-      modeBothLabel: "Both",
-      entryRulesLabel: "Registration & Access",
     };
   }
-  if (isCorporate) {
-    return {
-      isConferenceLike: true,
-      programLabel: "Program",
-      peopleLabel: "Presenters",
-      personSingular: "Presenter",
-      placesLabel: "Rooms",
-      placeSingular: "Room",
-      modeMusicLabel: "Sessions",
-      modeFriendsLabel: "Networking",
-      modeBothLabel: "Both",
-      entryRulesLabel: "Registration & Access",
-    };
-  }
-  if (isSports) {
-    return {
-      isConferenceLike: false,
-      programLabel: "Fixtures",
-      peopleLabel: "Teams",
-      personSingular: "Team",
-      placesLabel: "Venues",
-      placeSingular: "Pitch",
-      modeMusicLabel: "Matches",
-      modeFriendsLabel: "Friends",
-      modeBothLabel: "Both",
-      entryRulesLabel: "Entry & Rules",
-    };
-  }
-  return {
-    isConferenceLike: false,
-    programLabel: "Lineup",
-    peopleLabel: "Artists",
-    personSingular: "Artist",
-    placesLabel: "Stages",
-    placeSingular: "Stage",
-    modeMusicLabel: "Music",
-    modeFriendsLabel: "Friends",
-    modeBothLabel: "Both",
-    entryRulesLabel: "Entry & Rules",
-  };
+  return definition.terms;
 }
 
 export type FeaturedParticipant = FestivalArtist & {
@@ -151,19 +122,28 @@ export function selectFeaturedParticipants(data: DemoData): FeaturedParticipant[
 export type HomeSectionId = "featured" | "crew" | "essentials" | "upcoming";
 
 /**
- * Deterministic personalisation order driven by onboarding preference (`festivalMode`).
+ * Deterministic personalisation order driven by template configuration + onboarding preference (`festivalMode`).
  * Influences priority without hiding any essential section.
  */
 export function getPersonalisedHomeOrder(
   mode: "music" | "friends" | "both" | null,
+  templateOrder?: readonly HomeSectionId[] | null,
 ): HomeSectionId[] {
-  if (mode === "friends") {
-    return ["crew", "featured", "essentials", "upcoming"];
+  const base: HomeSectionId[] =
+    templateOrder && templateOrder.length > 0
+      ? ([...new Set(templateOrder)] as HomeSectionId[])
+      : ["featured", "crew", "essentials", "upcoming"];
+  if (mode === "friends" && base.includes("crew")) {
+    return ["crew", ...base.filter((s) => s !== "crew")];
   }
-  if (mode === "music") {
-    return ["featured", "essentials", "crew", "upcoming"];
+  if (mode === "music" && base.includes("featured")) {
+    const rest = base.filter((s) => s !== "featured");
+    if (rest.includes("essentials")) {
+      return ["featured", "essentials", ...rest.filter((s) => s !== "essentials")];
+    }
+    return ["featured", ...rest];
   }
-  return ["featured", "crew", "essentials", "upcoming"];
+  return base;
 }
 
 export type OrganiserIssue = {

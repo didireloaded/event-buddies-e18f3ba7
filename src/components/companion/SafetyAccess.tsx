@@ -129,7 +129,7 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
             <label className="block text-[14px] font-semibold">
               Emergency contact name
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={60}
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
@@ -139,7 +139,7 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
               Emergency contact phone
               <input
                 type="tel"
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={30}
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
@@ -148,7 +148,7 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
             <label className="block text-[14px] font-semibold">
               Blood type (optional)
               <input
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 maxLength={12}
                 placeholder="O+, A-, etc."
                 value={bloodType}
@@ -160,7 +160,7 @@ export function SafetyPanel({ onDone }: { onDone?: () => void }) {
               <textarea
                 rows={2}
                 maxLength={240}
-                className="ios-field mt-1"
+                className="eb-field mt-1"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -207,7 +207,7 @@ export function SafetyAccess() {
       <button
         type="button"
         aria-label="Emergency and first aid"
-        className="ios-press grid size-11 place-items-center rounded-full text-favorite"
+        className="eb-press grid size-11 place-items-center rounded-full text-favorite"
         onClick={() => setOpen(true)}
       >
         <Cross size={21} />

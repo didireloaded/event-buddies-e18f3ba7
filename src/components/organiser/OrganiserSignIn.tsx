@@ -35,18 +35,28 @@ export function OrganiserSignIn() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
-      <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Event Buddies
-      </p>
-      <h1 className="ios-large-title mt-1">Organiser sign-in</h1>
-      <p className="mt-2 text-[16px] text-muted-foreground">
-        We’ll email you a sign-in link. No password needed.
-      </p>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10">
+      <div className="border-b border-separator pb-5">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="grid size-7 place-items-center rounded-md bg-primary text-[12px] font-extrabold text-primary-foreground"
+          >
+            EB
+          </span>
+          <p className="eb-kicker">Event Buddies · Organiser Studio</p>
+        </div>
+        <h1 className="eb-page-title mt-3">Organiser sign-in</h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Create, customise and publish multi-event experiences. We’ll email you a sign-in link — no
+          password needed.
+        </p>
+      </div>
+
       {state === "sent" ? (
         <div className="mt-6 space-y-3">
-          <p role="status" className="rounded-xl bg-secondary px-4 py-3 text-[16px]">
-            Check {email.trim()} for your sign-in link.
+          <p role="status" className="eb-panel px-4 py-3.5 text-[15px]">
+            Check <strong>{email.trim()}</strong> for your sign-in link.
           </p>
           <button
             type="button"
@@ -57,8 +67,8 @@ export function OrganiserSignIn() {
           </button>
         </div>
       ) : (
-        <form onSubmit={send} className="mt-6 space-y-3">
-          <label className="block text-[15px] font-medium" htmlFor="org-email">
+        <form onSubmit={send} className="mt-6 space-y-4">
+          <label className="block text-[14px] font-semibold" htmlFor="org-email">
             Work email
           </label>
           <input
@@ -66,18 +76,19 @@ export function OrganiserSignIn() {
             type="email"
             required
             autoComplete="email"
+            placeholder="team@organisation.com"
             aria-invalid={state === "error" || undefined}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="ios-field w-full"
+            className="eb-field w-full"
           />
           {state === "error" && (
-            <p role="alert" className="text-[15px] text-destructive">
+            <p role="alert" className="text-[14px] font-medium text-destructive">
               Couldn’t send the link. Try again.
             </p>
           )}
           {offline && (
-            <p role="status" className="text-[15px] text-muted-foreground">
+            <p role="status" className="text-[14px] text-muted-foreground">
               You’re offline. Connect to sign in.
             </p>
           )}
@@ -86,8 +97,11 @@ export function OrganiserSignIn() {
           </PrimaryButton>
         </form>
       )}
-      <Link to="/" className="mt-8 inline-flex min-h-11 items-center text-[15px] text-primary">
-        Back to the attendee app
+      <Link
+        to="/"
+        className="mt-8 inline-flex min-h-11 items-center text-[15px] font-semibold text-primary"
+      >
+        ‹ Back to the attendee app
       </Link>
     </main>
   );

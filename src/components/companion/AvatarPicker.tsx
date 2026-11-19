@@ -35,7 +35,7 @@ export function AvatarPicker({
       </div>
       {avatar && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-4">
-          <label className="ios-press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-secondary px-4 text-[15px] font-semibold">
+          <label className="eb-press inline-flex min-h-11 cursor-pointer items-center rounded-full bg-secondary px-4 text-[15px] font-semibold">
             {busy ? "Saving photo…" : url ? "Change photo" : "Add photo (optional)"}
             <input
               type="file"
