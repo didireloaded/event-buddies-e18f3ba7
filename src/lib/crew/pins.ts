@@ -339,24 +339,28 @@ export function subscribeCrewPins(
     return () => {};
   }
 
+  let disposed = false;
   const topic = crewPinChannelTopic(crewId);
-  let activeChannel = client.channel(topic, {
+  const activeChannel = client.channel(topic, {
     config: { private: true, broadcast: { self: false } },
   });
   activeChannels.set(crewId, activeChannel);
 
   const attachListeners = (ch: RealtimeChannelHandle) => {
     ch.on("broadcast", { event: "pin:upserted" }, (msg: { payload?: unknown }) => {
+      if (disposed) return;
       const parsed = crewPinSchema.safeParse(msg.payload);
       if (parsed.success) handlers.onUpserted(parsed.data);
       handlers.onAnyChange?.();
     });
     ch.on("broadcast", { event: "pin:removed" }, (msg: { payload?: unknown }) => {
+      if (disposed) return;
       const parsed = pinRemovedSchema.safeParse(msg.payload);
       if (parsed.success) handlers.onRemoved(parsed.data);
       handlers.onAnyChange?.();
     });
     ch.on("broadcast", { event: "crew:lost" }, (msg: { payload?: unknown }) => {
+      if (disposed) return;
       const parsed = crewLostAlertSchema.safeParse(msg.payload);
       if (parsed.success) {
         handlers.onLostAlert?.(parsed.data);
@@ -368,6 +372,7 @@ export function subscribeCrewPins(
       handlers.onAnyChange?.();
     });
     ch.on("broadcast", { event: "crew:chat" }, (msg: { payload?: unknown }) => {
+      if (disposed) return;
       const parsed = crewRealtimeChatSchema.safeParse(msg.payload);
       if (parsed.success) handlers.onChatMessage?.(parsed.data);
       handlers.onAnyChange?.();
@@ -375,25 +380,11 @@ export function subscribeCrewPins(
     return ch;
   };
 
-  attachListeners(activeChannel).subscribe((status: string) => {
-    // If private channel RLS isn't applied in Cloud yet, retry on the SAME topic without private:true
-    if (status === "CHANNEL_ERROR" && typeof client.channel === "function") {
-      try {
-        if (typeof client.removeChannel === "function") {
-          void client.removeChannel(activeChannel);
-        }
-        activeChannel = client.channel(topic, {
-          config: { broadcast: { self: false } },
-        });
-        activeChannels.set(crewId, activeChannel);
-        attachListeners(activeChannel).subscribe();
-      } catch {
-        /* Ignore fallback errors. */
-      }
-    }
-  });
+  // Never downgrade a private crew channel to an unauthenticated public channel on CHANNEL_ERROR.
+  attachListeners(activeChannel).subscribe();
 
   return () => {
+    disposed = true;
     if (activeChannels.get(crewId) === activeChannel) {
       activeChannels.delete(crewId);
     }

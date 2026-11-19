@@ -324,10 +324,10 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[12px] font-semibold backdrop-blur-md">
               {phase.label}
             </span>
-            <h1 className="mt-1.5 text-[28px] font-bold leading-tight tracking-tight text-white">
+            <h1 className="mt-1.5 line-clamp-2 break-words text-[28px] font-bold leading-tight tracking-tight text-white">
               {data.event.name}
             </h1>
-            <p className="mt-1 text-[14px] text-white/90">
+            <p className="mt-1 truncate text-[14px] text-white/90">
               {dateLabel(data.event.startAt, data.event.timezone, {
                 weekday: "short",
                 day: "numeric",
@@ -355,7 +355,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
           <button
             type="button"
             onClick={cycleMode}
-            className="inline-flex min-h-9 items-center gap-1 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground"
+            className="inline-flex min-h-11 flex-none items-center gap-1 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground"
             aria-label="Change home focus"
           >
             <SlidersHorizontal size={13} aria-hidden /> Switch focus

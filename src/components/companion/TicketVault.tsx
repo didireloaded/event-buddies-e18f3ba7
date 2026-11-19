@@ -144,7 +144,7 @@ export function TicketVault() {
                 onClick={() => applyTier(card.value)}
               >
                 <span className="text-[15px] font-bold">{card.label}</span>
-                <span className="mt-1 text-[11px] leading-tight text-muted-foreground">
+                <span className="mt-1 text-[12px] leading-tight text-muted-foreground">
                   {card.hint}
                 </span>
               </button>
@@ -185,7 +185,7 @@ export function TicketVault() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[16px] font-semibold">{ticket.label}</span>
-                    <span className="block text-[13px] text-muted-foreground">
+                    <span className="block truncate text-[13px] text-muted-foreground">
                       {formatTicketTier(ticket.tier)} · {ticket.holderName} · {gateLabel} · Opens{" "}
                       {opensTime}
                     </span>
@@ -193,9 +193,11 @@ export function TicketVault() {
                 </button>
                 <button
                   type="button"
+                  disabled={busy}
                   aria-label={`Remove ${ticket.label}`}
-                  className="grid size-10 flex-none place-items-center text-destructive"
+                  className="grid size-11 flex-none place-items-center text-destructive disabled:opacity-50"
                   onClick={async () => {
+                    if (busy) return;
                     setBusy(true);
                     try {
                       await removeSavedTicket(ticket.id, data.event.id);
@@ -403,8 +405,18 @@ export function TicketVault() {
             className="space-y-3 border-t border-border pt-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!manualCode.trim()) {
+              if (busy) return;
+              const normalizedCode = manualCode.trim();
+              if (!normalizedCode) {
                 setError("Enter your ticket barcode or reference code.");
+                return;
+              }
+              if (
+                eventTickets.some(
+                  (t) => t.ticketCode?.toLowerCase() === normalizedCode.toLowerCase(),
+                )
+              ) {
+                setError("This ticket code is already saved for this event.");
                 return;
               }
               setError("");
@@ -412,7 +424,7 @@ export function TicketVault() {
                 eventId: data.event.id,
                 eventName: data.event.name,
                 eventDateIso: data.event.startAt.toISOString(),
-                ticketCode: manualCode,
+                ticketCode: normalizedCode,
                 holderName:
                   manualHolder.trim() ||
                   (attendee.preferences.profile.name === "Guest"
@@ -463,7 +475,9 @@ export function TicketVault() {
                 />
               </label>
             </div>
-            <PrimaryButton type="submit">Save ticket code offline</PrimaryButton>
+            <PrimaryButton type="submit" disabled={busy}>
+              Save ticket code offline
+            </PrimaryButton>
           </form>
         )}
       </div>
@@ -532,7 +546,7 @@ export function TicketVault() {
                     })}
                   </span>
                 </span>
-                <span className="rounded-full bg-secondary px-2.5 py-1 text-[12px] font-semibold">
+                <span className="max-w-[40%] flex-none truncate rounded-full bg-secondary px-2.5 py-1 text-[12px] font-semibold">
                   {t.label}
                 </span>
               </button>

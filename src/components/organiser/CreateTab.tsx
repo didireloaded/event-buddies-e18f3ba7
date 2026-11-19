@@ -105,6 +105,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
 
   async function createGuidedDraft(e: FormEvent) {
     e.preventDefault();
+    if (busy || manualBusy) return;
     if (offline) {
       setError("You’re offline. Connect to create a draft.");
       return;
@@ -141,6 +142,7 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
 
   async function importExternalUrlDraft(e: FormEvent) {
     e.preventDefault();
+    if (busy || manualBusy) return;
     if (offline) {
       setError("You’re offline. Connect to save a reviewed import draft.");
       return;
@@ -199,22 +201,28 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
   }
 
   async function createBlankDraft() {
+    if (busy || manualBusy) return;
     if (offline) {
       setError("You’re offline. Connect to create a draft.");
       return;
     }
     setError("");
-    const { data, error: insErr } = await supabase
-      .from("organiser_events")
-      .insert({ owner_id: ctx.userId, status: "draft" })
-      .select("id")
-      .single();
-    if (insErr || !data) {
-      setError(dbError(insErr?.message));
-      return;
+    setManualBusy(true);
+    try {
+      const { data, error: insErr } = await supabase
+        .from("organiser_events")
+        .insert({ owner_id: ctx.userId, status: "draft" })
+        .select("id")
+        .single();
+      if (insErr || !data) {
+        setError(dbError(insErr?.message));
+        return;
+      }
+      await ctx.reload();
+      ctx.go("events", data.id);
+    } finally {
+      setManualBusy(false);
     }
-    await ctx.reload();
-    ctx.go("events", data.id);
   }
 
   const busy = step === "draft" || step === "upload" || step === "extract";
@@ -337,8 +345,11 @@ export function CreateTab({ ctx }: { ctx: OrgCtx }) {
             </div>
           )}
 
-          <SecondaryButton disabled={busy || offline} onClick={() => void createBlankDraft()}>
-            Start blank draft instead
+          <SecondaryButton
+            disabled={busy || manualBusy || offline}
+            onClick={() => void createBlankDraft()}
+          >
+            {manualBusy ? "Creating draft…" : "Start blank draft instead"}
           </SecondaryButton>
         </div>
       </Section>

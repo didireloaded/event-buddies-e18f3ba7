@@ -78,6 +78,7 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
   const [issues, setIssues] = useState<VenueIssue[]>(() => (active ? readIssues(active.id) : []));
   const [issueZone, setIssueZone] = useState("");
   const [issueNote, setIssueNote] = useState("");
+  const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupNotice, setCleanupNotice] = useState("");
 
   useEffect(() => {
@@ -192,11 +193,16 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
     );
   }
 
+  function escapeCsvCell(value: string) {
+    const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+    return `"${safe.replace(/"/g, '""')}"`;
+  }
+
   function exportAggregatesCsv() {
     if (!active || !aggregates) return;
     const csv = [
       "event_id,event_name,saved_plans_count,crews_count,crew_members_count,active_pins_count",
-      `${active.id},"${active.name.replace(/"/g, '""')}",${aggregates.savedPlansCount},${aggregates.crewsCount},${aggregates.crewMembersCount},${aggregates.activePinsCount}`,
+      `${escapeCsvCell(active.id)},${escapeCsvCell(active.name)},${aggregates.savedPlansCount},${aggregates.crewsCount},${aggregates.crewMembersCount},${aggregates.activePinsCount}`,
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -505,19 +511,28 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
           )}
           <div className="border-t border-border pt-3">
             <SecondaryButton
+              disabled={cleanupBusy}
               onClick={async () => {
+                if (cleanupBusy) return;
+                setCleanupBusy(true);
                 setCleanupNotice("");
-                const res = await cleanupExpiredEventData();
-                if (!res) {
-                  setCleanupNotice("Expired pins and invites are filtered automatically on read.");
-                } else {
-                  setCleanupNotice(
-                    `Cleared ${res.clearedPins} expired landmark pins and ${res.clearedInvites} expired invites.`,
-                  );
+                try {
+                  const res = await cleanupExpiredEventData();
+                  if (!res) {
+                    setCleanupNotice(
+                      "Expired pins and invites are filtered automatically on read.",
+                    );
+                  } else {
+                    setCleanupNotice(
+                      `Cleared ${res.clearedPins} expired landmark pins and ${res.clearedInvites} expired invites.`,
+                    );
+                  }
+                } finally {
+                  setCleanupBusy(false);
                 }
               }}
             >
-              Purge expired landmark pins & invites
+              {cleanupBusy ? "Purging expired records…" : "Purge expired landmark pins & invites"}
             </SecondaryButton>
             {cleanupNotice && (
               <p role="status" className="mt-2 text-[13px] text-muted-foreground">
@@ -535,41 +550,53 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
               <p className="text-[14px] font-semibold">Live zone status</p>
               {parseZones(active.zones).map((z, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-2 text-[14px]">
-                  <span className="font-medium">
+                  <span className="min-w-0 flex-1 break-words font-medium">
                     {z.name} <span className="text-muted-foreground">({z.type})</span>
                   </span>
                   <select
                     aria-label={`${z.name} live status`}
-                    className="ios-field w-auto py-1 text-[14px]"
+                    disabled={busy}
+                    className="ios-field w-auto py-1"
                     value={z.status}
                     onChange={async (e) => {
+                      if (busy) return;
                       const nextStatus = e.target.value as ZoneItem["status"];
                       const nextZones = parseZones(active.zones).map((item, i) =>
                         i === idx ? { ...item, status: nextStatus } : item,
                       );
-                      await supabase
-                        .from("organiser_events")
-                        .update({ zones: nextZones as unknown as Json })
-                        .eq("id", active.id);
-                      const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
-                      saveLocalPublishedEvent({
-                        id: active.id,
-                        eventType: active.event_type,
-                        name: active.name,
-                        startDate: active.start_date,
-                        endDate: active.end_date,
-                        venue: active.venue,
-                        gatesOpen: active.gates_open,
-                        entryRules: active.entry_rules,
-                        program: parseProgram(active.program),
-                        zones: nextZones,
-                        sitePlanPath: active.site_plan_path,
-                        sitePlanUrl: cached?.sitePlanUrl ?? null,
-                        sitePlanZoomUrl:
-                          cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
-                        publishedAt: cached?.publishedAt ?? new Date().toISOString(),
-                      });
-                      await ctx.reload();
+                      setBusy(true);
+                      setError("");
+                      try {
+                        const { error: updErr } = await supabase
+                          .from("organiser_events")
+                          .update({ zones: nextZones as unknown as Json })
+                          .eq("id", active.id);
+                        if (updErr) {
+                          setError(dbError(updErr.message));
+                          return;
+                        }
+                        const cached = readLocalPublishedEvents().find((ev) => ev.id === active.id);
+                        saveLocalPublishedEvent({
+                          id: active.id,
+                          eventType: active.event_type,
+                          name: active.name,
+                          startDate: active.start_date,
+                          endDate: active.end_date,
+                          venue: active.venue,
+                          gatesOpen: active.gates_open,
+                          entryRules: active.entry_rules,
+                          program: parseProgram(active.program),
+                          zones: nextZones,
+                          sitePlanPath: active.site_plan_path,
+                          sitePlanUrl: cached?.sitePlanUrl ?? null,
+                          sitePlanZoomUrl:
+                            cached?.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(active.id),
+                          publishedAt: cached?.publishedAt ?? new Date().toISOString(),
+                        });
+                        await ctx.reload();
+                      } finally {
+                        setBusy(false);
+                      }
                     }}
                   >
                     <option value="open">Open</option>
@@ -630,13 +657,15 @@ export function LiveTab({ ctx }: { ctx: OrgCtx }) {
             <ul className="divide-y divide-border pt-2 text-[14px]">
               {issues.map((item) => (
                 <li key={item.id} className="flex items-center justify-between gap-2 py-2">
-                  <span className={item.resolved ? "line-through text-muted-foreground" : ""}>
+                  <span
+                    className={`min-w-0 flex-1 break-words ${item.resolved ? "line-through text-muted-foreground" : ""}`}
+                  >
                     <strong>{item.zone}</strong> · {item.note}{" "}
                     <span className="text-[12px] text-muted-foreground">({item.createdAt})</span>
                   </span>
                   <button
                     type="button"
-                    className="min-h-10 px-2 text-[13px] font-semibold text-primary"
+                    className="min-h-11 flex-none px-2 text-[13px] font-semibold text-primary"
                     onClick={() => {
                       const next = issues.map((row) =>
                         row.id === item.id ? { ...row, resolved: !row.resolved } : row,

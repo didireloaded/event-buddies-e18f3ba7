@@ -61,7 +61,7 @@ export function CrewView() {
                     type="button"
                     aria-label={`Remove ${b.name} from buddies`}
                     onClick={() => setBuddies(removeGlobalBuddy(b.id))}
-                    className="grid size-10 flex-none place-items-center text-destructive"
+                    className="grid size-11 flex-none place-items-center text-destructive"
                   >
                     <Trash2 size={17} aria-hidden />
                   </button>

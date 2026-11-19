@@ -9,6 +9,28 @@ type UntypedRpc = (
 
 const callRpc: UntypedRpc = (fn, args) => (supabase.rpc as unknown as UntypedRpc)(fn, args);
 
+function sanitizeRpcError(message: string | undefined, fallback: string): string {
+  if (!message) return fallback;
+  const lower = message.toLowerCase();
+  if (lower.includes("rate") || lower.includes("too many")) {
+    return "Too many requests right now. Try again shortly.";
+  }
+  if (
+    lower.includes("not authorised") ||
+    lower.includes("not authorized") ||
+    lower.includes("permission")
+  ) {
+    return "You don’t have permission for this action.";
+  }
+  if (lower.includes("verification")) {
+    return "Organiser verification must be approved first.";
+  }
+  if (lower.includes("not found")) {
+    return "That record could not be found.";
+  }
+  return fallback;
+}
+
 export const broadcastSchema = z.object({
   id: z.string(),
   eventId: z.string(),
@@ -79,7 +101,13 @@ export async function sendOrganiserBroadcast(input: {
           error:
             "Broadcast table isn’t applied in Cloud yet. Run backend/cloud/organiser-and-crew-extensions.sql in the Cloud SQL editor.",
         };
-      return { ok: false, error: error.message };
+      return {
+        ok: false,
+        error: sanitizeRpcError(
+          error.message,
+          "Couldn’t send broadcast. Check your connection and try again.",
+        ),
+      };
     }
     const parsed = broadcastSchema.safeParse(data);
     if (!parsed.success) return { ok: false, error: "Broadcast response could not be verified." };
@@ -141,7 +169,11 @@ export async function reviewOrganiserVerification(
       p_user_id: userId,
       p_status: status,
     });
-    if (error) return { ok: false, error: error.message };
+    if (error)
+      return {
+        ok: false,
+        error: sanitizeRpcError(error.message, "Couldn’t update verification status."),
+      };
     return { ok: true };
   } catch {
     return { ok: false, error: "Couldn’t update verification status." };
@@ -197,7 +229,10 @@ export async function deleteMyAccountData(): Promise<{ ok: true } | { ok: false;
           error:
             "Account-deletion function isn’t applied in Cloud yet. Run backend/cloud/organiser-and-crew-extensions.sql in the Cloud SQL editor.",
         };
-      return { ok: false, error: error.message };
+      return {
+        ok: false,
+        error: sanitizeRpcError(error.message, "Couldn’t delete synced account data. Try again."),
+      };
     }
     return { ok: true };
   } catch {
@@ -249,7 +284,11 @@ export async function crewPostActivity(input: {
       p_point_id: input.pointId ?? null,
       p_meta: input.meta ?? {},
     });
-    if (error) return { ok: false, error: error.message };
+    if (error)
+      return {
+        ok: false,
+        error: sanitizeRpcError(error.message, "Saved on this device."),
+      };
     const parsed = crewActivitySchema.safeParse(data);
     if (!parsed.success) return { ok: false, error: "Saved on this device." };
     return { ok: true, activity: parsed.data };
@@ -324,42 +363,52 @@ export async function manageOrganiserTeamMember(
   action: "upsert" | "remove",
   email: string,
   role: OrganiserTeamMember["role"] = "editor",
-): Promise<OrganiserTeamMember[]> {
+): Promise<{ ok: true; members: OrganiserTeamMember[] } | { ok: false; error: string }> {
   const cleanEmail = email.trim().toLowerCase();
-  if (accountConfigured) {
-    try {
-      const { data, error } = await callRpc("manage_organiser_team_member", {
-        p_action: action,
-        p_email: cleanEmail,
-        p_role: role,
-      });
-      if (!error && Array.isArray(data)) {
-        const list = data.flatMap((row) => {
-          const parsed = teamMemberSchema.safeParse(row);
-          return parsed.success ? [parsed.data] : [];
-        });
-        localStorage.setItem(`event-buddies:org-team:${ownerId}`, JSON.stringify(list));
-        return list;
-      }
-    } catch {
-      /* Fall back to local storage below. */
-    }
+  if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return { ok: false, error: "Enter a valid collaborator email address." };
   }
-  const existing = await listOrganiserTeamMembers(ownerId);
-  const next =
-    action === "remove"
-      ? existing.filter((m) => m.email.toLowerCase() !== cleanEmail)
-      : [
-          ...existing.filter((m) => m.email.toLowerCase() !== cleanEmail),
-          {
-            id: crypto.randomUUID(),
-            email: cleanEmail,
-            role,
-            createdAt: new Date().toISOString(),
-          },
-        ];
-  localStorage.setItem(`event-buddies:org-team:${ownerId}`, JSON.stringify(next));
-  return next;
+  if (!accountConfigured) {
+    return { ok: false, error: "Cloud connection settings are unavailable." };
+  }
+  try {
+    const { data, error } = await callRpc("manage_organiser_team_member", {
+      p_action: action,
+      p_email: cleanEmail,
+      p_role: role,
+    });
+    if (error) {
+      if (error.message.includes("manage_organiser_team_member")) {
+        return {
+          ok: false,
+          error:
+            "Team roles table isn’t applied in Cloud yet. Run backend/cloud/organiser-and-crew-extensions.sql in the Cloud SQL editor.",
+        };
+      }
+      return {
+        ok: false,
+        error: sanitizeRpcError(error.message, "Couldn’t update team roles. Try again."),
+      };
+    }
+    if (!Array.isArray(data)) {
+      return { ok: false, error: "Team roles response could not be verified." };
+    }
+    const list = data.flatMap((row) => {
+      const parsed = teamMemberSchema.safeParse(row);
+      return parsed.success ? [parsed.data] : [];
+    });
+    try {
+      localStorage.setItem(`event-buddies:org-team:${ownerId}`, JSON.stringify(list));
+    } catch {
+      /* Ignore storage quota errors. */
+    }
+    return { ok: true, members: list };
+  } catch {
+    return {
+      ok: false,
+      error: "Couldn’t update team roles. Check your connection and try again.",
+    };
+  }
 }
 
 export async function cleanupExpiredEventData(): Promise<{

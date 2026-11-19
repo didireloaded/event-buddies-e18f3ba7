@@ -323,7 +323,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
             <button
               type="button"
               onClick={() => openPlace(activeStage.id)}
-              className="ios-press inline-flex min-h-10 flex-none items-center gap-1 rounded-full bg-favorite-soft px-3.5 text-[14px] font-semibold text-primary"
+              className="ios-press inline-flex min-h-11 flex-none items-center gap-1 rounded-full bg-favorite-soft px-3.5 text-[14px] font-semibold text-primary"
             >
               <MapPin size={15} aria-hidden /> View on Map
             </button>

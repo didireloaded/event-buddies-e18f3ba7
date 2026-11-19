@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, MapPin, Plus, RotateCw, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -62,6 +62,7 @@ type ReviewSheet =
 export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   const [sheet, setSheet] = useState<ReviewSheet>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const savingRef = useRef(false);
   const [error, setError] = useState("");
   const [sitePlanUrl, setSitePlanUrl] = useState<string | null>(null);
 
@@ -163,45 +164,58 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     eventType,
   });
 
-  async function savePatch(patch: Database["public"]["Tables"]["organiser_events"]["Update"]) {
+  async function savePatch(
+    patch: Database["public"]["Tables"]["organiser_events"]["Update"],
+    options?: { nested?: boolean },
+  ) {
+    if (!options?.nested && savingRef.current) return false;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setSaveState("error");
       setError("You’re offline. Connect to save changes.");
       return false;
     }
+    if (!options?.nested) savingRef.current = true;
     setSaveState("saving");
     setError("");
-    const { error: updErr } = await supabase
-      .from("organiser_events")
-      .update(patch)
-      .eq("id", event.id);
-    if (updErr) {
-      setSaveState("error");
-      setError(dbError(updErr.message));
-      return false;
+    try {
+      const { error: updErr } = await supabase
+        .from("organiser_events")
+        .update(patch)
+        .eq("id", event.id);
+      if (updErr) {
+        setSaveState("error");
+        setError(dbError(updErr.message));
+        return false;
+      }
+      if (event.status === "published" && patch.status !== "draft") {
+        saveLocalPublishedEvent({
+          id: event.id,
+          eventType: (patch.event_type as EventType | undefined) ?? eventType,
+          name: (typeof patch.name === "string" ? patch.name : name).trim(),
+          startDate:
+            patch.start_date !== undefined ? (patch.start_date ?? null) : startDate || null,
+          endDate: patch.end_date !== undefined ? (patch.end_date ?? null) : endDate || null,
+          venue: (typeof patch.venue === "string" ? patch.venue : venue).trim(),
+          gatesOpen: (typeof patch.gates_open === "string" ? patch.gates_open : gatesOpen).trim(),
+          entryRules: (typeof patch.entry_rules === "string"
+            ? patch.entry_rules
+            : entryRules
+          ).trim(),
+          program: patch.program !== undefined ? parseProgram(patch.program) : program,
+          zones: patch.zones !== undefined ? parseZones(patch.zones) : zones,
+          sitePlanPath:
+            patch.site_plan_path !== undefined ? patch.site_plan_path : event.site_plan_path,
+          sitePlanUrl,
+          sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
+          publishedAt: new Date().toISOString(),
+        });
+      }
+      setSaveState("saved");
+      await ctx.reload();
+      return true;
+    } finally {
+      if (!options?.nested) savingRef.current = false;
     }
-    if (event.status === "published" && patch.status !== "draft") {
-      saveLocalPublishedEvent({
-        id: event.id,
-        eventType: (patch.event_type as EventType | undefined) ?? eventType,
-        name: (typeof patch.name === "string" ? patch.name : name).trim(),
-        startDate: patch.start_date !== undefined ? (patch.start_date ?? null) : startDate || null,
-        endDate: patch.end_date !== undefined ? (patch.end_date ?? null) : endDate || null,
-        venue: (typeof patch.venue === "string" ? patch.venue : venue).trim(),
-        gatesOpen: (typeof patch.gates_open === "string" ? patch.gates_open : gatesOpen).trim(),
-        entryRules: (typeof patch.entry_rules === "string" ? patch.entry_rules : entryRules).trim(),
-        program: patch.program !== undefined ? parseProgram(patch.program) : program,
-        zones: patch.zones !== undefined ? parseZones(patch.zones) : zones,
-        sitePlanPath:
-          patch.site_plan_path !== undefined ? patch.site_plan_path : event.site_plan_path,
-        sitePlanUrl,
-        sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
-        publishedAt: new Date().toISOString(),
-      });
-    }
-    setSaveState("saved");
-    await ctx.reload();
-    return true;
   }
 
   async function saveBasics(e: FormEvent) {
@@ -221,11 +235,13 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
   }
 
   async function uploadSitePlan(file: File) {
+    if (savingRef.current) return;
     const problem = validateImageFile(file);
     if (problem) {
       setError(problem);
       return;
     }
+    savingRef.current = true;
     setSaveState("saving");
     setError("");
     setUploadProgress({ percent: 10, label: "Checking image quality…" });
@@ -247,41 +263,48 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       } else {
         saveStoredSitePlanZoomUrl(event.id, null);
       }
-      await savePatch({ site_plan_path: path });
+      await savePatch({ site_plan_path: path }, { nested: true });
       setSitePlanRotation(0);
     } catch (err) {
       setSaveState("error");
       setError(err instanceof Error ? err.message : "Couldn’t upload site plan.");
     } finally {
+      savingRef.current = false;
       setUploadProgress(null);
     }
   }
 
   async function duplicateEdition() {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaveState("saving");
     setError("");
-    const { data, error: dupErr } = await supabase
-      .from("organiser_events")
-      .insert({
-        owner_id: ctx.userId,
-        status: "draft",
-        event_type: eventType,
-        name: name.trim() ? `${name.trim()} (next edition)` : "Next edition draft",
-        venue: venue.trim(),
-        entry_rules: entryRules.trim(),
-        site_plan_path: event.site_plan_path,
-        zones: zones as unknown as Json,
-      })
-      .select("id")
-      .single();
-    if (dupErr || !data) {
-      setSaveState("error");
-      setError(dbError(dupErr?.message));
-      return;
+    try {
+      const { data, error: dupErr } = await supabase
+        .from("organiser_events")
+        .insert({
+          owner_id: ctx.userId,
+          status: "draft",
+          event_type: eventType,
+          name: name.trim() ? `${name.trim()} (next edition)` : "Next edition draft",
+          venue: venue.trim(),
+          entry_rules: entryRules.trim(),
+          site_plan_path: event.site_plan_path,
+          zones: zones as unknown as Json,
+        })
+        .select("id")
+        .single();
+      if (dupErr || !data) {
+        setSaveState("error");
+        setError(dbError(dupErr?.message));
+        return;
+      }
+      setSaveState("saved");
+      await ctx.reload();
+      ctx.go("events", data.id);
+    } finally {
+      savingRef.current = false;
     }
-    setSaveState("saved");
-    await ctx.reload();
-    ctx.go("events", data.id);
   }
 
   function exportProgramJson() {
@@ -316,11 +339,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       </button>
 
       <div className="mt-2 flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
             {event.status} · {eventType}
           </p>
-          <h1 className="ios-large-title">{name || "Untitled draft"}</h1>
+          <h1 className="ios-large-title break-words">{name || "Untitled draft"}</h1>
         </div>
         {saveState !== "idle" && (
           <p role="status" className="pt-2 text-[14px] text-muted-foreground">
@@ -475,7 +498,8 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
         <div className="ios-group">
           <button
             type="button"
-            className="ios-row w-full text-left"
+            disabled={saveState === "saving"}
+            className="ios-row w-full text-left disabled:opacity-50"
             onClick={() => void duplicateEdition()}
           >
             <RowText
@@ -782,7 +806,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               </span>
               <button
                 type="button"
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-popover px-3 text-[14px] font-semibold"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-popover px-3 text-[14px] font-semibold"
                 onClick={() =>
                   setSitePlanRotation(((sitePlanRotation + 90) % 360) as SitePlanRotation)
                 }
@@ -812,11 +836,20 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               </p>
             )}
 
-            <label className="ios-press flex min-h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground">
-              {sitePlanUrl ? "Replace site plan" : "Upload site plan"}
+            <label
+              className={`ios-press flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-[17px] font-semibold text-primary-foreground ${
+                saveState === "saving" ? "pointer-events-none opacity-50" : "cursor-pointer"
+              }`}
+            >
+              {saveState === "saving"
+                ? "Uploading site plan…"
+                : sitePlanUrl
+                  ? "Replace site plan"
+                  : "Upload site plan"}
               <input
                 type="file"
                 accept={IMAGE_TYPES.join(",")}
+                disabled={saveState === "saving"}
                 className="sr-only"
                 onChange={(e) => {
                   const chosen = e.currentTarget.files?.[0];
@@ -833,7 +866,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             {/* Option A — 3-Point GPS Calibration (affine transform pixel% <-> lat/lng) */}
             {sitePlanUrl && (
               <details className="rounded-xl border border-border bg-popover p-3">
-                <summary className="min-h-10 cursor-pointer content-center text-[15px] font-semibold">
+                <summary className="min-h-11 cursor-pointer content-center text-[15px] font-semibold">
                   Calibrate GPS (3 reference points)
                 </summary>
                 <div className="mt-3 space-y-3">
@@ -977,7 +1010,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     <button
                       type="button"
                       aria-label={`Remove ${drink.name}`}
-                      className="grid size-10 place-items-center text-destructive"
+                      className="grid size-11 flex-none place-items-center text-destructive"
                       onClick={() =>
                         setBarItems((prev) => prev.filter((item) => item.id !== drink.id))
                       }
@@ -1244,6 +1277,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               event name, date and site plan are accurate.
             </p>
             <PrimaryButton
+              disabled={saveState === "saving"}
               onClick={async () => {
                 if (await savePatch({ status: "published" })) {
                   saveLocalPublishedEvent({
@@ -1266,7 +1300,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 }
               }}
             >
-              Confirm publish
+              {saveState === "saving" ? "Publishing…" : "Confirm publish"}
             </PrimaryButton>
             <SecondaryButton onClick={() => setSheet(null)}>Cancel</SecondaryButton>
           </div>
@@ -1281,6 +1315,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
               records.
             </p>
             <PrimaryButton
+              disabled={saveState === "saving"}
               onClick={async () => {
                 if (await savePatch({ status: "draft" })) {
                   removeLocalPublishedEvent(event.id);
@@ -1288,7 +1323,7 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 }
               }}
             >
-              Confirm unpublish
+              {saveState === "saving" ? "Unpublishing…" : "Confirm unpublish"}
             </PrimaryButton>
             <SecondaryButton onClick={() => setSheet(null)}>Cancel</SecondaryButton>
           </div>
@@ -1301,21 +1336,31 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             <p className="text-[16px]">This permanently deletes this unpublished draft.</p>
             <PrimaryButton
               className="bg-destructive"
+              disabled={saveState === "saving"}
               onClick={async () => {
-                const { error: delErr } = await supabase
-                  .from("organiser_events")
-                  .delete()
-                  .eq("id", event.id);
-                if (delErr) {
-                  setError(dbError(delErr.message));
-                  return;
+                if (savingRef.current) return;
+                savingRef.current = true;
+                setSaveState("saving");
+                setError("");
+                try {
+                  const { error: delErr } = await supabase
+                    .from("organiser_events")
+                    .delete()
+                    .eq("id", event.id);
+                  if (delErr) {
+                    setSaveState("error");
+                    setError(dbError(delErr.message));
+                    return;
+                  }
+                  setSheet(null);
+                  await ctx.reload();
+                  ctx.go("events");
+                } finally {
+                  savingRef.current = false;
                 }
-                setSheet(null);
-                await ctx.reload();
-                ctx.go("events");
               }}
             >
-              Delete draft
+              {saveState === "saving" ? "Deleting…" : "Delete draft"}
             </PrimaryButton>
             <SecondaryButton onClick={() => setSheet(null)}>Cancel</SecondaryButton>
           </div>

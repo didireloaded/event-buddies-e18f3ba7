@@ -129,6 +129,57 @@ describe("Real-time crew pin pipe (crew:{id}:pins)", () => {
     expect(mockClient.removeChannel).toHaveBeenCalled();
   });
 
+  it("never downgrades a private crew channel to a public channel on CHANNEL_ERROR and ignores events after unsubscribe", () => {
+    const listeners: Record<string, (msg: { payload?: unknown }) => void> = {};
+    let statusCb: ((status: string) => void) | undefined;
+    const mockChannel = {
+      on: vi.fn(
+        (_type: string, filter: { event: string }, cb: (msg: { payload?: unknown }) => void) => {
+          listeners[filter.event] = cb;
+          return mockChannel;
+        },
+      ),
+      subscribe: vi.fn((cb?: (status: string) => void) => {
+        statusCb = cb;
+        return mockChannel;
+      }),
+      send: vi.fn(),
+    };
+    const mockClient = {
+      channel: vi.fn(() => mockChannel),
+      removeChannel: vi.fn(),
+    };
+
+    const upserted: unknown[] = [];
+    const unsubscribe = subscribeCrewPins(
+      "crew-private-only",
+      {
+        onUpserted: (pin) => upserted.push(pin),
+        onRemoved: vi.fn(),
+      },
+      { client: mockClient, configured: true },
+    );
+
+    statusCb?.("CHANNEL_ERROR");
+    expect(mockClient.channel).toHaveBeenCalledTimes(1);
+    expect(mockClient.channel).toHaveBeenCalledWith("crew:crew-private-only:pins", {
+      config: { private: true, broadcast: { self: false } },
+    });
+
+    unsubscribe();
+    listeners["pin:upserted"]?.({
+      payload: {
+        id: "late-pin",
+        crewId: "crew-private-only",
+        userId: "u2",
+        displayName: "Late",
+        pointId: "stage-main",
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+      },
+    });
+    expect(upserted).toHaveLength(0);
+  });
+
   it("delivers pin drops, Lost Someone alerts, crew chat, and Ghost Mode removal from Phone A to Phone B over the active crew:{id}:pins channel", async () => {
     const listeners: Record<string, (msg: { payload?: unknown }) => void> = {};
     const mockChannel = {

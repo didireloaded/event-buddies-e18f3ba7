@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { redirectHost } from "@/lib/oauth-return-path";
+import { isSafeOAuthRedirect, redirectHost } from "@/lib/oauth-return-path";
 
 type OAuthResult = {
   data: {
@@ -40,7 +40,12 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     const { data, error } = await oauth().getAuthorizationDetails(deps.id);
     if (error) throw new Error(error.message);
     const immediate = data?.redirect_url ?? data?.redirect_to;
-    if (immediate && !data?.client) throw redirect({ href: immediate });
+    if (immediate && !data?.client) {
+      if (!isSafeOAuthRedirect(immediate)) {
+        throw new Error("This connection request returned an unsafe redirect destination.");
+      }
+      throw redirect({ href: immediate });
+    }
     const { data: u } = await supabase.auth.getUser();
     return { details: data, email: u.user?.email ?? "" };
   },
@@ -113,6 +118,11 @@ export function Consent({
       if (error || !target) {
         setBusy(false);
         setError(error?.message ?? "No redirect was returned. Try again.");
+        return;
+      }
+      if (!isSafeOAuthRedirect(target)) {
+        setBusy(false);
+        setError("This connection request returned an unsafe redirect destination.");
         return;
       }
       onRedirect(target);

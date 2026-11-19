@@ -69,7 +69,8 @@ export function CrewCoordination() {
       places[0]?.id ??
       "",
   );
-  const [activities, setActivities] = useState<CrewActivity[]>(() => readLocalFeed(eventId));
+  const [activities, setActivities] = useState<CrewActivity[]>([]);
+  const [posting, setPosting] = useState(false);
   const [sheet, setSheet] = useState<"poll" | "travel" | "note" | null>(null);
   const [pollQuestion, setPollQuestion] = useState("Which stage next?");
   const [pollOptionA, setPollOptionA] = useState(data.stages[0]?.name ?? "Stage 1");
@@ -127,61 +128,67 @@ export function CrewCoordination() {
     chosenPointId: string | null,
     meta: Record<string, unknown> = {},
   ) {
-    const authorName = attendee.preferences.profile.name || "Attendee";
-    const localItem: CrewActivity = {
-      id: crypto.randomUUID(),
-      eventId,
-      crewId: sync.crew?.id ?? "local",
-      authorId: voterId,
-      authorName,
-      kind,
-      message,
-      pointId: chosenPointId,
-      meta,
-      createdAt: new Date().toISOString(),
-    };
-    const nextLocal = [localItem, ...readLocalFeed(eventId)].slice(0, 30);
-    writeLocalFeed(eventId, nextLocal);
-    setActivities(nextLocal);
-
-    if (sync.crew) {
-      void broadcastCrewChatMessage(localItem);
-      if (kind === "sos") {
-        const chosenPlace = chosenPointId ? places.find((p) => p.id === chosenPointId) : null;
-        void broadcastCrewLostAlert({
-          id: localItem.id,
-          crewId: sync.crew.id,
-          eventId,
-          userId: voterId,
-          authorName,
-          pointId: chosenPointId,
-          placeName: chosenPlace?.name ?? "our meeting point",
-          message: `${authorName}: ${message}${chosenPlace ? ` near ${chosenPlace.name}` : ""}`,
-          createdAt: localItem.createdAt,
-        });
-      }
-    }
-
-    if (attendee.auth.user && sync.crew) {
-      const res = await crewPostActivity({
+    if (posting) return;
+    setPosting(true);
+    try {
+      const authorName = attendee.preferences.profile.name || "Attendee";
+      const localItem: CrewActivity = {
+        id: crypto.randomUUID(),
         eventId,
+        crewId: sync.crew?.id ?? "local",
+        authorId: voterId,
+        authorName,
         kind,
         message,
         pointId: chosenPointId,
         meta,
-      });
-      if (res.ok) {
-        const replaced = [res.activity, ...nextLocal.filter((a) => a.id !== localItem.id)];
-        writeLocalFeed(eventId, replaced);
-        setActivities(replaced);
-        void broadcastCrewChatMessage(res.activity);
-        attendee.notify("Posted to your connected crew");
-        return;
+        createdAt: new Date().toISOString(),
+      };
+      const nextLocal = [localItem, ...readLocalFeed(eventId)].slice(0, 30);
+      writeLocalFeed(eventId, nextLocal);
+      setActivities(nextLocal);
+
+      if (sync.crew) {
+        void broadcastCrewChatMessage(localItem);
+        if (kind === "sos") {
+          const chosenPlace = chosenPointId ? places.find((p) => p.id === chosenPointId) : null;
+          void broadcastCrewLostAlert({
+            id: localItem.id,
+            crewId: sync.crew.id,
+            eventId,
+            userId: voterId,
+            authorName,
+            pointId: chosenPointId,
+            placeName: chosenPlace?.name ?? "our meeting point",
+            message: `${authorName}: ${message}${chosenPlace ? ` near ${chosenPlace.name}` : ""}`,
+            createdAt: localItem.createdAt,
+          });
+        }
       }
+
+      if (attendee.auth.user && sync.crew) {
+        const res = await crewPostActivity({
+          eventId,
+          kind,
+          message,
+          pointId: chosenPointId,
+          meta,
+        });
+        if (res.ok) {
+          const replaced = [res.activity, ...nextLocal.filter((a) => a.id !== localItem.id)];
+          writeLocalFeed(eventId, replaced);
+          setActivities(replaced);
+          void broadcastCrewChatMessage(res.activity);
+          attendee.notify("Posted to your connected crew");
+          return;
+        }
+      }
+      attendee.notify(
+        sync.crew ? "Sent to your connected crew" : "Saved to your crew board on this phone",
+      );
+    } finally {
+      setPosting(false);
     }
-    attendee.notify(
-      sync.crew ? "Sent to your connected crew" : "Saved to your crew board on this phone",
-    );
   }
 
   async function voteOnPoll(activity: CrewActivity, optionIndex: number) {
@@ -245,6 +252,7 @@ export function CrewCoordination() {
   }
 
   async function exportYearbook() {
+    if (exportingCard) return;
     setExportingCard(true);
     try {
       const crewName = sync.crew?.name ?? `Our ${data.event.name} Crew`;
@@ -269,7 +277,9 @@ export function CrewCoordination() {
         memberNames,
         meetingLabel,
       });
-      const file = new File([blob], "sound-of-summer-crew-yearbook.png", { type: "image/png" });
+      const file = new File([blob], `${data.event.slug || "event"}-crew-yearbook.png`, {
+        type: "image/png",
+      });
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
         await navigator.share({ files: [file], title: `${crewName} Yearbook` });
       } else {
@@ -312,7 +322,7 @@ export function CrewCoordination() {
             <button
               key={ping.label}
               type="button"
-              disabled={!attendee.ready}
+              disabled={!attendee.ready || posting}
               onClick={() => void postActivity(ping.kind, ping.message, pointId || null)}
               className={
                 ping.kind === "sos"
@@ -367,14 +377,14 @@ export function CrewCoordination() {
               return (
                 <div key={act.id} className="space-y-1.5 py-2.5 text-[14px]">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-semibold">{act.authorName}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="break-words font-semibold">{act.authorName}</span>
                       <span className="ml-1.5 text-[12px] uppercase text-primary">{act.kind}</span>
-                      <p className="mt-0.5 text-[15px]">{act.message}</p>
+                      <p className="mt-0.5 break-words text-[15px]">{act.message}</p>
                       {place && (
                         <button
                           type="button"
-                          className="min-h-9 text-[13px] font-semibold text-primary"
+                          className="min-h-11 text-[13px] font-semibold text-primary"
                           onClick={() => openPlace(place.id)}
                         >
                           {place.name} · view on map ↗
@@ -384,7 +394,7 @@ export function CrewCoordination() {
                     <button
                       type="button"
                       aria-label={`Share ${act.authorName}’s update`}
-                      className="grid size-10 place-items-center rounded-full bg-secondary"
+                      className="grid size-11 flex-none place-items-center rounded-full bg-secondary"
                       onClick={() => void shareActivity(act)}
                     >
                       <Share2 size={15} />
@@ -401,9 +411,9 @@ export function CrewCoordination() {
                             type="button"
                             aria-pressed={selected}
                             onClick={() => void voteOnPoll(act, idx)}
-                            className="flex min-h-10 w-full items-center justify-between rounded-lg border border-border px-3 py-1.5 text-left text-[14px] font-medium aria-pressed:border-primary aria-pressed:bg-primary/15"
+                            className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-border px-3 py-1.5 text-left text-[14px] font-medium aria-pressed:border-primary aria-pressed:bg-primary/15"
                           >
-                            <span>{opt}</span>
+                            <span className="min-w-0 break-words">{opt}</span>
                             <span className="tabular-nums text-[13px] text-muted-foreground">
                               {count} {count === 1 ? "vote" : "votes"}
                               {totalVotes > 0
@@ -551,7 +561,9 @@ export function CrewCoordination() {
                 onChange={(e) => setTravelNote(e.target.value)}
               />
             </label>
-            <PrimaryButton type="submit">Save & post travel plan</PrimaryButton>
+            <PrimaryButton type="submit" disabled={posting}>
+              Save &amp; post travel plan
+            </PrimaryButton>
           </form>
         </Sheet>
       )}
@@ -562,7 +574,7 @@ export function CrewCoordination() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!noteText.trim()) return;
+              if (posting || !noteText.trim()) return;
               void postActivity("message", noteText.trim(), pointId || null);
               setNoteText("");
               setSheet(null);
@@ -580,7 +592,9 @@ export function CrewCoordination() {
                 onChange={(e) => setNoteText(e.target.value)}
               />
             </label>
-            <PrimaryButton type="submit">Post note</PrimaryButton>
+            <PrimaryButton type="submit" disabled={posting}>
+              Post note
+            </PrimaryButton>
           </form>
         </Sheet>
       )}

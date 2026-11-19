@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 /**
  * Accessible bottom sheet built on native <dialog>.showModal(): focus is
@@ -13,6 +13,7 @@ export function Sheet({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const dragStart = useRef<number | null>(null);
   const [drag, setDrag] = useState(0);
@@ -32,7 +33,7 @@ export function Sheet({
       ref={dialog}
       className="ios-sheet"
       style={drag ? { transform: `translateY(${drag}px)` } : undefined}
-      aria-labelledby="sheet-title"
+      aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -66,7 +67,7 @@ export function Sheet({
         </div>
         <header className="flex flex-none items-center gap-2 px-4 pb-2 pt-2">
           <h2
-            id="sheet-title"
+            id={titleId}
             className="min-w-0 flex-1 break-words text-[22px] leading-7 font-bold tracking-tight"
           >
             {title}
