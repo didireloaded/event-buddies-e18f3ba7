@@ -31,9 +31,17 @@ export function eventFacts(data: DemoData): EventFact[] {
     {
       id: "hours",
       title: "Event hours",
-      text: `${data.event.startAt.toLocaleDateString("en-GB", { timeZone: data.event.timezone })}, ${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT. ${data.festival.timingNotice}`,
-      pending: false,
-      status: "verified",
+      text:
+        data.event.dateConfirmed === false
+          ? `Event date and operating hours for ${data.event.name} are still to be confirmed by the organiser.`
+          : data.event.gatesConfirmed === false
+            ? `${data.event.startAt.toLocaleDateString("en-GB", { timeZone: data.event.timezone })}. ${data.festival.timingNotice}`
+            : `${data.event.startAt.toLocaleDateString("en-GB", { timeZone: data.event.timezone })}, ${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT. ${data.festival.timingNotice}`,
+      pending: data.event.dateConfirmed === false || data.event.gatesConfirmed === false,
+      status:
+        data.event.dateConfirmed === false || data.event.gatesConfirmed === false
+          ? "pending"
+          : "verified",
       source,
       updatedAt,
     },

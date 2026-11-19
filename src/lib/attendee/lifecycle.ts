@@ -7,6 +7,18 @@ export type EventPhase =
 export type LandmarkPin = { pointId: string; expiresAt: number };
 
 export function eventLifecycle(data: DemoData, now: number | null) {
+  if (data.event.dateConfirmed === false) {
+    const base = now ?? Date.now();
+    const endsAt = base + 30 * DAY;
+    return {
+      phase: (data.event.status === "cancelled" ? "cancelled" : "upcoming") as EventPhase,
+      endsAt,
+      recapAt: endsAt + DAY,
+      pinsEndAt: base + 12 * HOUR,
+      archiveAt: endsAt + 7 * DAY,
+      dormantAt: endsAt + 30 * DAY,
+    };
+  }
   const setEnds = data.performances
     .filter((set) => set.status !== "cancelled")
     .map((set) => +new Date(set.scheduledEnd))

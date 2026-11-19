@@ -17,15 +17,28 @@ import {
   type CrewLostAlert,
   type CrewPin,
 } from "./pins";
+import { getCrewMediaMetadata, resolveCrewMediaSignedUrl } from "./media";
+
 const pendingSchema = z.object({ id: z.string().uuid(), command: commandSchema });
 type Pending = z.infer<typeof pendingSchema>;
+
+export type PendingRemoteRevocation = {
+  crewId: string;
+  userId: string;
+  pointId: string | null;
+  error: string;
+};
+
 type State = {
   scope: string;
   crew: Crew | null;
   pins: CrewPin[];
+  crewPhotoUrl: string | null;
+  memberAvatarUrls: Record<string, string>;
   lostAlert: CrewLostAlert | null;
   loading: boolean;
   pending: Pending | null;
+  revocationPending: PendingRemoteRevocation | null;
   error: string;
   checkedAt: string | null;
   invite: { code: string; expiresAt: string } | null;
@@ -34,9 +47,12 @@ const initial: State = {
   scope: "",
   crew: null,
   pins: [],
+  crewPhotoUrl: null,
+  memberAvatarUrls: {},
   lostAlert: null,
   loading: false,
   pending: null,
+  revocationPending: null,
   error: "",
   checkedAt: null,
   invite: null,
@@ -44,6 +60,8 @@ const initial: State = {
 export function useCrew(eventId: string, userId: string | null, scope: string, ready: boolean) {
   const [state, setState] = useState<State>(initial);
   const trigger = useRef<() => void>(() => {});
+  const revocationRef = useRef<PendingRemoteRevocation | null>(null);
+  revocationRef.current = state.revocationPending;
   const identity = useRef(scope);
   identity.current = scope;
   const storageKey = scope + ":crew";
@@ -78,10 +96,47 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
       try {
         let action = pending();
         setState((s) => ({ ...s, loading: true, pending: action, error: "" }));
-        if (!navigator.onLine)
+        if (!navigator.onLine) {
+          if (action?.command.op === "stop") {
+            const offlineStopCrewId = action.command.crewId;
+            setState((s) => ({
+              ...s,
+              revocationPending: {
+                crewId: offlineStopCrewId,
+                userId: currentUserId,
+                pointId: null,
+                error:
+                  "GPS stopped on this device, but you’re offline so remote removal couldn’t be confirmed with the server yet.",
+              },
+            }));
+          }
           throw new Error(
             "Offline. Your last crew snapshot is shown. Pending actions will retry when connected.",
           );
+        }
+        // Retry any pending remote pin revocation as soon as we reconnect.
+        const pendingRevocation = revocationRef.current;
+        if (pendingRevocation) {
+          const rev = await removeCrewPin({
+            crewId: pendingRevocation.crewId,
+            userId: pendingRevocation.userId,
+            pointId: pendingRevocation.pointId,
+          });
+          if (!cancelled && identity.current === scope) {
+            if (rev.ok) {
+              setState((s) => ({
+                ...s,
+                revocationPending: null,
+                pins: s.pins.filter((p) => p.userId !== pendingRevocation.userId),
+              }));
+            } else {
+              setState((s) => ({
+                ...s,
+                revocationPending: { ...pendingRevocation, error: rev.error },
+              }));
+            }
+          }
+        }
         while (action && !cancelled) {
           const result = await sendCrew(eventId, action.id, action.command);
           if (cancelled || identity.current !== scope) return;
@@ -91,7 +146,7 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
           }
           if (result.ok) {
             if (action.command.op === "share") {
-              void dropCrewPin({
+              const dropRes = await dropCrewPin({
                 eventId,
                 crewId: action.command.crewId,
                 userId: currentUserId,
@@ -99,11 +154,41 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
                   cached?.members.find((m) => m.id === currentUserId)?.name ?? "Crew member",
                 pointId: action.command.pointId,
               });
+              if (!cancelled && identity.current === scope) {
+                if (dropRes.ok) {
+                  setState((s) => ({
+                    ...s,
+                    pins: [dropRes.pin, ...s.pins.filter((p) => p.userId !== dropRes.pin.userId)],
+                  }));
+                } else {
+                  setState((s) => ({ ...s, error: dropRes.error }));
+                }
+              }
             } else if (action.command.op === "stop") {
-              void removeCrewPin({
-                crewId: action.command.crewId,
+              const stopCrewId = action.command.crewId;
+              const rev = await removeCrewPin({
+                crewId: stopCrewId,
                 userId: currentUserId,
               });
+              if (!cancelled && identity.current === scope) {
+                if (rev.ok) {
+                  setState((s) => ({
+                    ...s,
+                    revocationPending: null,
+                    pins: s.pins.filter((p) => p.userId !== currentUserId),
+                  }));
+                } else {
+                  setState((s) => ({
+                    ...s,
+                    revocationPending: {
+                      crewId: stopCrewId,
+                      userId: currentUserId,
+                      pointId: null,
+                      error: rev.error,
+                    },
+                  }));
+                }
+              }
             }
             const updatedCrewId =
               "crewId" in action.command ? action.command.crewId : (cached?.id ?? null);
@@ -120,11 +205,41 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
         }
         const crew = await readCrew(eventId);
         if (cancelled || identity.current !== scope) return;
-        const pins = crew ? await listCrewPins(crew.id) : [];
+        const [pins, mediaMeta] = crew
+          ? await Promise.all([listCrewPins(crew.id), getCrewMediaMetadata(crew.id)])
+          : [[], null];
         if (cancelled || identity.current !== scope) return;
+
+        // Resolve protected signed URLs for shared crew photo and member avatars
+        const photoPath = crew?.photoPath ?? mediaMeta?.photoPath ?? null;
+        const resolvedCrewPhoto = photoPath ? await resolveCrewMediaSignedUrl(photoPath) : null;
+        const avatarEntries = new Map<string, string>();
+        if (crew) {
+          for (const m of crew.members) {
+            const p = m.avatarPath ?? mediaMeta?.memberAvatars[m.id] ?? null;
+            if (p) avatarEntries.set(m.id, p);
+          }
+        }
+        const resolvedAvatars: Record<string, string> = {};
+        await Promise.all(
+          [...avatarEntries.entries()].map(async ([memberId, path]) => {
+            const signed = await resolveCrewMediaSignedUrl(path);
+            if (signed) resolvedAvatars[memberId] = signed;
+          }),
+        );
+        if (cancelled || identity.current !== scope) return;
+
         const checkedAt = new Date().toISOString();
         localStorage.setItem(storageKey, JSON.stringify({ crew, pins, checkedAt }));
-        setState((s) => ({ ...s, crew, pins, checkedAt, pending: pending() }));
+        setState((s) => ({
+          ...s,
+          crew,
+          pins,
+          crewPhotoUrl: resolvedCrewPhoto,
+          memberAvatarUrls: resolvedAvatars,
+          checkedAt,
+          pending: pending(),
+        }));
       } catch (error) {
         if (
           error instanceof Error &&
@@ -136,10 +251,22 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
           localStorage.removeItem(storageKey);
           setState((s) => ({ ...s, crew: null, pending: null, invite: null }));
         }
+        const pendingNow = pending();
         if (!cancelled)
           setState((s) => ({
             ...s,
             error: error instanceof Error ? error.message : "Couldn’t refresh your crew.",
+            ...(pendingNow?.command.op === "stop"
+              ? {
+                  revocationPending: {
+                    crewId: pendingNow.command.crewId,
+                    userId: currentUserId,
+                    pointId: null,
+                    error:
+                      "GPS stopped on this device, but remote removal couldn’t be confirmed with the server. Retry when connected.",
+                  },
+                }
+              : {}),
           }));
       } finally {
         running = false;
@@ -263,11 +390,46 @@ export function useCrew(eventId: string, userId: string | null, scope: string, r
       stopping && m.id === userId ? { ...m, pointId: null, expiresAt: null } : m,
     ),
   };
+  async function retryRemoteRevocation() {
+    const pendingRev = revocationRef.current;
+    if (!pendingRev) return true;
+    const res = await removeCrewPin({
+      crewId: pendingRev.crewId,
+      userId: pendingRev.userId,
+      pointId: pendingRev.pointId,
+    });
+    if (res.ok) {
+      setState((s) => ({
+        ...s,
+        revocationPending: null,
+        pins: s.pins.filter((p) => p.userId !== pendingRev.userId),
+      }));
+      return true;
+    }
+    setState((s) => ({
+      ...s,
+      revocationPending: { ...pendingRev, error: res.error },
+    }));
+    return false;
+  }
+
   return {
     ...visible,
     crew,
     command,
     refresh: () => trigger.current(),
     dismissLostAlert: () => setState((s) => ({ ...s, lostAlert: null })),
+    recordAckedPin: (pin: CrewPin) =>
+      setState((s) => ({
+        ...s,
+        pins: [pin, ...s.pins.filter((p) => p.userId !== pin.userId)],
+      })),
+    markRevocationPending: (pendingRev: PendingRemoteRevocation | null) =>
+      setState((s) => ({
+        ...s,
+        revocationPending: pendingRev,
+        pins: pendingRev ? s.pins.filter((p) => p.userId !== pendingRev.userId) : s.pins,
+      })),
+    retryRemoteRevocation,
   };
 }

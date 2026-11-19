@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const DRINK_CATEGORIES = [
   "Water",
   "Soft drinks",
@@ -9,13 +11,30 @@ export const DRINK_CATEGORIES = [
 
 export type DrinkCategory = (typeof DRINK_CATEGORIES)[number];
 
+export const barDrinkItemSchema = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().min(1).max(120),
+  category: z.enum(DRINK_CATEGORIES),
+  note: z.string().max(160).optional(),
+  price: z.string().max(40).nullable().optional(),
+  available: z.boolean().optional(),
+});
+
+export const barMenuConfigSchema = z.object({
+  isSample: z.boolean().default(false),
+  paymentNote: z.string().max(240).default(""),
+  items: z.array(barDrinkItemSchema).max(120),
+  assignedBars: z.array(z.string().max(80)).max(50).optional(),
+  updatedAt: z.string().max(40).optional(),
+});
+
 export type BarDrinkItem = {
   id: string;
   name: string;
   category: DrinkCategory;
-  note?: string;
-  price?: string | null;
-  available?: boolean;
+  note?: string | undefined;
+  price?: string | null | undefined;
+  available?: boolean | undefined;
 };
 
 export type BarMenuConfig = {
@@ -23,8 +42,19 @@ export type BarMenuConfig = {
   paymentNote: string;
   items: BarDrinkItem[];
   /** Optional bar IDs/names this menu is assigned to; empty = shared across all bars. */
-  assignedBars?: string[];
+  assignedBars?: string[] | undefined;
+  updatedAt?: string | undefined;
 };
+
+export function parseBarMenus(raw: unknown): BarMenuConfig[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BarMenuConfig[] = [];
+  for (const entry of raw) {
+    const parsed = barMenuConfigSchema.safeParse(entry);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
 
 /**
  * Sample bar catalogue for UX preview & testing.
@@ -110,15 +140,29 @@ export function saveOrganiserBarMenus(eventId: string, menus: BarMenuConfig[]): 
   }
 }
 
-export function getMenuForBar(eventId: string, barName: string): BarMenuConfig {
+export function getMenuForBar(
+  eventId: string,
+  barName: string,
+  publishedMenus?: BarMenuConfig[] | null,
+): BarMenuConfig {
+  const matchFromList = (list: BarMenuConfig[]): BarMenuConfig | null => {
+    const specific = list.find(
+      (m) =>
+        m.assignedBars &&
+        m.assignedBars.some((b) => b.trim().toLowerCase() === barName.trim().toLowerCase()),
+    );
+    if (specific) return specific;
+    const shared = list.find((m) => !m.assignedBars || m.assignedBars.length === 0);
+    return shared ?? null;
+  };
+
+  if (publishedMenus && publishedMenus.length > 0) {
+    const publishedMatch = matchFromList(publishedMenus);
+    if (publishedMatch) return publishedMatch;
+  }
+
   const saved = readOrganiserBarMenus(eventId);
-  const specific = saved.find(
-    (m) =>
-      m.assignedBars &&
-      m.assignedBars.some((b) => b.trim().toLowerCase() === barName.trim().toLowerCase()),
-  );
-  if (specific) return specific;
-  const shared = saved.find((m) => !m.assignedBars || m.assignedBars.length === 0);
-  if (shared) return shared;
+  const localMatch = matchFromList(saved);
+  if (localMatch) return localMatch;
   return SAMPLE_BAR_MENU;
 }

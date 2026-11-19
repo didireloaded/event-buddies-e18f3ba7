@@ -144,6 +144,58 @@ export function projectGpsToImagePercent(
   };
 }
 
+export type ResolvedCrewMapPosition = {
+  x: number;
+  y: number;
+  mode: "gps_calibrated" | "landmark";
+  placeId: string | null;
+};
+
+/**
+ * Resolves where a consenting crew member should appear on the venue plan:
+ * - Projects real GPS lat/lng ONLY when verified affine calibration exists and maps inside the plan.
+ * - Otherwise falls back to their shared venue landmark. Never fabricates GPS coordinates on an uncalibrated plan.
+ */
+export function resolveCrewPinMapPosition(
+  pin: {
+    lat?: number | null | undefined;
+    lng?: number | null | undefined;
+    pointId?: string | null | undefined;
+  },
+  places: { id: string; x: number; y: number }[],
+  calibration: AffineTransform | null | undefined,
+): ResolvedCrewMapPosition | null {
+  if (
+    calibration &&
+    typeof pin.lat === "number" &&
+    Number.isFinite(pin.lat) &&
+    typeof pin.lng === "number" &&
+    Number.isFinite(pin.lng)
+  ) {
+    const projected = projectGpsToImagePercent(pin.lat, pin.lng, calibration);
+    if (projected) {
+      return {
+        x: projected.x,
+        y: projected.y,
+        mode: "gps_calibrated",
+        placeId: pin.pointId ?? null,
+      };
+    }
+  }
+  if (pin.pointId) {
+    const landmark = places.find((p) => p.id === pin.pointId);
+    if (landmark) {
+      return {
+        x: landmark.x,
+        y: landmark.y,
+        mode: "landmark",
+        placeId: landmark.id,
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * Resolution-aware max zoom for geographic map zoom levels (baseZoom + log2(imageWidth / screenWidth)).
  * Caps at 20, and caps low-resolution images (<2000px long edge) to baseZoom + 1 to avoid pixel mush.

@@ -1,5 +1,6 @@
 // Plain data shapes for the database-free demo. They replace the Drizzle
 // `$inferSelect` types used by the original Next.js app (see LOVABLE.md).
+import type { BarMenuConfig } from "@/lib/attendee/bar-menu";
 import type { FestivalInfo } from "./sound-of-summer";
 
 export type EventRecord = {
@@ -12,6 +13,10 @@ export type EventRecord = {
   startAt: Date;
   endAt: Date;
   doorsOpenAt: Date;
+  /** False when a published/draft organiser event does not have a confirmed start date yet. */
+  dateConfirmed?: boolean;
+  /** False when gate opening hours have not been confirmed yet. */
+  gatesConfirmed?: boolean;
   venueName: string;
   city: string;
   country: string;
@@ -30,6 +35,9 @@ export type EventRecord = {
     e: number;
     f: number;
   } | null;
+  mapCalibrationVersion?: number | null;
+  mapCalibrationUpdatedAt?: string | null;
+  barMenus?: BarMenuConfig[] | undefined;
   ticketUrl: string | null;
   ticketSalesClose?: string | null;
   minTicketPrice: string | null;

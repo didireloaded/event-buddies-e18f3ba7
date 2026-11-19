@@ -101,6 +101,7 @@ test("connected crew: photo upload, invite QR, active-session live GPS, Ghost Mo
   };
 
   let droppedGpsPin: Record<string, unknown> | null = null;
+  let failRemovePin = true;
   let removedPin = false;
   let syncedTicketToCloud = false;
 
@@ -146,19 +147,66 @@ test("connected crew: photo upload, invite QR, active-session live GPS, Ghost Mo
       });
     }
     if (path.endsWith("/rpc/drop_pin") || path.endsWith("/functions/v1/drop-pin")) {
-      droppedGpsPin = req.postDataJSON() as Record<string, unknown>;
+      const body = req.postDataJSON() as Record<string, unknown>;
+      if (body["action"] === "remove") {
+        if (failRemovePin) {
+          return route.fulfill({
+            status: 503,
+            contentType: "application/json",
+            body: JSON.stringify({ ok: false, confirmed: false, error: "Server unreachable" }),
+          });
+        }
+        removedPin = true;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true, confirmed: true }),
+        });
+      }
+      droppedGpsPin = body;
+      const pinResp = {
+        id: "p1111111-1111-4111-8111-111111111111",
+        eventId: SOS_ID,
+        crewId,
+        userId: USER_ID,
+        displayName: "QA Maya",
+        pointId: (body["p_point_id"] as string | null) ?? "sos-main",
+        x: (body["p_x"] as number | null) ?? 41,
+        y: (body["p_y"] as number | null) ?? 33.7,
+        lat: (body["p_lat"] as number | null) ?? -22.8205,
+        lng: (body["p_lng"] as number | null) ?? 14.5418,
+        accuracyMeters: (body["p_accuracy_m"] as number | null) ?? 12,
+        sessionId: (body["p_session_id"] as string | null) ?? null,
+        createdAt: new Date().toISOString(),
+        expiresAt:
+          (body["p_expires_at"] as string | null) ?? new Date(Date.now() + 15 * 60_000).toISOString(),
+      };
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true }),
+        body: JSON.stringify(path.endsWith("/functions/v1/drop-pin") ? { ok: true, pin: pinResp } : pinResp),
       });
     }
     if (path.endsWith("/rpc/remove_pin")) {
+      if (failRemovePin) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Database temporarily unreachable" }),
+        });
+      }
       removedPin = true;
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ ok: true }),
+        body: JSON.stringify({ ok: true, confirmed: true }),
+      });
+    }
+    if (path.endsWith("/rpc/get_crew_media")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ photoPath: null, memberAvatars: {} }),
       });
     }
     if (path.endsWith("/rest/v1/tickets")) {
@@ -191,17 +239,22 @@ test("connected crew: photo upload, invite QR, active-session live GPS, Ghost Mo
   await expect(page.getByRole("button", { name: "Copy invite link", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
 
-  // 3. Opt-in active-session Live GPS sharing -> accuracy badge + drop_pin -> Ghost Mode revocation
+  // 3. Opt-in active-session Live GPS sharing -> server-enforced 15m duration + server confirmation -> Ghost Mode with failed-revocation alert + retry
   await page.getByRole("button", { name: "Share live location", exact: true }).click();
   await page.getByRole("button", { name: "15 min", exact: true }).click();
   await page.getByRole("button", { name: "Start sharing live location", exact: true }).click();
   await expect(page.getByText(/Live location · Live/i)).toBeVisible();
   await expect(page.getByText(/±12\s?m/)).toBeVisible();
-  await expect.poll(() => droppedGpsPin).not.toBeNull();
+  await expect(page.getByText(/Confirmed by server/i)).toBeVisible();
+  await expect.poll(() => droppedGpsPin?.["p_duration_minutes"]).toBe(15);
 
-  // Ghost Mode stops GPS & revokes pin
+  // Ghost Mode stops local GPS immediately; while server is unreachable it MUST show "Remote removal pending" + Retry!
   await page.getByRole("button", { name: /Stop sharing · Ghost Mode/ }).click();
   await expect(page.getByText(/Live location · Live/i)).toHaveCount(0);
+  await expect(page.getByTestId("remote-revocation-pending")).toBeVisible();
+  failRemovePin = false;
+  await page.getByRole("button", { name: "Retry remote removal", exact: true }).click();
+  await expect(page.getByTestId("remote-revocation-pending")).toHaveCount(0);
   await expect.poll(() => removedPin).toBe(true);
 
   // 4. Signed-in Cloud ticket metadata sync & honest disclosure
@@ -353,6 +406,20 @@ test("organiser workspace end-to-end: desktop & mobile layout, manual/URL create
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(broadcast),
+      });
+    }
+    if (path.endsWith("/rpc/save_organiser_event_extras")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    }
+    if (path.endsWith("/rpc/get_organiser_event_extras")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ barMenus: [], mapCalibration: null }),
       });
     }
     if (path.endsWith("/rpc/list_event_broadcasts")) {

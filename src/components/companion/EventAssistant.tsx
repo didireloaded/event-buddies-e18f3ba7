@@ -60,8 +60,6 @@ export function EventAssistant() {
               data: {
                 question,
                 eventId: data.event.id,
-                eventName: data.event.name,
-                facts,
               },
               signal: AbortSignal.timeout(8000),
             });

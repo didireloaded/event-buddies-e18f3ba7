@@ -28,6 +28,7 @@ export function saveStoredSitePlanZoomUrl(eventId: string, url: string | null): 
 }
 
 export type StoredMapCalibration = {
+  version?: number;
   refs: CalibrationRefPoint[];
   transform: AffineTransform;
   updatedAt: string;
@@ -90,14 +91,17 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
   const program = parseProgram(ev.program ?? []);
   const zones = parseZones(ev.zones ?? []);
 
-  const dateStr =
-    ev.startDate && /^\d{4}-\d{2}-\d{2}$/.test(ev.startDate) ? ev.startDate : "2026-12-28";
-  const endDateStr = ev.endDate && /^\d{4}-\d{2}-\d{2}$/.test(ev.endDate) ? ev.endDate : dateStr;
-  const gatesStr = /^\d{2}:\d{2}$/.test(ev.gatesOpen) ? ev.gatesOpen : "10:00";
+  const hasStartDate = Boolean(ev.startDate && /^\d{4}-\d{2}-\d{2}$/.test(ev.startDate));
+  const hasGates = Boolean(ev.gatesOpen && /^\d{2}:\d{2}$/.test(ev.gatesOpen));
+  const dateStr = hasStartDate ? ev.startDate! : null;
+  const endDateStr =
+    hasStartDate && ev.endDate && /^\d{4}-\d{2}-\d{2}$/.test(ev.endDate) ? ev.endDate : dateStr;
+  const gatesStr = hasGates ? ev.gatesOpen : "10:00";
 
-  const startAt = new Date(`${dateStr}T${gatesStr}:00+02:00`);
-  let endAt = new Date(`${endDateStr}T23:00:00+02:00`);
-  if (!(endAt > startAt)) {
+  // Never inherit another event's demo date (e.g. Sound of Summer's Dec 28, 2026) when date is missing.
+  const startAt = dateStr ? new Date(`${dateStr}T${gatesStr}:00+02:00`) : new Date(0);
+  let endAt = endDateStr ? new Date(`${endDateStr}T23:00:00+02:00`) : new Date(0);
+  if (dateStr && !(endAt > startAt)) {
     endAt = new Date(+startAt + 10 * 3600000);
   }
 
@@ -182,37 +186,46 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
     };
   });
 
-  const performances: PerformanceRecord[] = program
-    .map((item, idx) => ({ item, idx }))
-    .filter(({ item }) => /^\d{2}:\d{2}$/.test(item.time))
-    .map(({ item, idx }) => {
-      const matchedStage =
-        stages.find((s) => s.name.toLowerCase() === item.place.trim().toLowerCase()) ?? stages[0];
-      const artistId = artists[idx]?.id ?? `artist-${slugify(item.title)}-${idx + 1}`;
-      const perfStart = new Date(`${dateStr}T${item.time}:00+02:00`);
-      const perfEnd = new Date(+perfStart + 3600000);
-      return {
-        id: `perf-${slugify(item.title)}-${idx + 1}`,
-        stageId: matchedStage?.id ?? "stage-1",
-        artistId,
-        artistName: item.title,
-        genre: terms.program,
-        scheduledStart: perfStart,
-        scheduledEnd: perfEnd,
-        status: item.status,
-        sortOrder: idx + 1,
-      };
-    });
+  const performances: PerformanceRecord[] = dateStr
+    ? program
+        .map((item, idx) => ({ item, idx }))
+        .filter(({ item }) => /^\d{2}:\d{2}$/.test(item.time))
+        .map(({ item, idx }) => {
+          const matchedStage =
+            stages.find((s) => s.name.toLowerCase() === item.place.trim().toLowerCase()) ??
+            stages[0];
+          const artistId = artists[idx]?.id ?? `artist-${slugify(item.title)}-${idx + 1}`;
+          const perfStart = new Date(`${dateStr}T${item.time}:00+02:00`);
+          const perfEnd = new Date(+perfStart + 3600000);
+          return {
+            id: `perf-${slugify(item.title)}-${idx + 1}`,
+            stageId: matchedStage?.id ?? "stage-1",
+            artistId,
+            artistName: item.title,
+            genre: terms.program,
+            scheduledStart: perfStart,
+            scheduledEnd: perfEnd,
+            status: item.status,
+            sortOrder: idx + 1,
+          };
+        })
+    : [];
 
   const rules = ev.entryRules
     .split(/\n+/)
     .map((r) => r.trim())
     .filter((r) => r.length > 0);
 
-  const venueParts = (ev.venue || "Venue").split(",").map((s) => s.trim());
-  const venueName = venueParts[0] || ev.venue || "Venue";
+  const venueParts = (ev.venue || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const venueName = venueParts[0] || "Venue TBC";
   const city = venueParts[1] || venueName;
-  const calibration = readStoredMapCalibration(ev.id)?.transform ?? null;
+  const cloudCalibration = ev.mapCalibration ?? null;
+  const localCalibration = readStoredMapCalibration(ev.id);
+  const resolvedCalibration = cloudCalibration ?? localCalibration;
+  const calibration = resolvedCalibration?.transform ?? null;
   const zoomUrl = ev.sitePlanZoomUrl ?? readStoredSitePlanZoomUrl(ev.id) ?? null;
 
   return {
@@ -247,7 +260,9 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       id: ev.id,
       name: ev.name,
       slug: slugify(ev.name),
-      description: `${ev.name} at ${ev.venue || "confirmed venue"}.`,
+      description: ev.venue
+        ? `${ev.name} at ${ev.venue}.`
+        : `${ev.name} — venue details to be confirmed by the organiser.`,
       category:
         {
           festival: "Music festival",
@@ -264,16 +279,22 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
       startAt,
       endAt,
       doorsOpenAt: startAt,
+      dateConfirmed: hasStartDate,
+      gatesConfirmed: hasStartDate && hasGates,
       venueName,
       city,
       country: "Namibia",
       timezone: "Africa/Windhoek",
       latitude: null,
       longitude: null,
-      heroImageUrl: ev.sitePlanUrl || "/images/sound-of-summer-hero.jpg",
+      // Never inherit Sound of Summer artwork for another event; empty string renders a clean typographic fallback.
+      heroImageUrl: ev.sitePlanUrl ?? "",
       mapImageUrl: ev.sitePlanUrl ?? "",
       mapZoomImageUrl: zoomUrl,
       mapCalibration: calibration,
+      mapCalibrationVersion: resolvedCalibration?.version ?? null,
+      mapCalibrationUpdatedAt: resolvedCalibration?.updatedAt ?? null,
+      barMenus: ev.barMenus && ev.barMenus.length > 0 ? ev.barMenus : undefined,
       ticketUrl: null,
       minTicketPrice: null,
       currency: "NAD",
@@ -291,15 +312,17 @@ export function organiserEventToDemoData(ev: PublishedOrganiserEvent): DemoData 
         : `Site plan for ${ev.name} will appear here once uploaded by the organiser.`,
       artists: artists as DemoData["festival"]["artists"],
       rules: rules.length > 0 ? rules : ["Follow organiser entry instructions at the venue gates."],
-      transport: `Venue: ${ev.venue || "Check organiser details"}.`,
-      timingNotice: ev.gatesOpen
-        ? `Gates open at ${ev.gatesOpen} CAT.`
-        : "Check event schedule for gate hours.",
+      transport: `Venue: ${ev.venue || "To be confirmed by the organiser"}.`,
+      timingNotice: !hasStartDate
+        ? "Event date and gate hours are still to be confirmed by the organiser."
+        : hasGates
+          ? `Gates open at ${ev.gatesOpen} CAT.`
+          : "Gate hours are still to be confirmed by the organiser.",
       relatedEvent: {
-        name: ev.name,
-        date: dateStr,
-        venue: venueName,
-        url: "#events",
+        name: "",
+        date: "",
+        venue: "",
+        url: "",
       },
     },
   };

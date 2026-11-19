@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { accountConfigured } from "@/lib/account/use-auth";
+import { barMenuConfigSchema, type BarMenuConfig } from "@/lib/attendee/bar-menu";
 
 type UntypedRpc = (
   fn: string,
@@ -40,6 +41,30 @@ export const broadcastSchema = z.object({
 });
 export type OrganiserBroadcast = z.infer<typeof broadcastSchema>;
 
+export const publishedMapCalibrationSchema = z.object({
+  version: z.number().int().positive().default(1),
+  refs: z
+    .array(
+      z.object({
+        x: z.number(),
+        y: z.number(),
+        lat: z.number(),
+        lng: z.number(),
+      }),
+    )
+    .length(3),
+  transform: z.object({
+    a: z.number(),
+    b: z.number(),
+    c: z.number(),
+    d: z.number(),
+    e: z.number(),
+    f: z.number(),
+  }),
+  updatedAt: z.string(),
+});
+export type PublishedMapCalibration = z.infer<typeof publishedMapCalibrationSchema>;
+
 export const publishedEventSchema = z.object({
   id: z.string(),
   eventType: z.string().default("festival"),
@@ -54,6 +79,8 @@ export const publishedEventSchema = z.object({
   sitePlanPath: z.string().nullable().optional(),
   sitePlanUrl: z.string().nullable().optional(),
   sitePlanZoomUrl: z.string().nullable().optional(),
+  barMenus: z.array(barMenuConfigSchema).optional(),
+  mapCalibration: publishedMapCalibrationSchema.nullable().optional(),
   publishedAt: z.string().nullable(),
 });
 export type PublishedOrganiserEvent = z.infer<typeof publishedEventSchema>;
@@ -426,5 +453,71 @@ export async function cleanupExpiredEventData(): Promise<{
     };
   } catch {
     return null;
+  }
+}
+
+export async function getOrganiserEventExtras(eventId: string): Promise<{
+  barMenus: BarMenuConfig[];
+  mapCalibration: PublishedMapCalibration | null;
+} | null> {
+  if (!accountConfigured || !eventId) return null;
+  try {
+    const { data, error } = await callRpc("get_organiser_event_extras", {
+      p_event_id: eventId,
+    });
+    if (error || !data || typeof data !== "object") return null;
+    const rec = data as Record<string, unknown>;
+    const menusRaw = Array.isArray(rec["barMenus"]) ? rec["barMenus"] : [];
+    const barMenus = menusRaw.flatMap((row) => {
+      const parsed = barMenuConfigSchema.safeParse(row);
+      return parsed.success ? [parsed.data] : [];
+    });
+    const calParsed = publishedMapCalibrationSchema.safeParse(rec["mapCalibration"]);
+    return {
+      barMenus,
+      mapCalibration: calParsed.success ? calParsed.data : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveOrganiserEventExtras(input: {
+  eventId: string;
+  barMenus?: BarMenuConfig[] | undefined;
+  mapCalibration?: PublishedMapCalibration | null | undefined;
+}): Promise<{ ok: true } | { ok: false; cloudUnavailable: boolean; error: string }> {
+  if (!accountConfigured) {
+    return {
+      ok: false,
+      cloudUnavailable: true,
+      error: "Cloud connection settings are unavailable.",
+    };
+  }
+  try {
+    const { error } = await callRpc("save_organiser_event_extras", {
+      p_event_id: input.eventId,
+      p_bar_menus: input.barMenus !== undefined ? input.barMenus : null,
+      p_map_calibration: input.mapCalibration !== undefined ? input.mapCalibration : null,
+    });
+    if (error) {
+      const missingRpc =
+        error.message.includes("save_organiser_event_extras") ||
+        error.message.toLowerCase().includes("could not find");
+      return {
+        ok: false,
+        cloudUnavailable: missingRpc,
+        error: missingRpc
+          ? "Shared event extras RPC isn’t applied in Cloud yet."
+          : sanitizeRpcError(error.message, "Couldn’t publish to Cloud right now."),
+      };
+    }
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      cloudUnavailable: true,
+      error: "Couldn’t reach Cloud right now.",
+    };
   }
 }

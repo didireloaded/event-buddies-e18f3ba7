@@ -66,6 +66,11 @@ export function AvatarPicker({
           {error}
         </p>
       )}
+      {!error && avatar?.syncNote && (
+        <p role="status" className="mt-2 text-center text-[13px] text-muted-foreground">
+          {avatar.syncNote}
+        </p>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ export const crewSchema = z
     name: z.string().min(2).max(60),
     revision: z.number().int().nonnegative(),
     meeting: z.object({ pointId: z.string(), at: z.string() }).nullable(),
+    photoPath: z.string().nullable().optional(),
     members: z
       .array(
         z.object({
@@ -18,6 +19,7 @@ export const crewSchema = z
           generation: z.number().int().nonnegative(),
           pointId: z.string().nullable(),
           expiresAt: z.string().nullable(),
+          avatarPath: z.string().nullable().optional(),
         }),
       )
       .max(100),

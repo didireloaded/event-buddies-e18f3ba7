@@ -5,9 +5,46 @@ import { accountConfigured } from "@/lib/account/use-auth";
 type UntypedRpc = (
   fn: string,
   args?: Record<string, unknown>,
-) => Promise<{ data: unknown; error: { message: string } | null }>;
+) => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
+
+type InvokeEdgeFn = (
+  fn: string,
+  opts: { body: Record<string, unknown> },
+) => Promise<{ data: unknown; error: { message?: string } | null }>;
 
 const callRpc: UntypedRpc = (fn, args) => (supabase.rpc as unknown as UntypedRpc)(fn, args);
+
+function isRpcSignatureMismatch(error: { message?: string; code?: string } | null | undefined) {
+  if (!error) return false;
+  if (error.code === "PGRST202") return true;
+  const msg = (error.message ?? "").toLowerCase();
+  return msg.includes("could not find the function") || msg.includes("pgrst202");
+}
+
+function clampDurationMinutes(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 60;
+  return Math.max(1, Math.min(720, Math.round(value)));
+}
+
+function roundAccuracyMeters(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 5000) {
+    return null;
+  }
+  return Math.round(value * 10) / 10;
+}
+
+function didServerHonorExpiry(
+  savedExpiresAt: string,
+  requestedExpiresAtIso: string | null,
+  usedLegacySignature: boolean,
+): boolean {
+  if (!requestedExpiresAtIso) return !usedLegacySignature;
+  const savedMs = Date.parse(savedExpiresAt);
+  const reqMs = Date.parse(requestedExpiresAtIso);
+  if (!Number.isFinite(savedMs) || !Number.isFinite(reqMs)) return false;
+  // Server may clamp earlier (e.g. event end), which is stricter/safe; warn if it extends > 3m past requested deadline.
+  return savedMs <= reqMs + 3 * 60 * 1000;
+}
 
 export function roundVenueCoord(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
@@ -40,6 +77,8 @@ export const crewPinSchema = z.object({
   y: z.number().nullable().default(null),
   lat: z.number().nullable().default(null),
   lng: z.number().nullable().default(null),
+  accuracyMeters: z.number().nullable().optional(),
+  sessionId: z.string().nullable().optional(),
   createdAt: z.string().optional(),
   expiresAt: z.string(),
 });
@@ -142,28 +181,71 @@ export async function listCrewPins(crewId: string): Promise<CrewPin[]> {
   }
 }
 
-export async function dropCrewPin(input: {
-  eventId: string;
-  crewId: string;
-  userId: string;
-  displayName: string;
-  pointId: string | null;
-  x?: number | null | undefined;
-  y?: number | null | undefined;
-  lat?: number | null | undefined;
-  lng?: number | null | undefined;
-}): Promise<{ ok: true; pin: CrewPin } | { ok: false; error: string }> {
+export type DropPinResult =
+  | { ok: true; persisted: boolean; pin: CrewPin; expiryEnforcedByServer: boolean }
+  | { ok: false; persisted: false; error: string };
+
+export type RemovePinResult =
+  { ok: true; confirmed: true } | { ok: false; confirmed: false; error: string };
+
+export async function dropCrewPin(
+  input: {
+    eventId: string;
+    crewId: string;
+    userId: string;
+    displayName: string;
+    pointId: string | null;
+    x?: number | null | undefined;
+    y?: number | null | undefined;
+    lat?: number | null | undefined;
+    lng?: number | null | undefined;
+    durationMinutes?: number | null | undefined;
+    expiresAt?: string | null | undefined;
+    accuracyMeters?: number | null | undefined;
+    sessionId?: string | null | undefined;
+  },
+  options?: {
+    configured?: boolean;
+    rpc?: UntypedRpc;
+    invokeEdge?: InvokeEdgeFn;
+  },
+): Promise<DropPinResult> {
   const rx = roundVenueCoord(input.x);
   const ry = roundVenueCoord(input.y);
   const rlat = roundGpsCoord(input.lat, -90, 90);
   const rlng = roundGpsCoord(input.lng, -180, 180);
+  const durationMinutes = clampDurationMinutes(input.durationMinutes);
+  const requestedExpiresAt =
+    input.expiresAt && Number.isFinite(Date.parse(input.expiresAt))
+      ? new Date(Date.parse(input.expiresAt)).toISOString()
+      : new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+  const accuracyMeters = roundAccuracyMeters(input.accuracyMeters);
+  const sessionId =
+    input.sessionId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.sessionId)
+      ? input.sessionId
+      : null;
 
-  let savedPin: CrewPin | null = null;
+  const isConfigured = options?.configured ?? accountConfigured;
 
-  if (accountConfigured) {
-    // 1. Try the drop_pin RPC first (lowest latency, triggers DB broadcast on crew:{id}:pins)
+  if (isConfigured) {
+    const rpcFn = options?.rpc ?? callRpc;
+    const edgeFn: InvokeEdgeFn | null =
+      options?.invokeEdge ??
+      (typeof supabase.functions?.invoke === "function"
+        ? (fn, opts) =>
+            supabase.functions.invoke(fn, opts) as Promise<{
+              data: unknown;
+              error: { message?: string } | null;
+            }>
+        : null);
+    let savedPin: CrewPin | null = null;
+    let usedLegacySignature = false;
+    let lastError = "";
+
+    // 1. Try authoritative drop_pin RPC with server-enforced expiry parameters first
     try {
-      const { data, error } = await callRpc("drop_pin", {
+      const { data, error } = await rpcFn("drop_pin", {
         p_event_id: input.eventId,
         p_crew_id: input.crewId,
         p_point_id: input.pointId,
@@ -171,19 +253,45 @@ export async function dropCrewPin(input: {
         p_y: ry,
         p_lat: rlat,
         p_lng: rlng,
+        p_duration_minutes: durationMinutes,
+        p_expires_at: requestedExpiresAt,
+        p_accuracy_m: accuracyMeters,
+        p_session_id: sessionId,
       });
       if (!error && data) {
         const parsed = crewPinSchema.safeParse(data);
         if (parsed.success) savedPin = parsed.data;
+        else lastError = "The server returned an unreadable location confirmation.";
+      } else if (isRpcSignatureMismatch(error)) {
+        // Legacy 7-arg RPC still deployed in Cloud — retry cleanly and flag expiryEnforcedByServer accurately.
+        usedLegacySignature = true;
+        const legacy = await rpcFn("drop_pin", {
+          p_event_id: input.eventId,
+          p_crew_id: input.crewId,
+          p_point_id: input.pointId,
+          p_x: rx,
+          p_y: ry,
+          p_lat: rlat,
+          p_lng: rlng,
+        });
+        if (!legacy.error && legacy.data) {
+          const parsed = crewPinSchema.safeParse(legacy.data);
+          if (parsed.success) savedPin = parsed.data;
+          else lastError = "The server returned an unreadable location confirmation.";
+        } else if (legacy.error?.message) {
+          lastError = legacy.error.message;
+        }
+      } else if (error?.message) {
+        lastError = error.message;
       }
-    } catch {
-      /* Fall through to Edge Function below if RPC is not applied yet. */
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : "Network error reaching crew service.";
     }
 
-    // 2. If RPC wasn't applied yet, try the drop-pin Edge Function
-    if (!savedPin && typeof supabase.functions?.invoke === "function") {
+    // 2. Fallback to the drop-pin Edge Function if RPC failed
+    if (!savedPin && edgeFn) {
       try {
-        const { data, error } = await supabase.functions.invoke("drop-pin", {
+        const { data, error } = await edgeFn("drop-pin", {
           body: {
             action: "drop",
             eventId: input.eventId,
@@ -193,6 +301,10 @@ export async function dropCrewPin(input: {
             y: ry,
             lat: rlat,
             lng: rlng,
+            durationMinutes,
+            expiresAt: requestedExpiresAt,
+            accuracyMeters,
+            sessionId,
           },
         });
         if (
@@ -201,17 +313,44 @@ export async function dropCrewPin(input: {
           typeof data === "object" &&
           (data as Record<string, unknown>)["pin"]
         ) {
-          const parsed = crewPinSchema.safeParse((data as Record<string, unknown>)["pin"]);
-          if (parsed.success) savedPin = parsed.data;
+          const rec = data as Record<string, unknown>;
+          const parsed = crewPinSchema.safeParse(rec["pin"]);
+          if (parsed.success) {
+            savedPin = parsed.data;
+            if (rec["expiryEnforcedByServer"] === false) {
+              usedLegacySignature = true;
+            }
+          }
+        } else if (error?.message) {
+          lastError = error.message;
         }
-      } catch {
-        /* Fall through to live broadcast pin below. */
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Network error reaching crew service.";
       }
     }
+
+    // P0: Never fabricate or broadcast an unacknowledged pin when server persistence failed.
+    if (!savedPin) {
+      const friendly = /closed/i.test(lastError)
+        ? "Location sharing has closed for this event."
+        : /membership|sign in/i.test(lastError)
+          ? "Sign in and join this crew before sharing your location."
+          : "Couldn’t confirm your location with the server. Your crew wasn’t updated.";
+      return { ok: false, persisted: false, error: friendly };
+    }
+
+    const expiryEnforcedByServer = didServerHonorExpiry(
+      savedPin.expiresAt,
+      requestedExpiresAt,
+      usedLegacySignature,
+    );
+
+    await broadcastCrewPinEvent(input.crewId, "pin:upserted", savedPin);
+    return { ok: true, persisted: true, pin: savedPin, expiryEnforcedByServer };
   }
 
-  // 3. Construct the pin record (60m expiry) and broadcast on crew:{id}:pins for immediate <1s cross-phone delivery
-  const pinRecord: CrewPin = savedPin ?? {
+  // Unconfigured / local-only preview mode (honestly reports persisted: false)
+  const localPin: CrewPin = {
     id: crypto.randomUUID(),
     eventId: input.eventId,
     crewId: input.crewId,
@@ -222,31 +361,88 @@ export async function dropCrewPin(input: {
     y: ry,
     lat: rlat,
     lng: rlng,
+    accuracyMeters,
+    sessionId,
     createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    expiresAt: requestedExpiresAt,
   };
 
-  await broadcastCrewPinEvent(input.crewId, "pin:upserted", pinRecord);
-  return { ok: true, pin: pinRecord };
+  await broadcastCrewPinEvent(input.crewId, "pin:upserted", localPin);
+  return { ok: true, persisted: false, pin: localPin, expiryEnforcedByServer: false };
 }
 
-export async function removeCrewPin(input: {
-  crewId: string;
-  userId: string;
-  pointId?: string | null | undefined;
-}): Promise<void> {
-  if (accountConfigured) {
+export async function removeCrewPin(
+  input: {
+    crewId: string;
+    userId: string;
+    pointId?: string | null | undefined;
+  },
+  options?: {
+    configured?: boolean;
+    rpc?: UntypedRpc;
+    invokeEdge?: InvokeEdgeFn;
+  },
+): Promise<RemovePinResult> {
+  const isConfigured = options?.configured ?? accountConfigured;
+
+  if (isConfigured) {
+    const rpcFn = options?.rpc ?? callRpc;
+    const edgeFn: InvokeEdgeFn | null =
+      options?.invokeEdge ??
+      (typeof supabase.functions?.invoke === "function"
+        ? (fn, opts) =>
+            supabase.functions.invoke(fn, opts) as Promise<{
+              data: unknown;
+              error: { message?: string } | null;
+            }>
+        : null);
+    let confirmed = false;
     try {
-      await callRpc("remove_pin", { p_crew_id: input.crewId });
+      const { data, error } = await rpcFn("remove_pin", { p_crew_id: input.crewId });
+      const dataRejected =
+        data && typeof data === "object" && (data as Record<string, unknown>)["ok"] === false;
+      if (!error && !dataRejected) {
+        confirmed = true;
+      }
     } catch {
-      /* Ignore if RPC not yet applied. */
+      /* Fall through to Edge Function below. */
+    }
+
+    if (!confirmed && edgeFn) {
+      try {
+        const { data, error } = await edgeFn("drop-pin", {
+          body: { action: "remove", crewId: input.crewId },
+        });
+        if (
+          !error &&
+          data &&
+          typeof data === "object" &&
+          (data as Record<string, unknown>)["ok"] === true
+        ) {
+          confirmed = true;
+        }
+      } catch {
+        /* Still unconfirmed. */
+      }
+    }
+
+    // P0: Never swallow DB errors or broadcast fake removal when server revocation failed.
+    if (!confirmed) {
+      return {
+        ok: false,
+        confirmed: false,
+        error:
+          "GPS stopped on this device, but remote removal couldn’t be confirmed with the server. Retry when connected.",
+      };
     }
   }
+
   await broadcastCrewPinEvent(input.crewId, "pin:removed", {
     crewId: input.crewId,
     userId: input.userId,
     pointId: input.pointId ?? null,
   });
+  return { ok: true, confirmed: true };
 }
 
 export async function broadcastCrewLostAlert(alert: CrewLostAlert): Promise<void> {
