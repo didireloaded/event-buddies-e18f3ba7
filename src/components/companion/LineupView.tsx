@@ -213,7 +213,7 @@ export function LineupView({ searchRef }: { searchRef: React.Ref<HTMLInputElemen
         aria-label="Filter by stage"
       >
         <span className="text-[13px] text-muted-foreground">
-          {hasTimetable ? "Stage schedule" : "Set times pending"}
+          {hasTimetable ? "Stage schedule" : "Set times drop soon · tap an artist for alerts"}
         </span>
         <label className="min-w-0 max-w-[60%]">
           <span className="sr-only">Stage</span>

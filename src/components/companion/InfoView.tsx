@@ -65,14 +65,13 @@ export function InfoView() {
         </div>
       </Section>
       <Section title="Coastal conditions" id="info-coast">
-        <p className="text-[16px]">Weather, sunset and tide information pending.</p>
-        <p className="mt-2 text-[15px] text-muted-foreground">
+        <p className="text-[16px]">
           Astronomical daylight for Langstrand (22.82°S, 14.54°E) on 28 December: golden hour
-          ~19:00–19:45 CAT · astronomical sunset ~19:45 CAT. Live wind, mist and tide readings
-          require on-site verification.
+          ~19:00–19:45 CAT · sunset ~19:45 CAT.
         </p>
-        <p className="mt-2 text-[16px]">
-          Bring warm layers for the evening. Check beach conditions with the on-site team.
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Forecast and tide tables drop during festival week — check beach conditions with the
+          on-site team and bring warm layers for the evening.
         </p>
       </Section>
       <details className="mt-4 rounded-xl bg-popover px-4">

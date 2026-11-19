@@ -384,6 +384,25 @@ export function MapView() {
 
       <div className="mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-6 lg:px-4">
         <div className="lg:sticky lg:top-20">
+          <div className="mx-4 mb-2 flex items-center justify-between rounded-xl bg-popover px-3 py-2 text-[13px] text-muted-foreground">
+            <span>
+              {(() => {
+                const activeCrewPins =
+                  crew.crew?.members.filter(
+                    (m) =>
+                      m.pointId && m.expiresAt && Date.parse(m.expiresAt) > (now ?? Date.now()),
+                  ).length ?? 0;
+                const localHere = Boolean(activeLandmarkPin(data, attendee.preferences.here, now));
+                if (activeCrewPins > 0) {
+                  return `${activeCrewPins} crew ${activeCrewPins === 1 ? "pin" : "pins"} live on the map`;
+                }
+                if (localHere) {
+                  return "Your 60-minute landmark pin is active on this phone";
+                }
+                return "You’re hidden · no active pins — tap any landmark to plan or drop a pin";
+              })()}
+            </span>
+          </div>
           <MapCanvas expanded={false} />
         </div>
 
@@ -404,6 +423,16 @@ export function MapView() {
                     </div>
                   </div>
                   <p className="mt-3 text-[17px] leading-relaxed">{place.description}</p>
+                  {(place.type === "bar" || place.type === "food") && (
+                    <p className="mt-2 rounded-lg bg-secondary px-3 py-2 text-[14px]">
+                      <strong>
+                        {place.type === "bar" ? "Drinks & bar service:" : "Food court stalls:"}
+                      </strong>{" "}
+                      {place.type === "bar"
+                        ? "Beverage bar station on the venue plan. Set this bar as your crew meeting point or quick-ping landmark."
+                        : "Main food service area on the venue plan. Ideal for a crew food break and regroup point."}
+                    </p>
+                  )}
                   {(place.name.toLowerCase().includes("platinum") ||
                     place.name.toLowerCase().includes("experience")) && (
                     <p className="mt-2 rounded-lg bg-secondary px-3 py-2 text-[14px]">

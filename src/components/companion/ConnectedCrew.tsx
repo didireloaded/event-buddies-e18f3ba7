@@ -11,6 +11,8 @@ import {
   clearPendingCrewInvite,
   extractCrewInviteCode,
   readPendingCrewInvite,
+  readPendingCrewInviteMeta,
+  type CrewInviteMeta,
 } from "@/lib/crew/invite-link";
 import {
   broadcastCrewLostAlert,
@@ -28,6 +30,9 @@ export function ConnectedCrew() {
   const [name, setName] = useState("Our crew");
   const [code, setCode] = useState(() => readPendingCrewInvite() ?? "");
   const [pendingInvite, setPendingInvite] = useState<string | null>(() => readPendingCrewInvite());
+  const [inviteMeta, setInviteMeta] = useState<CrewInviteMeta | null>(() =>
+    readPendingCrewInviteMeta(),
+  );
   const [pointId, setPointId] = useState(places[0]?.id ?? "");
   const [localError, setLocalError] = useState("");
   const [scanningQr, setScanningQr] = useState(false);
@@ -44,6 +49,7 @@ export function ConnectedCrew() {
     const captured = captureCrewInviteFromUrl();
     if (captured) {
       setPendingInvite(captured);
+      setInviteMeta(readPendingCrewInviteMeta());
       setCode(captured);
     }
   }, []);
@@ -64,7 +70,10 @@ export function ConnectedCrew() {
   }
   async function shareInvite() {
     if (!sync.invite) return;
-    const link = buildCrewInviteUrl(window.location.origin, sync.invite.code);
+    const link = buildCrewInviteUrl(window.location.origin, sync.invite.code, {
+      crewName: crew?.name,
+      inviterName: self?.name ?? attendee.preferences.profile.name,
+    });
     const text = `Join ${crew?.name ?? "our crew"} on Event Buddies: ${link}\nCrew code: ${sync.invite.code}`;
     try {
       if (navigator.share) await navigator.share({ title: "Event Buddies crew", text, url: link });
@@ -87,12 +96,34 @@ export function ConnectedCrew() {
       {!attendee.auth.user ? (
         <>
           {pendingInvite && (
-            <p
+            <div
               role="status"
-              className="mt-2 rounded-xl bg-secondary px-3 py-2 text-[15px] font-medium"
+              data-testid="crew-invite-preview"
+              className="mt-3 space-y-3 rounded-2xl bg-secondary p-4"
             >
-              Crew invite ready — sign in to review and join this private crew.
-            </p>
+              <div className="flex items-center gap-3">
+                <Avatar label={initials(inviteMeta?.inviterName ?? "Friend")} index={1} />
+                <div>
+                  <p className="text-[17px] font-bold">
+                    {inviteMeta?.inviterName
+                      ? `${inviteMeta.inviterName} invited you`
+                      : "You’re invited to a crew"}
+                  </p>
+                  <p className="text-[14px] text-muted-foreground">
+                    {inviteMeta?.crewName ?? "Private Sound of Summer crew"}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[15px] font-medium">
+                Crew invite ready — sign in to review and join this private crew.
+              </p>
+              <a
+                href="/login?next=%2F%23crew"
+                className="flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 text-[16px] font-semibold text-primary-foreground"
+              >
+                Join {inviteMeta?.crewName ?? "crew"}
+              </a>
+            </div>
           )}
           <p className="mt-2 text-[15px] text-muted-foreground">
             Sign in to share a crew and meeting across your phones.
@@ -141,13 +172,26 @@ export function ConnectedCrew() {
             </div>
           )}
           {!crew ? (
-            <div className="mt-3 flex flex-wrap gap-3">
-              <PrimaryButton disabled={waiting || sync.loading} onClick={() => open("create")}>
-                Start a crew
-              </PrimaryButton>
-              <SecondaryButton disabled={waiting || sync.loading} onClick={() => open("join")}>
-                Join with a code
-              </SecondaryButton>
+            <div className="mt-3 space-y-3 rounded-2xl bg-popover p-4">
+              <div className="flex items-center gap-3">
+                <Avatar
+                  label={initials(attendee.preferences.profile.name)}
+                  src={avatar?.url}
+                  alt="Your profile photo"
+                />
+                <p className="text-[15px] text-muted-foreground">
+                  No active crew yet. Start a private crew to drop live 60-minute landmark pins and
+                  coordinate a meeting point across your phones.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <PrimaryButton disabled={waiting || sync.loading} onClick={() => open("create")}>
+                  Start a crew
+                </PrimaryButton>
+                <SecondaryButton disabled={waiting || sync.loading} onClick={() => open("join")}>
+                  Join with a code
+                </SecondaryButton>
+              </div>
             </div>
           ) : (
             <>

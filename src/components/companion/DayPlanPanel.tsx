@@ -107,8 +107,8 @@ export function DayPlanPanel() {
         </div>
       )}
       <p className="mt-1 text-[14px] text-muted-foreground">
-        Suggested plans stay on this device. Review your plan here. Unpublished set times remain
-        pending.
+        Suggested plans stay on this device. Review your plan here. Set times drop closer to
+        festival day.
       </p>
     </section>
   );

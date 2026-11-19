@@ -65,8 +65,8 @@ export function EventAssistant() {
         {error && <p role="alert">{error}</p>}
         {answer?.length === 0 && (
           <p>
-            Answer pending. The existing event information does not cover that question. Check with
-            the organiser.
+            Not covered in the published event guide. Check the official event page or ask the
+            organiser.
           </p>
         )}
         {answer?.map((fact) => (
@@ -75,7 +75,7 @@ export function EventAssistant() {
             <p className="mt-1">{fact.text}</p>
             {fact.pending && (
               <p className="mt-2 font-semibold text-muted-foreground">
-                Some details are pending organiser confirmation.
+                Drops closer to festival day — check the official event page for updates.
               </p>
             )}
           </div>

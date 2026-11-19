@@ -7,7 +7,6 @@ import {
   Info,
   CalendarDays,
   Ticket,
-  MessageCircleQuestion,
   LocateFixed,
 } from "lucide-react";
 import { List, ListItem } from "konsta/react";
@@ -128,12 +127,6 @@ export function HomeView({ onShare }: { onShare: () => void }) {
             media={<IconTile icon={LocateFixed} />}
             link
             onClick={() => openSheet({ kind: "nearby" })}
-          />
-          <ListItem
-            title="Ask about rules & transport"
-            media={<IconTile icon={MessageCircleQuestion} />}
-            link
-            onClick={() => openSheet({ kind: "assistant" })}
           />
           <ListItem
             title="Upcoming events"

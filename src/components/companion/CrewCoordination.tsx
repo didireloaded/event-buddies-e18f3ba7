@@ -348,7 +348,12 @@ export function CrewCoordination() {
           {exportingCard ? "Creating yearbook card…" : "Download crew yearbook card"}
         </SecondaryButton>
 
-        {activities.length > 0 && (
+        {activities.length === 0 ? (
+          <p className="border-t border-border pt-3 text-[14px] text-muted-foreground">
+            No crew pings or messages yet. Tap a quick ping above, start a stage poll or post a crew
+            note.
+          </p>
+        ) : (
           <div className="divide-y divide-border border-t border-border pt-2">
             {activities.slice(0, 8).map((act) => {
               const place = act.pointId ? places.find((p) => p.id === act.pointId) : null;
