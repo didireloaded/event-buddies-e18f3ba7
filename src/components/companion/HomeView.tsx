@@ -11,8 +11,7 @@ import {
   Shield,
   SlidersHorizontal,
 } from "lucide-react";
-import { dateLabel, eventPhase } from "@/lib/attendee/event-clock";
-import { eventTime } from "@/lib/attendee/schedule";
+import { eventPhase, formatEventDate, formatEventHours } from "@/lib/attendee/event-clock";
 import { eventLifecycle } from "@/lib/attendee/lifecycle";
 import { formatTicketTier, getEventGateLabel, getEventOpensTime } from "@/lib/attendee/tickets";
 import {
@@ -80,25 +79,23 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         }
 
         const [lead, ...others] = featured;
-        const portraitSpotlight = [
-          ...others,
-          ...data.festival.artists
-            .filter(
-              (a) =>
-                Boolean(a.avatarUrl) && a.id !== lead?.id && !others.some((o) => o.id === a.id),
-            )
-            .slice(0, 6)
-            .map((a) => ({
-              ...a,
-              stageName: a.stageId
-                ? (data.stages.find((s) => s.id === a.stageId)?.name ?? null)
-                : null,
-              isHeadliner: false,
-            })),
-        ].slice(0, 6);
+        const additionalPortraits = data.festival.artists
+          .filter(
+            (a) => Boolean(a.avatarUrl) && a.id !== lead?.id && !others.some((o) => o.id === a.id),
+          )
+          .slice(0, 6)
+          .map((a) => ({
+            ...a,
+            stageName: a.stageId
+              ? (data.stages.find((s) => s.id === a.stageId)?.name ?? null)
+              : null,
+          }));
         const remainingArtists = Math.max(
           0,
-          data.festival.artists.length - (lead ? 1 : 0) - portraitSpotlight.length,
+          data.festival.artists.length -
+            (lead ? 1 : 0) -
+            others.length -
+            additionalPortraits.length,
         );
         return (
           <section
@@ -145,9 +142,9 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               </button>
             )}
 
-            {portraitSpotlight.length > 0 && (
+            {others.length > 0 && (
               <div className="scrollbar-none -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1">
-                {portraitSpotlight.map((act) => (
+                {others.map((act) => (
                   <button
                     key={act.id}
                     type="button"
@@ -163,17 +160,43 @@ export function HomeView({ onShare }: { onShare: () => void }) {
                     </span>
                   </button>
                 ))}
-                <a
-                  href="#lineup"
-                  className="ios-press flex w-[6.5rem] flex-none flex-col items-center justify-center rounded-[20px] bg-favorite-soft p-3 text-center text-primary"
-                >
-                  <span className="grid size-12 place-items-center rounded-full bg-popover text-[16px] font-bold tabular-nums text-primary">
-                    {remainingArtists > 0 ? `+${remainingArtists}` : <ArrowUpRight size={20} />}
-                  </span>
-                  <span className="mt-2 block text-[13px] font-semibold leading-tight">
-                    Full {terms.programLabel.toLowerCase()}
-                  </span>
-                </a>
+              </div>
+            )}
+
+            {additionalPortraits.length > 0 && (
+              <div className="space-y-2 pt-0.5">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  More on the {terms.programLabel.toLowerCase()}
+                </p>
+                <div className="scrollbar-none -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1">
+                  {additionalPortraits.map((act) => (
+                    <button
+                      key={act.id}
+                      type="button"
+                      onClick={() => openSheet({ kind: "artist", artist: act })}
+                      className="ios-card ios-press flex w-[7.5rem] flex-none flex-col items-center p-3 text-center"
+                    >
+                      <ArtistAvatar artist={act} large eager />
+                      <span className="mt-2 block w-full truncate text-[14px] font-semibold leading-snug">
+                        {act.name}
+                      </span>
+                      <span className="block w-full truncate text-[12px] text-muted-foreground">
+                        {act.stageName ?? act.role}
+                      </span>
+                    </button>
+                  ))}
+                  <a
+                    href="#lineup"
+                    className="ios-press flex w-[6.5rem] flex-none flex-col items-center justify-center rounded-[20px] bg-favorite-soft p-3 text-center text-primary"
+                  >
+                    <span className="grid size-12 place-items-center rounded-full bg-popover text-[16px] font-bold tabular-nums text-primary">
+                      {remainingArtists > 0 ? `+${remainingArtists}` : <ArrowUpRight size={20} />}
+                    </span>
+                    <span className="mt-2 block text-[13px] font-semibold leading-tight">
+                      Full {terms.programLabel.toLowerCase()}
+                    </span>
+                  </a>
+                </div>
               </div>
             )}
 
@@ -276,6 +299,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
         );
 
       case "upcoming":
+        if (otherEvents.length === 0 && !data.festival.relatedEvent.name) return null;
         return (
           <section key="upcoming" className="mx-4 mt-6 space-y-2" aria-label="Upcoming events">
             <div className="flex items-center justify-between">
@@ -296,7 +320,7 @@ export function HomeView({ onShare }: { onShare: () => void }) {
                         {ev.event.name}
                       </span>
                       <span className="block truncate text-[13px] text-muted-foreground">
-                        {dateLabel(ev.event.startAt, ev.event.timezone, {
+                        {formatEventDate(ev.event, {
                           day: "numeric",
                           month: "short",
                         })}{" "}
@@ -327,20 +351,22 @@ export function HomeView({ onShare }: { onShare: () => void }) {
 
   return (
     <div className="pb-24">
-      {/* Photography-first Event Hero */}
+      {/* Photography-first Event Hero (clean typographic coastal fallback when event has no artwork yet) */}
       <section
         className="mx-4 mt-2 overflow-hidden rounded-[24px] bg-popover shadow-sm"
         aria-label={data.event.name}
       >
-        <div className="relative h-60 w-full overflow-hidden bg-foreground">
-          <img
-            src={data.event.heroImageUrl}
-            alt={`${data.event.name} crowd`}
-            width={1200}
-            height={800}
-            fetchPriority="high"
-            className="h-full w-full object-cover"
-          />
+        <div className="relative h-60 w-full overflow-hidden bg-gradient-to-br from-[#16232b] via-[#133842] to-[#0d1419]">
+          {data.event.heroImageUrl && (
+            <img
+              src={data.event.heroImageUrl}
+              alt={`${data.event.name} crowd`}
+              width={1200}
+              height={800}
+              fetchPriority="high"
+              className="h-full w-full object-cover"
+            />
+          )}
           <div
             aria-hidden
             className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/15"
@@ -378,13 +404,12 @@ export function HomeView({ onShare }: { onShare: () => void }) {
               {data.event.name}
             </h1>
             <p className="mt-1 truncate text-[14px] text-white/90">
-              {dateLabel(data.event.startAt, data.event.timezone, {
+              {formatEventDate(data.event, {
                 weekday: "short",
                 day: "numeric",
                 month: "long",
               })}{" "}
-              · {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT ·{" "}
-              {data.event.venueName}
+              · {formatEventHours(data.event)} · {data.event.venueName}
             </p>
           </button>
         </div>

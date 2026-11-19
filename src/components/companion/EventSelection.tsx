@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, MapPin, Clock, ArrowUpRight, Heart } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { useEvent } from "@/context/EventContext";
-import { dateLabel } from "@/lib/attendee/event-clock";
-import { eventTime, downloadEventCalendar } from "@/lib/attendee/schedule";
+import { formatEventDate, formatEventHours } from "@/lib/attendee/event-clock";
+import { downloadEventCalendar } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
 import {
   getEventCategoryTerms,
@@ -38,6 +38,7 @@ function toLocalNoonDate(d: Date, tz: string): Date {
 
 function eventSpansDate(demo: DemoData, target: Date | undefined): boolean {
   if (!target) return true;
+  if (demo.event.dateConfirmed === false) return false;
   const start = toLocalNoonDate(demo.event.startAt, demo.event.timezone);
   const end = toLocalNoonDate(demo.event.endAt, demo.event.timezone);
   const t = new Date(
@@ -94,14 +95,18 @@ export function EventSelection() {
   }, [allPublishedDemos]);
 
   const eventDay = useMemo(
-    () => toLocalNoonDate(data.event.startAt, data.event.timezone),
-    [data.event.startAt, data.event.timezone],
+    () =>
+      data.event.dateConfirmed === false
+        ? new Date()
+        : toLocalNoonDate(data.event.startAt, data.event.timezone),
+    [data.event.dateConfirmed, data.event.startAt, data.event.timezone],
   );
 
-  // Mark every published event's date(s) on the calendar (multi-event calendar support!)
+  // Mark every confirmed published event's date(s) on the calendar (multi-event calendar support!)
   const allEventDays = useMemo(() => {
     const days: Date[] = [];
     for (const demo of allPublishedDemos) {
+      if (demo.event.dateConfirmed === false) continue;
       const start = toLocalNoonDate(demo.event.startAt, demo.event.timezone);
       const end = toLocalNoonDate(demo.event.endAt, demo.event.timezone);
       for (let cur = new Date(start); cur <= end; cur = new Date(+cur + 86_400_000)) {
@@ -113,7 +118,7 @@ export function EventSelection() {
 
   const [selected, setSelected] = useState<Date | undefined>(eventDay);
   const [month, setMonth] = useState(eventDay);
-  const ended = now !== null && now > +data.event.endAt;
+  const ended = data.event.dateConfirmed !== false && now !== null && now > +data.event.endAt;
   const matches = eventSpansDate(data, selected);
   const categoryMatchesPrimary = categoryFilter === "All" || data.event.category === categoryFilter;
 
@@ -130,11 +135,12 @@ export function EventSelection() {
     .toLocaleLowerCase()
     .includes(query.trim().toLocaleLowerCase());
 
-  const date = dateLabel(data.event.startAt, data.event.timezone, {
+  const date = formatEventDate(data.event, {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+  const hours = formatEventHours(data.event);
 
   const openPublishedEvent = (demo: DemoData) => {
     const targetKey =
@@ -306,18 +312,20 @@ export function EventSelection() {
       {primaryVisible ? (
         <button
           type="button"
-          className="discovery-event-card ios-press relative block w-full overflow-hidden rounded-[28px] text-left"
+          className="discovery-event-card ios-press relative block w-full overflow-hidden rounded-[28px] bg-gradient-to-br from-[#16232b] via-[#133842] to-[#0d1419] text-left"
           onClick={() => setPreview(true)}
           aria-label={`Preview ${data.event.name}`}
         >
-          <img
-            src={data.event.heroImageUrl}
-            alt={`${data.event.name} crowd`}
-            width={1200}
-            height={800}
-            decoding="async"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+          {data.event.heroImageUrl && (
+            <img
+              src={data.event.heroImageUrl}
+              alt={`${data.event.name} crowd`}
+              width={1200}
+              height={800}
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
           <span className="discovery-date absolute left-4 top-4 rounded-full px-4 py-2 text-[14px] font-semibold">
             {date}
           </span>
@@ -335,7 +343,7 @@ export function EventSelection() {
             </span>
             <span className="mt-2 flex items-center gap-2 text-[15px]">
               <Clock size={17} />
-              {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT
+              {hours}
             </span>
             <span className="mt-5 flex min-h-11 items-center justify-between border-t border-white/25 pt-3 text-[17px] font-semibold">
               View event <ArrowUpRight size={21} />
@@ -370,16 +378,18 @@ export function EventSelection() {
       {preview && (
         <Sheet title={data.event.name} onClose={() => setPreview(false)}>
           <div className="event-preview-facts space-y-4">
-            <div className="overflow-hidden rounded-2xl bg-foreground">
-              <img
-                src={data.event.heroImageUrl}
-                alt={`${data.event.name}`}
-                width={800}
-                height={450}
-                decoding="async"
-                className="h-44 w-full object-cover"
-              />
-            </div>
+            {data.event.heroImageUrl && (
+              <div className="overflow-hidden rounded-2xl bg-foreground">
+                <img
+                  src={data.event.heroImageUrl}
+                  alt={`${data.event.name}`}
+                  width={800}
+                  height={450}
+                  decoding="async"
+                  className="h-44 w-full object-cover"
+                />
+              </div>
+            )}
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">
@@ -408,7 +418,7 @@ export function EventSelection() {
             </p>
             <p className="flex items-center gap-3 text-[17px]">
               <Clock size={21} className="text-favorite" />
-              {eventTime(data.event.startAt)}–{eventTime(data.event.endAt)} CAT
+              {hours}
             </p>
             {featuredPreview.length > 0 && (
               <div className="rounded-xl bg-secondary/70 p-3 text-[14px]">
@@ -500,7 +510,7 @@ export function EventSelection() {
                   </p>
                   <p className="text-[17px] font-semibold">{demo.event.name}</p>
                   <p className="text-[14px] text-muted-foreground">
-                    {dateLabel(demo.event.startAt, demo.event.timezone, {
+                    {formatEventDate(demo.event, {
                       day: "numeric",
                       month: "short",
                       year: "numeric",

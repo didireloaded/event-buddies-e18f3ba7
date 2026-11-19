@@ -1,7 +1,6 @@
 import { CalendarCheck2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { suggestDayPlan } from "@/lib/day-plan/day-plan.functions";
-import { buildPlanFacts } from "@/lib/day-plan/schema";
 import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { useCompanion } from "./context";
 
@@ -22,33 +21,12 @@ export function DayPlanPanel() {
     setBusy(true);
     setError("");
     try {
-      const eventContext = data
-        ? (() => {
-            const built = buildPlanFacts(data, {
-              savedArtistIds: preferences.savedArtists,
-              meeting: preferences.meeting,
-            });
-            return {
-              eventId: data.event.id,
-              eventName: data.event.name,
-              category: data.event.category,
-              venue: built.event.venue,
-              gatesOpen: built.event.gatesOpen,
-              ends: built.event.ends,
-              entry: data.festival.rules[0] ?? built.event.entry,
-              stages: built.stages,
-              setTimesPublished: built.setTimesPublished,
-              savedArtists: built.savedArtists,
-              meeting: built.meeting,
-            };
-          })()
-        : undefined;
       const result = await suggestDayPlan({
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
         data: {
+          ...(data?.event?.id ? { eventId: data.event.id } : {}),
           savedArtistIds: preferences.savedArtists,
           meeting: preferences.meeting,
-          ...(eventContext ? { eventContext } : {}),
         },
       });
       if (controller.signal.aborted) return;

@@ -18,12 +18,15 @@ import {
 } from "@/lib/crew/invite-link";
 import {
   broadcastCrewLostAlert,
+  broadcastCrewUpdated,
   dropCrewPin,
   removeCrewPin,
   requestOneTimeGeolocation,
 } from "@/lib/crew/pins";
+import { uploadCrewPhotoToCloud } from "@/lib/crew/media";
 import {
   classifyPositionFreshness,
+  computeLiveShareDurationMinutes,
   computeLiveShareExpiry,
   formatAccuracyBadge,
   startActiveLiveGps,
@@ -51,11 +54,28 @@ export function ConnectedCrew() {
   const [liveDuration, setLiveDuration] = useState<LiveLocationDuration>("60m");
   const [liveStatus, setLiveStatus] = useState<LiveLocationStatus>("off");
   const [livePos, setLivePos] = useState<LiveGpsPosition | null>(null);
+  const [ackedLivePos, setAckedLivePos] = useState<{
+    acknowledgedAt: number;
+    expiresAt: string;
+    expiryEnforcedByServer: boolean;
+  } | null>(null);
+  const [liveSyncError, setLiveSyncError] = useState("");
   const [liveError, setLiveError] = useState("");
+  const [localRevocationPending, setLocalRevocationPending] = useState<string | null>(null);
+  const [retryingRevocation, setRetryingRevocation] = useState(false);
   const [crewPhotoUrl, setCrewPhotoUrl] = useState("");
   const stopLiveGpsRef = useRef<(() => void) | null>(null);
   const crew = sync.crew;
   const self = crew?.members.find((m) => m.id === attendee.auth.user?.id);
+  const resolvedCrewPhotoUrl = sync.crewPhotoUrl || crewPhotoUrl;
+  const pendingRevocationMsg = sync.revocationPending?.error ?? localRevocationPending;
+
+  const memberAvatarFor = (memberId: string): string | null => {
+    if (memberId === attendee.auth.user?.id) {
+      return avatar?.url ?? sync.memberAvatarUrls?.[memberId] ?? null;
+    }
+    return sync.memberAvatarUrls?.[memberId] ?? null;
+  };
 
   useEffect(() => {
     if (!crew?.id) {
@@ -98,15 +118,57 @@ export function ConnectedCrew() {
     stopLiveGpsRef.current = null;
     setLiveStatus("off");
     setLivePos(null);
+    setAckedLivePos(null);
+    setLiveSyncError("");
     setLiveError("");
+  }
+
+  async function revokeSharingWithConfirmation(
+    targetCrewId: string,
+    targetUserId: string,
+    targetPointId: string | null,
+  ) {
+    // 1. Immediately stop local GPS capture before network work
+    stopLiveGpsSession();
+    // 2. Confirm backend pin revocation; never claim success if server can't be reached
+    const removal = await removeCrewPin({
+      crewId: targetCrewId,
+      userId: targetUserId,
+      pointId: targetPointId,
+    });
+    if (removal.ok) {
+      setLocalRevocationPending(null);
+      sync.markRevocationPending?.(null);
+      attendee.notify("Ghost Mode on — location removed from server");
+    } else {
+      setLocalRevocationPending(removal.error);
+      sync.markRevocationPending?.({
+        crewId: targetCrewId,
+        userId: targetUserId,
+        pointId: targetPointId,
+        error: removal.error,
+      });
+    }
+    return removal.ok;
   }
 
   function startLiveGpsSession() {
     if (!crew || !self) return;
     stopLiveGpsSession();
-    const expiresAt = computeLiveShareExpiry(liveDuration, data.event.endAt);
+    const nowMs = Date.now();
+    const expiresAt = computeLiveShareExpiry(liveDuration, data.event.endAt, nowMs);
+    if (expiresAt <= nowMs) {
+      setLiveError("Live location sharing is closed because this event has already ended.");
+      setMode(null);
+      return;
+    }
+    const durationMinutes = computeLiveShareDurationMinutes(expiresAt, nowMs);
+    const expiresAtIso = new Date(expiresAt).toISOString();
     const sessionId = crypto.randomUUID();
     setLiveError("");
+    setLiveSyncError("");
+    setLocalRevocationPending(null);
+    sync.markRevocationPending?.(null);
     stopLiveGpsRef.current = startActiveLiveGps({
       expiresAt,
       sessionId,
@@ -127,15 +189,27 @@ export function ConnectedCrew() {
           y: fallbackPlace?.y ?? null,
           lat: pos.lat,
           lng: pos.lng,
+          durationMinutes,
+          expiresAt: expiresAtIso,
+          accuracyMeters: pos.accuracyMeters,
+          sessionId: pos.sessionId,
+        }).then((res) => {
+          if (res.ok && res.persisted) {
+            setLiveSyncError("");
+            setAckedLivePos({
+              acknowledgedAt: Date.now(),
+              expiresAt: res.pin.expiresAt,
+              expiryEnforcedByServer: res.expiryEnforcedByServer,
+            });
+            sync.recordAckedPin?.(res.pin);
+          } else if (!res.ok) {
+            setLiveSyncError(res.error);
+          }
         });
       },
       onExpired: () => {
-        setLivePos(null);
-        void removeCrewPin({
-          crewId: crew.id,
-          userId: self.id,
-          pointId: self.pointId,
-        });
+        stopLiveGpsSession();
+        sync.command({ op: "stop", crewId: crew.id });
         attendee.notify("Live location sharing expired");
       },
     });
@@ -186,9 +260,9 @@ export function ConnectedCrew() {
     <section className="ios-card mx-4 mt-3 space-y-3 p-4" aria-labelledby="connected-crew-heading">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          {crew && crewPhotoUrl ? (
+          {crew && resolvedCrewPhotoUrl ? (
             <img
-              src={crewPhotoUrl}
+              src={resolvedCrewPhotoUrl}
               alt={`${crew.name} photo`}
               width={44}
               height={44}
@@ -217,7 +291,7 @@ export function ConnectedCrew() {
         {crew && self?.owner && (
           <label className="ios-press inline-flex min-h-11 flex-none cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-3 text-[13px] font-semibold text-foreground">
             <Camera size={14} aria-hidden />
-            {crewPhotoUrl ? "Change photo" : "Crew photo"}
+            {resolvedCrewPhotoUrl ? "Change photo" : "Crew photo"}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -239,7 +313,16 @@ export function ConnectedCrew() {
                     if (prev) URL.revokeObjectURL(prev);
                     return URL.createObjectURL(chosen);
                   });
-                  attendee.notify("Crew photo updated on this device");
+                  const uploaded = await uploadCrewPhotoToCloud(crew.id, chosen);
+                  if (uploaded.ok) {
+                    void broadcastCrewUpdated(crew.id, data.event.id);
+                    sync.refresh();
+                    attendee.notify("Crew photo shared with your crew");
+                  } else {
+                    attendee.notify(
+                      "Crew photo saved on this device only (shared storage pending Cloud setup)",
+                    );
+                  }
                 } catch {
                   setLocalError("Couldn’t save crew photo.");
                 }
@@ -380,21 +463,30 @@ export function ConnectedCrew() {
               )}
               {/* Visual circular member avatar strip with Add button */}
               <div className="scrollbar-none mt-3 flex items-center gap-3 overflow-x-auto rounded-2xl bg-popover px-3.5 py-3">
-                {crew.members.map((member) => (
-                  <div
-                    key={`strip-${member.id}`}
-                    className="flex w-16 flex-none flex-col items-center gap-1"
-                  >
-                    <Avatar
-                      label={initials(member.name)}
-                      src={member.id === attendee.auth.user?.id ? avatar?.url : null}
-                      alt={member.id === attendee.auth.user?.id ? "Your profile photo" : ""}
-                    />
-                    <span className="w-full truncate text-center text-[12px] font-medium">
-                      {member.id === attendee.auth.user?.id ? "You" : member.name}
-                    </span>
-                  </div>
-                ))}
+                {crew.members.map((member) => {
+                  const memberSrc = memberAvatarFor(member.id);
+                  return (
+                    <div
+                      key={`strip-${member.id}`}
+                      className="flex w-16 flex-none flex-col items-center gap-1"
+                    >
+                      <Avatar
+                        label={initials(member.name)}
+                        src={memberSrc}
+                        alt={
+                          memberSrc
+                            ? member.id === attendee.auth.user?.id
+                              ? "Your profile photo"
+                              : `${member.name}’s profile photo`
+                            : ""
+                        }
+                      />
+                      <span className="w-full truncate text-center text-[12px] font-medium">
+                        {member.id === attendee.auth.user?.id ? "You" : member.name}
+                      </span>
+                    </div>
+                  );
+                })}
                 {self?.owner && (
                   <button
                     type="button"
@@ -411,32 +503,90 @@ export function ConnectedCrew() {
                 )}
               </div>
 
-              {/* Active-session Live GPS status banner */}
-              {(isLiveSharing || liveError) && (
+              {/* P0: Explicit alert when Ghost Mode stopped local GPS but server revocation couldn't be confirmed */}
+              {pendingRevocationMsg && (
                 <div
-                  role="status"
-                  className="mt-3 rounded-2xl bg-secondary px-3.5 py-2.5 text-[14px]"
+                  role="alert"
+                  data-testid="remote-revocation-pending"
+                  className="mt-3 rounded-2xl border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-[14px]"
+                >
+                  <p className="font-semibold text-destructive">
+                    Remote removal pending — GPS stopped on this phone
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-foreground">{pendingRevocationMsg}</p>
+                  <button
+                    type="button"
+                    disabled={retryingRevocation}
+                    className="mt-1.5 min-h-11 font-semibold text-primary disabled:opacity-50"
+                    onClick={async () => {
+                      if (!crew || !self) return;
+                      setRetryingRevocation(true);
+                      try {
+                        const ok = sync.retryRemoteRevocation
+                          ? await sync.retryRemoteRevocation()
+                          : await revokeSharingWithConfirmation(crew.id, self.id, self.pointId);
+                        if (ok) {
+                          setLocalRevocationPending(null);
+                          attendee.notify("Remote location pin removed");
+                        }
+                      } finally {
+                        setRetryingRevocation(false);
+                      }
+                    }}
+                  >
+                    {retryingRevocation ? "Retrying remote removal…" : "Retry remote removal"}
+                  </button>
+                </div>
+              )}
+
+              {/* Active-session Live GPS status banner (distinguishes server-acknowledged positions from unconfirmed writes) */}
+              {(isLiveSharing || liveError || liveSyncError) && (
+                <div
+                  role={liveSyncError ? "alert" : "status"}
+                  className={`mt-3 rounded-2xl px-3.5 py-2.5 text-[14px] ${
+                    liveSyncError
+                      ? "border border-destructive/30 bg-destructive/10"
+                      : "bg-secondary"
+                  }`}
                 >
                   {(() => {
                     const fresh = classifyPositionFreshness(
-                      livePos?.capturedAt ?? null,
+                      ackedLivePos?.acknowledgedAt ?? livePos?.capturedAt ?? null,
                       liveStatus,
                       now ?? Date.now(),
                     );
                     const acc = formatAccuracyBadge(livePos?.accuracyMeters);
+                    const expiryTime = ackedLivePos?.expiresAt
+                      ? new Date(ackedLivePos.expiresAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : null;
                     return (
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            <Radio size={14} className="mr-1.5 inline text-primary" aria-hidden />
-                            Live location · {fresh.label}
-                            {acc ? ` (${acc})` : ""}
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">
+                          <Radio size={14} className="mr-1.5 inline text-primary" aria-hidden />
+                          Live location · {fresh.label}
+                          {acc ? ` (${acc})` : ""}
+                        </p>
+                        {liveSyncError ? (
+                          <p className="text-[12px] font-medium text-destructive">
+                            {liveSyncError}
                           </p>
+                        ) : ackedLivePos ? (
+                          <p className="text-[12px] text-muted-foreground">
+                            Confirmed by server · expires {expiryTime}
+                            {!ackedLivePos.expiryEnforcedByServer
+                              ? " (server applied its default window until backend SQL is updated)"
+                              : ""}
+                            . Pauses when backgrounded.
+                          </p>
+                        ) : (
                           <p className="text-[12px] text-muted-foreground">
                             {liveError ||
-                              "Active while Event Buddies stays open. Pauses when backgrounded."}
+                              "Waiting for server confirmation. Active while Event Buddies stays open; pauses when backgrounded."}
                           </p>
-                        </div>
+                        )}
                       </div>
                     );
                   })()}
@@ -445,6 +595,7 @@ export function ConnectedCrew() {
 
               <div className="mt-4 divide-y divide-border">
                 {crew.members.map((member) => {
+                  const memberSrc = memberAvatarFor(member.id);
                   const place =
                     member.pointId &&
                     member.expiresAt &&
@@ -461,8 +612,14 @@ export function ConnectedCrew() {
                     >
                       <Avatar
                         label={initials(member.name)}
-                        src={member.id === attendee.auth.user?.id ? avatar?.url : null}
-                        alt={member.id === attendee.auth.user?.id ? "Your profile photo" : ""}
+                        src={memberSrc}
+                        alt={
+                          memberSrc
+                            ? member.id === attendee.auth.user?.id
+                              ? "Your profile photo"
+                              : `${member.name}’s profile photo`
+                            : ""
+                        }
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block font-semibold break-words">
@@ -514,13 +671,6 @@ export function ConnectedCrew() {
                     className="min-h-11 font-semibold text-primary"
                     onClick={() => {
                       stopLiveGpsSession();
-                      if (self) {
-                        void removeCrewPin({
-                          crewId: crew.id,
-                          userId: self.id,
-                          pointId: self.pointId,
-                        });
-                      }
                       sync.command({ op: "stop", crewId: crew.id });
                     }}
                   >
@@ -809,6 +959,14 @@ export function ConnectedCrew() {
                     y: chosenPlace?.y ?? null,
                     lat: gpsCoords?.lat ?? null,
                     lng: gpsCoords?.lng ?? null,
+                    durationMinutes: 60,
+                  }).then((res) => {
+                    if (res.ok && res.persisted) {
+                      setLiveSyncError("");
+                      sync.recordAckedPin?.(res.pin);
+                    } else if (!res.ok) {
+                      setLiveSyncError(res.error);
+                    }
                   });
                   setMode(null);
                 }
@@ -901,11 +1059,6 @@ export function ConnectedCrew() {
                 <SecondaryButton
                   onClick={() => {
                     stopLiveGpsSession();
-                    void removeCrewPin({
-                      crewId: crew.id,
-                      userId: self.id,
-                      pointId: self.pointId,
-                    });
                     sync.command({ op: "stop", crewId: crew.id });
                     setMode(null);
                   }}
@@ -925,6 +1078,14 @@ export function ConnectedCrew() {
               <PrimaryButton
                 disabled={waiting}
                 onClick={() => {
+                  stopLiveGpsSession();
+                  if (self) {
+                    void removeCrewPin({
+                      crewId: crew.id,
+                      userId: self.id,
+                      pointId: self.pointId,
+                    });
+                  }
                   if (sync.command({ op: "leave", crewId: crew.id })) setMode(null);
                 }}
               >

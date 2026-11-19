@@ -96,6 +96,8 @@ begin
       'y', new.y,
       'lat', new.lat,
       'lng', new.lng,
+      'accuracyMeters', new.accuracy_m,
+      'sessionId', new.session_id,
       'createdAt', new.created_at,
       'expiresAt', new.expires_at
     );
@@ -150,7 +152,13 @@ exception when others then
   null;
 end $$;
 
--- 3. drop_pin, remove_pin, and list_crew_pins RPCs
+-- Ensure live-GPS metadata columns exist before drop_pin / list_crew_pins reference them
+alter table public.pins
+  add column if not exists accuracy_m numeric(6,1),
+  add column if not exists session_id uuid;
+
+-- 3. drop_pin (server-authoritative expiry), remove_pin, and list_crew_pins RPCs
+drop function if exists public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric);
 create or replace function public.drop_pin(
   p_event_id uuid,
   p_crew_id uuid,
@@ -158,7 +166,11 @@ create or replace function public.drop_pin(
   p_x numeric default null,
   p_y numeric default null,
   p_lat numeric default null,
-  p_lng numeric default null
+  p_lng numeric default null,
+  p_duration_minutes integer default 60,
+  p_expires_at timestamptz default null,
+  p_accuracy_m numeric default null,
+  p_session_id uuid default null
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -166,12 +178,16 @@ declare
   member public.attendee_crew_members%rowtype;
   catalogue public.event_sync_catalogue%rowtype;
   now_at timestamptz := clock_timestamp();
+  clamped_minutes integer := greatest(1, least(coalesce(p_duration_minutes, 60), 720));
+  max_session_exp timestamptz := now_at + interval '12 hours';
+  requested_exp timestamptz;
   exp_at timestamptz;
   clean_point text := nullif(btrim(coalesce(p_point_id, '')), '');
   rx numeric(6,2) := case when p_x is null then null else round(p_x, 1) end;
   ry numeric(6,2) := case when p_y is null then null else round(p_y, 1) end;
   rlat numeric(9,4) := case when p_lat is null then null else round(p_lat, 4) end;
   rlng numeric(9,4) := case when p_lng is null then null else round(p_lng, 4) end;
+  racc numeric(6,1) := case when p_accuracy_m is null or p_accuracy_m < 0 or p_accuracy_m > 5000 then null else round(p_accuracy_m, 1) end;
   upserted public.pins%rowtype;
 begin
   if actor is null then
@@ -186,6 +202,12 @@ begin
     raise exception 'Crew membership required to drop a pin' using errcode = '42501';
   end if;
 
+  if p_expires_at is not null then
+    requested_exp := least(p_expires_at, max_session_exp);
+  else
+    requested_exp := now_at + make_interval(mins => clamped_minutes);
+  end if;
+
   select * into catalogue
     from public.event_sync_catalogue
     where event_id = p_event_id;
@@ -193,9 +215,9 @@ begin
     if clean_point is not null and not (clean_point = any(catalogue.point_ids)) then
       raise exception 'Unknown venue landmark for this event' using errcode = '22023';
     end if;
-    exp_at := least(now_at + interval '60 minutes', catalogue.ends_at + interval '2 hours');
+    exp_at := least(requested_exp, catalogue.ends_at + interval '2 hours', max_session_exp);
   else
-    exp_at := now_at + interval '60 minutes';
+    exp_at := least(requested_exp, max_session_exp);
   end if;
 
   if exp_at <= now_at then
@@ -203,10 +225,10 @@ begin
   end if;
 
   insert into public.pins(
-    event_id, crew_id, user_id, display_name, point_id, x, y, lat, lng, created_at, expires_at
+    event_id, crew_id, user_id, display_name, point_id, x, y, lat, lng, accuracy_m, session_id, created_at, expires_at
   )
   values (
-    p_event_id, p_crew_id, actor, member.display_name, clean_point, rx, ry, rlat, rlng, now_at, exp_at
+    p_event_id, p_crew_id, actor, member.display_name, clean_point, rx, ry, rlat, rlng, racc, p_session_id, now_at, exp_at
   )
   on conflict (crew_id, user_id) do update
     set display_name = excluded.display_name,
@@ -215,16 +237,16 @@ begin
         y = excluded.y,
         lat = excluded.lat,
         lng = excluded.lng,
+        accuracy_m = excluded.accuracy_m,
+        session_id = excluded.session_id,
         created_at = excluded.created_at,
         expires_at = excluded.expires_at
   returning * into upserted;
 
   update public.attendee_crew_members
     set point_id = clean_point,
-        shared_at = now_at,
         expires_at = exp_at,
-        share_generation = share_generation + 1,
-        updated_at = now_at
+        pin_generation = pin_generation + 1
     where crew_id = p_crew_id and user_id = actor;
 
   return jsonb_build_object(
@@ -238,12 +260,14 @@ begin
     'y', upserted.y,
     'lat', upserted.lat,
     'lng', upserted.lng,
+    'accuracyMeters', upserted.accuracy_m,
+    'sessionId', upserted.session_id,
     'createdAt', upserted.created_at,
     'expiresAt', upserted.expires_at
   );
 end $$;
-revoke all on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric) from public, anon;
-grant execute on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric) to authenticated;
+revoke all on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric, integer, timestamptz, numeric, uuid) from public, anon;
+grant execute on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric, integer, timestamptz, numeric, uuid) to authenticated;
 
 create or replace function public.remove_pin(p_crew_id uuid)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -257,12 +281,10 @@ begin
     where crew_id = p_crew_id and user_id = actor;
   update public.attendee_crew_members
     set point_id = null,
-        shared_at = null,
         expires_at = null,
-        share_generation = share_generation + 1,
-        updated_at = clock_timestamp()
+        pin_generation = pin_generation + 1
     where crew_id = p_crew_id and user_id = actor;
-  return jsonb_build_object('ok', true, 'crewId', p_crew_id, 'userId', actor);
+  return jsonb_build_object('ok', true, 'confirmed', true, 'crewId', p_crew_id, 'userId', actor);
 end $$;
 revoke all on function public.remove_pin(uuid) from public, anon;
 grant execute on function public.remove_pin(uuid) to authenticated;
@@ -292,6 +314,8 @@ begin
           'y', p.y,
           'lat', p.lat,
           'lng', p.lng,
+          'accuracyMeters', p.accuracy_m,
+          'sessionId', p.session_id,
           'createdAt', p.created_at,
           'expiresAt', p.expires_at
         )
@@ -321,8 +345,7 @@ begin
 
   update public.attendee_crew_members
     set point_id = null,
-        expires_at = null,
-        updated_at = clock_timestamp()
+        expires_at = null
     where point_id is not null
       and (expires_at is null or expires_at <= clock_timestamp());
   get diagnostics cleared_member_pins = row_count;

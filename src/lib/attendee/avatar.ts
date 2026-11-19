@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { removeProfileAvatarFromCloud, uploadProfileAvatarToCloud } from "@/lib/crew/media";
 import { photoStore } from "./ride-photo";
 
 export const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -13,17 +14,19 @@ export function validateAvatarFile(file: { type: string; size: number }): string
   return null;
 }
 
-export function useAttendeeAvatar(eventId: string) {
+export function useAttendeeAvatar(eventId: string, userId?: string | null) {
   const key = avatarStorageKey(eventId);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [syncNote, setSyncNote] = useState("");
 
   useEffect(() => {
     let active = true;
     setBlob(null);
     setError("");
+    setSyncNote("");
     if (typeof indexedDB === "undefined") return;
     void photoStore(key, "read")
       .then((saved) => {
@@ -56,9 +59,18 @@ export function useAttendeeAvatar(eventId: string) {
       }
       setBusy(true);
       setError("");
+      setSyncNote("");
       try {
         await photoStore(key, "save", file);
         setBlob(file);
+        if (userId) {
+          const cloud = await uploadProfileAvatarToCloud(userId, file);
+          if (cloud.ok) {
+            setSyncNote("Photo synced so your connected crew can see it.");
+          } else {
+            setSyncNote("Saved on this phone (shared crew avatar storage pending Cloud setup).");
+          }
+        }
         return true;
       } catch {
         setError("Couldn’t save your photo on this device. Try again.");
@@ -67,15 +79,19 @@ export function useAttendeeAvatar(eventId: string) {
         setBusy(false);
       }
     },
-    [key],
+    [key, userId],
   );
 
   const remove = useCallback(async () => {
     setBusy(true);
     setError("");
+    setSyncNote("");
     try {
       await photoStore(key, "remove");
       setBlob(null);
+      if (userId) {
+        void removeProfileAvatarFromCloud();
+      }
       return true;
     } catch {
       setError("Couldn’t remove your photo. Try again.");
@@ -83,7 +99,7 @@ export function useAttendeeAvatar(eventId: string) {
     } finally {
       setBusy(false);
     }
-  }, [key]);
+  }, [key, userId]);
 
-  return { url, busy, error, save, remove };
+  return { url, busy, error, syncNote, save, remove };
 }

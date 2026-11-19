@@ -121,7 +121,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
   const online = useConnectivity();
   const attendee = useAttendee(data);
-  const avatar = useAttendeeAvatar(data.event.id);
+  const avatar = useAttendeeAvatar(data.event.id, attendee.auth.user?.id ?? null);
   const crew = useCrew(
     data.event.id,
     attendee.auth.user?.id ?? null,

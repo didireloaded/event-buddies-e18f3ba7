@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { DemoData } from "@/lib/event/types";
+import type { DemoData, EventRecord } from "@/lib/event/types";
 import { eventLifecycle } from "./lifecycle";
+import { eventTime } from "./schedule";
 
 export function countdownLabel(meetingAt: string, now: number | null) {
   if (now === null) return "Meeting time";
@@ -42,6 +43,7 @@ export function useEventClock(intervalMs = 60000) {
 export function eventPhase(data: DemoData, now: number | null) {
   const lifecycle = eventLifecycle(data, now);
   if (lifecycle.phase === "cancelled") return { label: "Event cancelled", live: false };
+  if (data.event.dateConfirmed === false) return { label: "Date TBC", live: false };
   if (now === null) return { label: "Upcoming event", live: false };
   if (now < +new Date(data.event.startAt)) {
     const minutes = Math.ceil((+new Date(data.event.startAt) - now) / 60000);
@@ -68,4 +70,19 @@ export function dateLabel(
     timeZone: timezone,
     ...options,
   }).format(new Date(value));
+}
+
+export function formatEventDate(
+  event: Pick<EventRecord, "startAt" | "timezone" | "dateConfirmed">,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" },
+): string {
+  if (event.dateConfirmed === false) return "Date TBC";
+  return dateLabel(event.startAt, event.timezone, options);
+}
+
+export function formatEventHours(
+  event: Pick<EventRecord, "startAt" | "endAt" | "dateConfirmed" | "gatesConfirmed">,
+): string {
+  if (event.dateConfirmed === false || event.gatesConfirmed === false) return "Hours TBC";
+  return `${eventTime(event.startAt)}–${eventTime(event.endAt)} CAT`;
 }

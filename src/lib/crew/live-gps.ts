@@ -24,17 +24,34 @@ export const STALE_AFTER_MS = 2 * 60 * 1000; // 2 minutes
 export const LOW_ACCURACY_THRESHOLD_METERS = 50;
 export const MIN_PUBLISH_INTERVAL_MS = 12 * 1000; // Adaptive throttle (~12s minimum)
 
+export const MAX_LIVE_SESSION_MINUTES = 720; // 12-hour server-enforced ceiling
+
 export function computeLiveShareExpiry(
   duration: LiveLocationDuration,
   eventEndAt: Date,
   nowMs = Date.now(),
 ): number {
   const hardEnd = +eventEndAt;
-  if (duration === "15m")
-    return Math.min(nowMs + 15 * 60 * 1000, Math.max(nowMs + 15 * 60 * 1000, hardEnd));
-  if (duration === "60m")
-    return Math.min(nowMs + 60 * 60 * 1000, Math.max(nowMs + 60 * 60 * 1000, hardEnd));
-  return Math.max(nowMs + 15 * 60 * 1000, hardEnd);
+  const maxEnd = nowMs + MAX_LIVE_SESSION_MINUTES * 60 * 1000;
+  if (!Number.isFinite(hardEnd)) {
+    const fallbackMins = duration === "15m" ? 15 : 60;
+    return nowMs + fallbackMins * 60 * 1000;
+  }
+  if (hardEnd <= nowMs) {
+    return hardEnd;
+  }
+  if (duration === "15m") {
+    return Math.min(nowMs + 15 * 60 * 1000, hardEnd);
+  }
+  if (duration === "60m") {
+    return Math.min(nowMs + 60 * 60 * 1000, hardEnd);
+  }
+  return Math.min(hardEnd, maxEnd);
+}
+
+export function computeLiveShareDurationMinutes(expiresAtMs: number, nowMs = Date.now()): number {
+  const remainingMs = Math.max(60_000, expiresAtMs - nowMs);
+  return Math.max(1, Math.min(MAX_LIVE_SESSION_MINUTES, Math.ceil(remainingMs / 60_000)));
 }
 
 /** Rough Haversine distance in metres for adaptive movement throttling. */
@@ -105,13 +122,24 @@ export function startActiveLiveGps(options: {
     return () => {};
   }
 
+  if (Date.now() >= options.expiresAt) {
+    options.onStatusChange("off", "Live location sharing window has already ended for this event.");
+    options.onExpired();
+    return () => {};
+  }
+
   let stopped = false;
+  let hasFix = false;
   let lastSentAt = 0;
   let lastLat: number | null = null;
   let lastLng: number | null = null;
   let watchId: number | null = null;
 
-  options.onStatusChange("starting");
+  options.onStatusChange(
+    typeof document !== "undefined" && document.visibilityState === "hidden"
+      ? "paused_background"
+      : "starting",
+  );
 
   const stopAll = () => {
     if (stopped) return;
@@ -132,10 +160,16 @@ export function startActiveLiveGps(options: {
 
   const onVisibility = () => {
     if (stopped) return;
+    if (Date.now() >= options.expiresAt) {
+      stopAll();
+      options.onStatusChange("off");
+      options.onExpired();
+      return;
+    }
     if (typeof document !== "undefined" && document.visibilityState === "hidden") {
       options.onStatusChange("paused_background");
-    } else if (Date.now() < options.expiresAt) {
-      options.onStatusChange("live");
+    } else {
+      options.onStatusChange(hasFix ? "live" : "starting");
     }
   };
 
@@ -162,6 +196,11 @@ export function startActiveLiveGps(options: {
         options.onExpired();
         return;
       }
+      // Never transmit a position while the browser is backgrounded/paused.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        options.onStatusChange("paused_background");
+        return;
+      }
       const lat = roundGpsCoord(raw.coords.latitude, -90, 90);
       const lng = roundGpsCoord(raw.coords.longitude, -180, 180);
       const accuracy = Math.round(raw.coords.accuracy ?? 999);
@@ -178,14 +217,11 @@ export function startActiveLiveGps(options: {
         return;
       }
 
+      hasFix = true;
       lastSentAt = nowMs;
       lastLat = lat;
       lastLng = lng;
-      options.onStatusChange(
-        typeof document !== "undefined" && document.visibilityState === "hidden"
-          ? "paused_background"
-          : "live",
-      );
+      options.onStatusChange("live");
       options.onPosition({
         lat,
         lng,

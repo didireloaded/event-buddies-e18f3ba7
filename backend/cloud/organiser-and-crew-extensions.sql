@@ -98,6 +98,11 @@ end $$;
 revoke all on function public.list_event_broadcasts(uuid) from public;
 grant execute on function public.list_event_broadcasts(uuid) to anon, authenticated;
 
+-- Ensure shared event columns exist before list_published_events() references them
+alter table public.organiser_events
+  add column if not exists bar_menus jsonb not null default '[]'::jsonb,
+  add column if not exists map_calibration jsonb;
+
 -- 2. Published organiser events -> event_sync_catalogue trigger & public discovery RPC
 create or replace function public.sync_published_organiser_event()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -153,6 +158,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
         'program', coalesce(e.program, '[]'::jsonb),
         'zones', coalesce(e.zones, '[]'::jsonb),
         'sitePlanPath', e.site_plan_path,
+        'barMenus', coalesce(e.bar_menus, '[]'::jsonb),
+        'mapCalibration', e.map_calibration,
         'publishedAt', e.published_at
       )
       order by e.start_date asc nulls last, e.published_at desc
@@ -668,6 +675,8 @@ begin
       'y', new.y,
       'lat', new.lat,
       'lng', new.lng,
+      'accuracyMeters', new.accuracy_m,
+      'sessionId', new.session_id,
       'createdAt', new.created_at,
       'expiresAt', new.expires_at
     );
@@ -685,6 +694,11 @@ create trigger pins_realtime_broadcast_trg
   after insert or update or delete on public.pins
   for each row execute function public.broadcast_crew_pin_change();
 
+alter table public.pins
+  add column if not exists accuracy_m numeric(6,1),
+  add column if not exists session_id uuid;
+
+drop function if exists public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric);
 create or replace function public.drop_pin(
   p_event_id uuid,
   p_crew_id uuid,
@@ -692,7 +706,11 @@ create or replace function public.drop_pin(
   p_x numeric default null,
   p_y numeric default null,
   p_lat numeric default null,
-  p_lng numeric default null
+  p_lng numeric default null,
+  p_duration_minutes integer default 60,
+  p_expires_at timestamptz default null,
+  p_accuracy_m numeric default null,
+  p_session_id uuid default null
 )
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -700,12 +718,16 @@ declare
   member public.attendee_crew_members%rowtype;
   catalogue public.event_sync_catalogue%rowtype;
   now_at timestamptz := clock_timestamp();
+  clamped_minutes integer := greatest(1, least(coalesce(p_duration_minutes, 60), 720));
+  max_session_exp timestamptz := now_at + interval '12 hours';
+  requested_exp timestamptz;
   exp_at timestamptz;
   clean_point text := nullif(btrim(coalesce(p_point_id, '')), '');
   rx numeric(6,2) := case when p_x is null then null else round(p_x, 1) end;
   ry numeric(6,2) := case when p_y is null then null else round(p_y, 1) end;
   rlat numeric(9,4) := case when p_lat is null then null else round(p_lat, 4) end;
   rlng numeric(9,4) := case when p_lng is null then null else round(p_lng, 4) end;
+  racc numeric(6,1) := case when p_accuracy_m is null or p_accuracy_m < 0 or p_accuracy_m > 5000 then null else round(p_accuracy_m, 1) end;
   upserted public.pins%rowtype;
 begin
   if actor is null then
@@ -718,6 +740,13 @@ begin
   if not found then
     raise exception 'Crew membership required to drop a pin' using errcode = '42501';
   end if;
+
+  if p_expires_at is not null then
+    requested_exp := least(p_expires_at, max_session_exp);
+  else
+    requested_exp := now_at + make_interval(mins => clamped_minutes);
+  end if;
+
   select * into catalogue
     from public.event_sync_catalogue
     where event_id = p_event_id;
@@ -725,19 +754,19 @@ begin
     if clean_point is not null and not (clean_point = any(catalogue.point_ids)) then
       raise exception 'Unknown venue landmark for this event' using errcode = '22023';
     end if;
-    exp_at := least(now_at + interval '60 minutes', catalogue.ends_at + interval '2 hours');
+    exp_at := least(requested_exp, catalogue.ends_at + interval '2 hours', max_session_exp);
   else
-    exp_at := now_at + interval '60 minutes';
+    exp_at := least(requested_exp, max_session_exp);
   end if;
   if exp_at <= now_at then
     raise exception 'Pin sharing has closed for this event' using errcode = '22023';
   end if;
 
   insert into public.pins(
-    event_id, crew_id, user_id, display_name, point_id, x, y, lat, lng, created_at, expires_at
+    event_id, crew_id, user_id, display_name, point_id, x, y, lat, lng, accuracy_m, session_id, created_at, expires_at
   )
   values (
-    p_event_id, p_crew_id, actor, member.display_name, clean_point, rx, ry, rlat, rlng, now_at, exp_at
+    p_event_id, p_crew_id, actor, member.display_name, clean_point, rx, ry, rlat, rlng, racc, p_session_id, now_at, exp_at
   )
   on conflict (crew_id, user_id) do update
     set display_name = excluded.display_name,
@@ -746,16 +775,16 @@ begin
         y = excluded.y,
         lat = excluded.lat,
         lng = excluded.lng,
+        accuracy_m = excluded.accuracy_m,
+        session_id = excluded.session_id,
         created_at = excluded.created_at,
         expires_at = excluded.expires_at
   returning * into upserted;
 
   update public.attendee_crew_members
     set point_id = clean_point,
-        shared_at = now_at,
         expires_at = exp_at,
-        share_generation = share_generation + 1,
-        updated_at = now_at
+        pin_generation = pin_generation + 1
     where crew_id = p_crew_id and user_id = actor;
 
   return jsonb_build_object(
@@ -769,12 +798,14 @@ begin
     'y', upserted.y,
     'lat', upserted.lat,
     'lng', upserted.lng,
+    'accuracyMeters', upserted.accuracy_m,
+    'sessionId', upserted.session_id,
     'createdAt', upserted.created_at,
     'expiresAt', upserted.expires_at
   );
 end $$;
-revoke all on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric) from public, anon;
-grant execute on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric) to authenticated;
+revoke all on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric, integer, timestamptz, numeric, uuid) from public, anon;
+grant execute on function public.drop_pin(uuid, uuid, text, numeric, numeric, numeric, numeric, integer, timestamptz, numeric, uuid) to authenticated;
 
 create or replace function public.remove_pin(p_crew_id uuid)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -787,12 +818,10 @@ begin
   delete from public.pins where crew_id = p_crew_id and user_id = actor;
   update public.attendee_crew_members
     set point_id = null,
-        shared_at = null,
         expires_at = null,
-        share_generation = share_generation + 1,
-        updated_at = clock_timestamp()
+        pin_generation = pin_generation + 1
     where crew_id = p_crew_id and user_id = actor;
-  return jsonb_build_object('ok', true, 'crewId', p_crew_id, 'userId', actor);
+  return jsonb_build_object('ok', true, 'confirmed', true, 'crewId', p_crew_id, 'userId', actor);
 end $$;
 revoke all on function public.remove_pin(uuid) from public, anon;
 grant execute on function public.remove_pin(uuid) to authenticated;
@@ -822,6 +851,8 @@ begin
           'y', p.y,
           'lat', p.lat,
           'lng', p.lng,
+          'accuracyMeters', p.accuracy_m,
+          'sessionId', p.session_id,
           'createdAt', p.created_at,
           'expiresAt', p.expires_at
         )
@@ -849,8 +880,7 @@ begin
 
   update public.attendee_crew_members
     set point_id = null,
-        expires_at = null,
-        updated_at = clock_timestamp()
+        expires_at = null
     where point_id is not null
       and (expires_at is null or expires_at <= clock_timestamp());
   get diagnostics cleared_member_pins = row_count;
@@ -914,6 +944,242 @@ create policy "self manages tickets"
   to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- 9. Shared organiser bar menus & versioned GPS map calibration
+create or replace function public.get_organiser_event_extras(p_event_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  ev public.organiser_events%rowtype;
+begin
+  select * into ev
+    from public.organiser_events
+    where id = p_event_id
+      and (status = 'published' or owner_id = actor);
+  if not found then
+    return jsonb_build_object('barMenus', '[]'::jsonb, 'mapCalibration', null);
+  end if;
+  return jsonb_build_object(
+    'barMenus', coalesce(ev.bar_menus, '[]'::jsonb),
+    'mapCalibration', ev.map_calibration
+  );
+end $$;
+revoke all on function public.get_organiser_event_extras(uuid) from public;
+grant execute on function public.get_organiser_event_extras(uuid) to anon, authenticated;
+
+create or replace function public.save_organiser_event_extras(
+  p_event_id uuid,
+  p_bar_menus jsonb default null,
+  p_map_calibration jsonb default null
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  updated public.organiser_events%rowtype;
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  update public.organiser_events
+    set bar_menus = case when p_bar_menus is not null then p_bar_menus else bar_menus end,
+        map_calibration = case when p_map_calibration is not null then p_map_calibration else map_calibration end,
+        updated_at = now()
+    where id = p_event_id and owner_id = actor
+    returning * into updated;
+  if not found then
+    raise exception 'Only the event owner can update bar menus or map calibration' using errcode = '42501';
+  end if;
+  return jsonb_build_object(
+    'ok', true,
+    'barMenus', coalesce(updated.bar_menus, '[]'::jsonb),
+    'mapCalibration', updated.map_calibration
+  );
+end $$;
+revoke all on function public.save_organiser_event_extras(uuid, jsonb, jsonb) from public, anon;
+grant execute on function public.save_organiser_event_extras(uuid, jsonb, jsonb) to authenticated;
+
+-- 10. Protected shared crew photos & member profile avatars (private `crew-media` bucket)
+alter table public.attendee_crews
+  add column if not exists photo_path text;
+
+create table if not exists public.attendee_avatars (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  avatar_path text,
+  updated_at timestamptz not null default clock_timestamp()
+);
+alter table public.attendee_avatars enable row level security;
+revoke all on public.attendee_avatars from public, anon, authenticated;
+
+create or replace function public.set_crew_photo(p_crew_id uuid, p_photo_path text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  if not exists (
+    select 1 from public.attendee_crew_members
+    where crew_id = p_crew_id and user_id = actor and is_owner = true
+  ) then
+    raise exception 'Only the crew owner can update the crew photo' using errcode = '42501';
+  end if;
+  if p_photo_path is not null and p_photo_path not like ('crews/' || p_crew_id::text || '/%') then
+    raise exception 'Invalid crew photo path' using errcode = '22023';
+  end if;
+  update public.attendee_crews
+    set photo_path = nullif(btrim(coalesce(p_photo_path, '')), '')
+    where id = p_crew_id;
+  return jsonb_build_object('ok', true, 'crewId', p_crew_id, 'photoPath', p_photo_path);
+end $$;
+revoke all on function public.set_crew_photo(uuid, text) from public, anon;
+grant execute on function public.set_crew_photo(uuid, text) to authenticated;
+
+create or replace function public.set_my_avatar(p_avatar_path text)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+begin
+  if actor is null then
+    raise exception 'Sign in required' using errcode = '42501';
+  end if;
+  if p_avatar_path is not null and p_avatar_path not like ('avatars/' || actor::text || '/%') then
+    raise exception 'Invalid avatar path' using errcode = '22023';
+  end if;
+  insert into public.attendee_avatars(user_id, avatar_path, updated_at)
+    values (actor, nullif(btrim(coalesce(p_avatar_path, '')), ''), clock_timestamp())
+    on conflict (user_id) do update
+      set avatar_path = excluded.avatar_path,
+          updated_at = excluded.updated_at;
+  return jsonb_build_object('ok', true, 'userId', actor, 'avatarPath', p_avatar_path);
+end $$;
+revoke all on function public.set_my_avatar(text) from public, anon;
+grant execute on function public.set_my_avatar(text) to authenticated;
+
+create or replace function public.get_crew_media(p_crew_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  actor uuid := auth.uid();
+  crew_photo text;
+  avatars jsonb;
+begin
+  if actor is null or not exists (
+    select 1 from public.attendee_crew_members
+    where crew_id = p_crew_id and user_id = actor
+  ) then
+    return jsonb_build_object('photoPath', null, 'memberAvatars', '{}'::jsonb);
+  end if;
+
+  select c.photo_path into crew_photo
+    from public.attendee_crews c
+    where c.id = p_crew_id;
+
+  select coalesce(jsonb_object_agg(m.user_id::text, a.avatar_path), '{}'::jsonb)
+    into avatars
+    from public.attendee_crew_members m
+    join public.attendee_avatars a on a.user_id = m.user_id
+    where m.crew_id = p_crew_id
+      and a.avatar_path is not null;
+
+  return jsonb_build_object(
+    'photoPath', crew_photo,
+    'memberAvatars', coalesce(avatars, '{}'::jsonb)
+  );
+end $$;
+revoke all on function public.get_crew_media(uuid) from public, anon;
+grant execute on function public.get_crew_media(uuid) to authenticated;
+
+-- Private storage bucket + crewmate-scoped RLS on storage.objects
+do $$
+begin
+  insert into storage.buckets (id, name, public)
+    values ('crew-media', 'crew-media', false)
+    on conflict (id) do nothing;
+
+  execute 'drop policy if exists "crew_media_manage_own_avatar" on storage.objects';
+  execute $pol$
+    create policy "crew_media_manage_own_avatar"
+      on storage.objects
+      for all
+      to authenticated
+      using (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'avatars'
+        and (storage.foldername(name))[2] = auth.uid()::text
+      )
+      with check (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'avatars'
+        and (storage.foldername(name))[2] = auth.uid()::text
+      )
+  $pol$;
+
+  execute 'drop policy if exists "crew_media_read_crewmate_avatars" on storage.objects';
+  execute $pol$
+    create policy "crew_media_read_crewmate_avatars"
+      on storage.objects
+      for select
+      to authenticated
+      using (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'avatars'
+        and exists (
+          select 1
+          from public.attendee_crew_members me
+          join public.attendee_crew_members mate on mate.crew_id = me.crew_id
+          where me.user_id = auth.uid()
+            and mate.user_id::text = (storage.foldername(name))[2]
+        )
+      )
+  $pol$;
+
+  execute 'drop policy if exists "crew_media_owner_manage_crew_photo" on storage.objects';
+  execute $pol$
+    create policy "crew_media_owner_manage_crew_photo"
+      on storage.objects
+      for all
+      to authenticated
+      using (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'crews'
+        and exists (
+          select 1 from public.attendee_crew_members m
+          where m.crew_id::text = (storage.foldername(name))[2]
+            and m.user_id = auth.uid()
+            and m.is_owner = true
+        )
+      )
+      with check (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'crews'
+        and exists (
+          select 1 from public.attendee_crew_members m
+          where m.crew_id::text = (storage.foldername(name))[2]
+            and m.user_id = auth.uid()
+            and m.is_owner = true
+        )
+      )
+  $pol$;
+
+  execute 'drop policy if exists "crew_media_members_read_crew_photo" on storage.objects';
+  execute $pol$
+    create policy "crew_media_members_read_crew_photo"
+      on storage.objects
+      for select
+      to authenticated
+      using (
+        bucket_id = 'crew-media'
+        and (storage.foldername(name))[1] = 'crews'
+        and exists (
+          select 1 from public.attendee_crew_members m
+          where m.crew_id::text = (storage.foldername(name))[2]
+            and m.user_id = auth.uid()
+        )
+      )
+  $pol$;
+exception when others then
+  null;
+end $$;
 
 notify pgrst, 'reload schema';
 commit;

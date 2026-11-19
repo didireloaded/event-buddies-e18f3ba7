@@ -21,8 +21,15 @@ import {
   computeCanvasMaxZoom,
   computeChromePadding,
   computeFittedImageRect,
+  resolveCrewPinMapPosition,
 } from "@/lib/attendee/map-fit";
-import { DRINK_CATEGORIES, getMenuForBar, type DrinkCategory } from "@/lib/attendee/bar-menu";
+import {
+  DRINK_CATEGORIES,
+  getMenuForBar,
+  type BarMenuConfig,
+  type DrinkCategory,
+} from "@/lib/attendee/bar-menu";
+import { formatAccuracyBadge } from "@/lib/crew/live-gps";
 import {
   formatTicketTier,
   getEventOpensTime,
@@ -202,14 +209,47 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
     ...pins.filter((p) => p.id === map.selected).map((place) => ({ place, ids: [place.id] })),
   ];
 
+  const nowMs = now ?? Date.now();
+  const activeCalibratedGpsPins = useMemo(() => {
+    if (!data.event.mapCalibration) return [];
+    const pinsList = crew.pins ?? [];
+    const out: {
+      pin: (typeof pinsList)[number];
+      x: number;
+      y: number;
+      placeId: string | null;
+    }[] = [];
+    for (const pin of pinsList) {
+      if (Date.parse(pin.expiresAt) <= nowMs) continue;
+      const resolved = resolveCrewPinMapPosition(pin, places, data.event.mapCalibration);
+      if (resolved && resolved.mode === "gps_calibrated") {
+        out.push({ pin, x: resolved.x, y: resolved.y, placeId: resolved.placeId });
+      }
+    }
+    return out;
+  }, [crew.pins, data.event.mapCalibration, nowMs, places]);
+
+  const calibratedUserIds = useMemo(
+    () => new Set(activeCalibratedGpsPins.map((entry) => entry.pin.userId)),
+    [activeCalibratedGpsPins],
+  );
+
   const activeCrewMembers =
-    crew.crew?.members.filter(
-      (m) => m.pointId && m.expiresAt && Date.parse(m.expiresAt) > (now ?? Date.now()),
-    ) ?? [];
-  const activeCrewPins = activeCrewMembers.length;
+    crew.crew?.members.filter((m) => m.pointId && m.expiresAt && Date.parse(m.expiresAt) > nowMs) ??
+    [];
+  const activeCrewPins = new Set([
+    ...activeCrewMembers.map((m) => m.id),
+    ...activeCalibratedGpsPins.map((g) => g.pin.userId),
+  ]).size;
   const crewLeadPlace = activeCrewMembers[0]?.pointId
     ? places.find((p) => p.id === activeCrewMembers[0]!.pointId)
     : null;
+  const crewMemberAvatar = (memberId: string): string | null => {
+    if (memberId === attendee.auth.user?.id) {
+      return avatar?.url ?? crew.memberAvatarUrls?.[memberId] ?? null;
+    }
+    return crew.memberAvatarUrls?.[memberId] ?? null;
+  };
   const activeMapSrc =
     zoomLayerReady && data.event.mapZoomImageUrl
       ? data.event.mapZoomImageUrl
@@ -338,20 +378,55 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
               onError={() => setImageState("error")}
             />
 
+            {/* Calibrated Live GPS crew markers (rendered ONLY when verified venue calibration exists) */}
+            {activeCalibratedGpsPins.map(({ pin, x, y, placeId }) => {
+              const memberAvatar = crewMemberAvatar(pin.userId);
+              const acc = formatAccuracyBadge(pin.accuracyMeters);
+              const until = new Date(pin.expiresAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return (
+                <button
+                  key={`gps-crew-${pin.userId}`}
+                  type="button"
+                  data-marker-mode="gps-calibrated"
+                  className="absolute z-30 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden rounded-full border-2 border-white bg-primary text-[13px] font-bold text-primary-foreground shadow-float ring-4 ring-primary/30"
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                  aria-label={`${pin.displayName} live GPS${acc ? ` (${acc})` : ""} until ${until}`}
+                  onClick={() => {
+                    if (placeId) {
+                      map.setSelected(placeId);
+                      if (expanded) map.setExpanded(false);
+                    }
+                  }}
+                >
+                  {memberAvatar ? (
+                    <img src={memberAvatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    initials(pin.displayName)
+                  )}
+                </button>
+              );
+            })}
+
             {places.map((place) => {
               const members =
                 crew.crew?.members.filter(
                   (member) =>
+                    !calibratedUserIds.has(member.id) &&
                     member.pointId === place.id &&
                     member.expiresAt &&
-                    Date.parse(member.expiresAt) > (now ?? Date.now()),
+                    Date.parse(member.expiresAt) > nowMs,
                 ) ?? [];
               if (!members.length) return null;
+              const singleAvatar = members.length === 1 ? crewMemberAvatar(members[0]!.id) : null;
               return (
                 <button
                   key={`crew-${place.id}`}
                   type="button"
-                  className="absolute z-20 grid min-h-11 min-w-11 -translate-x-1/2 -translate-y-full place-items-center rounded-full border-2 border-white bg-primary px-2 text-[14px] font-semibold text-primary-foreground shadow-float"
+                  data-marker-mode="landmark"
+                  className="absolute z-20 grid min-h-11 min-w-11 -translate-x-1/2 -translate-y-full place-items-center overflow-hidden rounded-full border-2 border-white bg-primary px-2 text-[14px] font-semibold text-primary-foreground shadow-float"
                   style={{ left: `${place.x}%`, top: `${place.y}%` }}
                   aria-label={`${members.map((m) => m.name).join(", ")} shared ${place.name}`}
                   onClick={() => {
@@ -359,7 +434,17 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
                     if (expanded) map.setExpanded(false);
                   }}
                 >
-                  {members.length > 1 ? `${members.length} crew` : initials(members[0]!.name)}
+                  {members.length > 1 ? (
+                    `${members.length} crew`
+                  ) : singleAvatar ? (
+                    <img
+                      src={singleAvatar}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    initials(members[0]!.name)
+                  )}
                 </button>
               );
             })}
@@ -441,11 +526,13 @@ function MapCanvas({ expanded }: { expanded: boolean }) {
       {/* Bottom-left live sharing / crew peek pill */}
       {imageState === "loaded" && (
         <div className="pointer-events-none absolute bottom-3 left-3 z-20 max-w-[68%] truncate rounded-full bg-white/92 px-3 py-1.5 text-[13px] font-medium text-foreground shadow-sm backdrop-blur ring-1 ring-black/5">
-          {activeCrewPins > 0 && crewLeadPlace
-            ? `${activeCrewPins} of your crew ${activeCrewPins === 1 ? "is" : "are"} at ${crewLeadPlace.name}`
-            : activeCrewPins > 0
-              ? `${activeCrewPins} sharing live`
-              : "Tap a location to see details"}
+          {activeCalibratedGpsPins.length > 0
+            ? `${activeCalibratedGpsPins.length} of your crew live on calibrated map`
+            : activeCrewPins > 0 && crewLeadPlace
+              ? `${activeCrewPins} of your crew ${activeCrewPins === 1 ? "is" : "are"} at ${crewLeadPlace.name}`
+              : activeCrewPins > 0
+                ? `${activeCrewPins} sharing live`
+                : "Tap a location to see details"}
         </div>
       )}
 
@@ -516,8 +603,19 @@ function ExpandedMap() {
   );
 }
 
-function BarMenuSection({ eventId, barName }: { eventId: string; barName: string }) {
-  const menu = useMemo(() => getMenuForBar(eventId, barName), [eventId, barName]);
+function BarMenuSection({
+  eventId,
+  barName,
+  publishedMenus,
+}: {
+  eventId: string;
+  barName: string;
+  publishedMenus?: BarMenuConfig[] | undefined;
+}) {
+  const menu = useMemo(
+    () => getMenuForBar(eventId, barName, publishedMenus),
+    [eventId, barName, publishedMenus],
+  );
   const [category, setCategory] = useState<DrinkCategory | "All">("All");
   const visibleItems =
     category === "All" ? menu.items : menu.items.filter((item) => item.category === category);
@@ -858,7 +956,11 @@ export function MapView() {
                   )}
 
                   {place.type === "bar" && (
-                    <BarMenuSection eventId={data.event.id} barName={place.name} />
+                    <BarMenuSection
+                      eventId={data.event.id}
+                      barName={place.name}
+                      publishedMenus={data.event.barMenus}
+                    />
                   )}
 
                   {place.type === "food" && (

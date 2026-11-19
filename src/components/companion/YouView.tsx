@@ -17,7 +17,7 @@ export function YouView() {
   const { data, attendee, avatar, openSheet, offlineStatus, allTicketsCount } = useCompanion();
   const { preferences } = attendee;
   const terms = getEventCategoryTerms(data.event.category);
-  const eventYear = data.event.startAt.getFullYear();
+  const eventYear = data.event.dateConfirmed === false ? null : data.event.startAt.getFullYear();
   const savedLabel =
     preferences.savedArtists.length === 1
       ? terms.personSingular.toLowerCase()
@@ -52,7 +52,8 @@ export function YouView() {
                   : "Your festival name"}
             </span>
             <span className="mt-0.5 block text-[14px] text-muted-foreground">
-              Edit name · {data.event.name} · {eventYear}
+              Edit name · {data.event.name}
+              {eventYear ? ` · ${eventYear}` : " · Date TBC"}
             </span>
             {preferences.badges.length > 0 && (
               <span className="mt-1.5 block text-[13px] font-medium text-primary">

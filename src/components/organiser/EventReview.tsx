@@ -4,6 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { dbError, signedUrl, uploadOwnFile, type OrgEvent } from "@/lib/organiser/data";
 import {
+  getOrganiserEventExtras,
+  saveOrganiserEventExtras,
+  type PublishedMapCalibration,
+} from "@/lib/organiser/cloud-extensions";
+import {
   readStoredMapCalibration,
   readStoredSitePlanZoomUrl,
   removeLocalPublishedEvent,
@@ -93,7 +98,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
       ],
   );
   const [calActiveIdx, setCalActiveIdx] = useState<number | null>(null);
+  const [calVersion, setCalVersion] = useState<number>(
+    () => readStoredMapCalibration(event.id)?.version ?? 0,
+  );
   const [calStatus, setCalStatus] = useState("");
+  const [calBusy, setCalBusy] = useState(false);
   const [barItems, setBarItems] = useState<BarDrinkItem[]>(
     () => readOrganiserBarMenus(event.id)[0]?.items ?? [],
   );
@@ -101,11 +110,14 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     () =>
       readOrganiserBarMenus(event.id)[0]?.paymentNote ?? "Cashless & card accepted at event bars.",
   );
+  const [barStatus, setBarStatus] = useState("");
+  const [barBusy, setBarBusy] = useState(false);
   const [newDrinkName, setNewDrinkName] = useState("");
   const [newDrinkCat, setNewDrinkCat] = useState<DrinkCategory>("Beer");
   const [newDrinkPrice, setNewDrinkPrice] = useState("");
 
   useEffect(() => {
+    let active = true;
     setName(event.name);
     setEventType(
       (EVENT_TYPES as readonly string[]).includes(event.event_type)
@@ -119,8 +131,10 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     setEntryRules(event.entry_rules);
     setProgram(parseProgram(event.program));
     setZones(parseZones(event.zones));
+    const localCal = readStoredMapCalibration(event.id);
+    setCalVersion(localCal?.version ?? 0);
     setCalRefs(
-      readStoredMapCalibration(event.id)?.refs ?? [
+      localCal?.refs ?? [
         { x: 20, y: 60, lat: -22.821, lng: 14.539 },
         { x: 80, y: 60, lat: -22.821, lng: 14.544 },
         { x: 50, y: 20, lat: -22.818, lng: 14.5415 },
@@ -130,6 +144,25 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
     setBarPaymentNote(
       readOrganiserBarMenus(event.id)[0]?.paymentNote ?? "Cashless & card accepted at event bars.",
     );
+    setBarStatus("");
+    void getOrganiserEventExtras(event.id).then((extras) => {
+      if (!active || !extras) return;
+      if (extras.mapCalibration) {
+        setCalRefs(extras.mapCalibration.refs);
+        setCalVersion(extras.mapCalibration.version);
+        saveStoredMapCalibration(event.id, extras.mapCalibration);
+      }
+      if (extras.barMenus.length > 0) {
+        setBarItems(extras.barMenus[0]!.items);
+        setBarPaymentNote(
+          extras.barMenus[0]!.paymentNote || "Cashless & card accepted at event bars.",
+        );
+        saveOrganiserBarMenus(event.id, extras.barMenus);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [event]);
 
   useEffect(() => {
@@ -207,6 +240,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
             patch.site_plan_path !== undefined ? patch.site_plan_path : event.site_plan_path,
           sitePlanUrl,
           sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
+          barMenus: readOrganiserBarMenus(event.id),
+          mapCalibration: (() => {
+            const c = readStoredMapCalibration(event.id);
+            return c ? { ...c, version: c.version ?? 1 } : null;
+          })(),
           publishedAt: new Date().toISOString(),
         });
       }
@@ -951,7 +989,8 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     </div>
                   ))}
                   <SecondaryButton
-                    onClick={() => {
+                    disabled={calBusy}
+                    onClick={async () => {
                       const transform = computeAffineCalibration(calRefs);
                       if (!transform) {
                         setCalStatus(
@@ -959,15 +998,33 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                         );
                         return;
                       }
-                      saveStoredMapCalibration(event.id, {
+                      const nextVersion = calVersion + 1;
+                      const payload: PublishedMapCalibration = {
+                        version: nextVersion,
                         refs: calRefs,
                         transform,
                         updatedAt: new Date().toISOString(),
+                      };
+                      setCalBusy(true);
+                      saveStoredMapCalibration(event.id, payload);
+                      setCalVersion(nextVersion);
+                      const cloud = await saveOrganiserEventExtras({
+                        eventId: event.id,
+                        mapCalibration: payload,
                       });
-                      setCalStatus("GPS affine calibration saved for this site plan.");
+                      setCalBusy(false);
+                      if (cloud.ok) {
+                        setCalStatus(
+                          `GPS affine calibration saved (v${nextVersion}) and published to Cloud for all attendees.`,
+                        );
+                      } else {
+                        setCalStatus(
+                          `GPS affine calibration saved on this device only (v${nextVersion}) — apply the Cloud SQL update to share across phones.`,
+                        );
+                      }
                     }}
                   >
-                    Save GPS calibration
+                    {calBusy ? "Publishing calibration…" : "Save GPS calibration"}
                   </SecondaryButton>
                   {calStatus && (
                     <p role="status" className="text-[13px] font-medium text-primary">
@@ -1070,24 +1127,43 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                 <Plus size={17} aria-hidden /> Add drink
               </SecondaryButton>
             </div>
+            {barStatus && (
+              <p role="status" className="text-[13px] font-medium text-primary">
+                {barStatus}
+              </p>
+            )}
             <PrimaryButton
-              onClick={() => {
-                saveOrganiserBarMenus(
-                  event.id,
-                  barItems.length
-                    ? [
-                        {
-                          isSample: false,
-                          paymentNote: barPaymentNote.trim(),
-                          items: barItems,
-                        },
-                      ]
-                    : [],
-                );
-                setSheet(null);
+              disabled={barBusy}
+              onClick={async () => {
+                const nextMenus = barItems.length
+                  ? [
+                      {
+                        isSample: false,
+                        paymentNote: barPaymentNote.trim(),
+                        items: barItems,
+                        updatedAt: new Date().toISOString(),
+                      },
+                    ]
+                  : [];
+                setBarBusy(true);
+                saveOrganiserBarMenus(event.id, nextMenus);
+                const cloud = await saveOrganiserEventExtras({
+                  eventId: event.id,
+                  barMenus: nextMenus,
+                });
+                setBarBusy(false);
+                if (cloud.ok) {
+                  setBarStatus("Bar menu published to Cloud for all attendees.");
+                  setSheet(null);
+                } else {
+                  setBarStatus(
+                    "Saved on this device only — apply the Cloud SQL update so all attendees see this bar menu.",
+                  );
+                  setSheet(null);
+                }
               }}
             >
-              Save bar menu
+              {barBusy ? "Publishing bar menu…" : "Save bar menu"}
             </PrimaryButton>
           </div>
         </Sheet>
@@ -1294,6 +1370,11 @@ export function EventReview({ ctx, event }: { ctx: OrgCtx; event: OrgEvent }) {
                     sitePlanPath: event.site_plan_path,
                     sitePlanUrl,
                     sitePlanZoomUrl: readStoredSitePlanZoomUrl(event.id),
+                    barMenus: readOrganiserBarMenus(event.id),
+                    mapCalibration: (() => {
+                      const c = readStoredMapCalibration(event.id);
+                      return c ? { ...c, version: c.version ?? 1 } : null;
+                    })(),
                     publishedAt: new Date().toISOString(),
                   });
                   setSheet(null);

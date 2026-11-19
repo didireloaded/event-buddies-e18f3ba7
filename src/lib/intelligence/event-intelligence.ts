@@ -86,9 +86,8 @@ export type FeaturedParticipant = FestivalArtist & {
 
 /**
  * Resolves organiser-configured featured performers/speakers for an event.
- * Respects explicit `headliner` / `featured` flags when provided; for curated events
- * picks the explicitly billed Headliner and at most one featured act per stage so Home
- * highlights key acts without dumping all 25+ performers.
+ * Organiser selections (`headliner` / `featured` flags or explicit Headliner/Keynote billing)
+ * are strictly authoritative: unfeatured acts are never auto-promoted per stage.
  */
 export function selectFeaturedParticipants(data: DemoData): FeaturedParticipant[] {
   const artists = data.festival.artists as (FestivalArtist & {
@@ -101,7 +100,7 @@ export function selectFeaturedParticipants(data: DemoData): FeaturedParticipant[
   const stageName = (stageId: string | null) =>
     stageId ? (data.stages.find((s) => s.id === stageId)?.name ?? null) : null;
 
-  // 1. Check explicit organiser-flagged featured/headliner entries first
+  // Organiser-flagged featured/headliner entries are strictly authoritative.
   const explicit = artists
     .filter(
       (a) =>
@@ -117,12 +116,10 @@ export function selectFeaturedParticipants(data: DemoData): FeaturedParticipant[
 
   const chosen: FeaturedParticipant[] = [];
   const usedIds = new Set<string>();
-  const coveredStages = new Set<string>();
 
   for (const a of explicit) {
     if (usedIds.has(a.id)) continue;
     usedIds.add(a.id);
-    if (a.stageId) coveredStages.add(a.stageId);
     chosen.push({
       ...a,
       stageName: stageName(a.stageId),
@@ -134,39 +131,17 @@ export function selectFeaturedParticipants(data: DemoData): FeaturedParticipant[
     });
   }
 
-  // 2. If the event has multiple stages and fewer than 3 featured highlights, add one stage representative
-  //    per uncovered stage that has an approved avatar photo (or explicit billing), capped at 4 total.
-  if (chosen.length > 0 && chosen.length < 4 && data.stages.length > 1) {
-    for (const stage of data.stages) {
-      if (chosen.length >= 4) break;
-      if (coveredStages.has(stage.id)) continue;
-      const stageAct =
-        artists.find((a) => a.stageId === stage.id && !usedIds.has(a.id) && Boolean(a.avatarUrl)) ??
-        artists.find((a) => a.stageId === stage.id && !usedIds.has(a.id));
-      if (stageAct) {
-        usedIds.add(stageAct.id);
-        coveredStages.add(stage.id);
-        chosen.push({
-          ...stageAct,
-          stageName: stage.name,
-          isHeadliner: false,
-        });
-      }
-    }
-  }
-
-  // 3. If no explicit headliner exists (e.g. a conference with Keynote titles or freshly created draft),
-  //    return only acts explicitly marked Keynote / Featured (never fabricate a headliner).
+  // Fallback only for explicit Keynote / Headliner / Featured title keywords (never auto-promote ordinary acts).
   if (chosen.length === 0) {
     for (const a of artists) {
       if (/keynote|headliner|featured/i.test(`${a.name} ${a.role}`)) {
         chosen.push({
           ...a,
           stageName: stageName(a.stageId),
-          isHeadliner: true,
+          isHeadliner: /keynote|headliner/i.test(`${a.name} ${a.role}`),
         });
       }
-      if (chosen.length >= 3) break;
+      if (chosen.length >= 4) break;
     }
   }
 

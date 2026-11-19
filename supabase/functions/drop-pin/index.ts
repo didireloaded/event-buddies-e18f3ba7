@@ -45,12 +45,15 @@ Deno.serve(async (req) => {
     if (action === "remove") {
       const { data, error } = await client.rpc("remove_pin", { p_crew_id: crewId });
       if (error) {
-        return new Response(JSON.stringify({ ok: false, error: error.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ ok: false, confirmed: false, error: error.message }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
-      return new Response(JSON.stringify({ ok: true, result: data }), {
+      return new Response(JSON.stringify({ ok: true, confirmed: true, result: data }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -62,8 +65,23 @@ Deno.serve(async (req) => {
     const y = roundCoord(body["y"], 1, 0, 100);
     const lat = roundCoord(body["lat"], 4, -90, 90);
     const lng = roundCoord(body["lng"], 4, -180, 180);
+    const rawDuration =
+      typeof body["durationMinutes"] === "number" && Number.isFinite(body["durationMinutes"])
+        ? Math.max(1, Math.min(720, Math.round(body["durationMinutes"])))
+        : 60;
+    const expiresAt =
+      typeof body["expiresAt"] === "string" && Number.isFinite(Date.parse(body["expiresAt"]))
+        ? new Date(Date.parse(body["expiresAt"])).toISOString()
+        : null;
+    const accuracyMeters = roundCoord(body["accuracyMeters"], 1, 0, 5000);
+    const sessionId =
+      typeof body["sessionId"] === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body["sessionId"])
+        ? body["sessionId"]
+        : null;
 
-    const { data, error } = await client.rpc("drop_pin", {
+    let expiryEnforcedByServer = true;
+    let { data, error } = await client.rpc("drop_pin", {
       p_event_id: eventId,
       p_crew_id: crewId,
       p_point_id: pointId,
@@ -71,7 +89,29 @@ Deno.serve(async (req) => {
       p_y: y,
       p_lat: lat,
       p_lng: lng,
+      p_duration_minutes: rawDuration,
+      p_expires_at: expiresAt,
+      p_accuracy_m: accuracyMeters,
+      p_session_id: sessionId,
     });
+
+    if (
+      error &&
+      (error.code === "PGRST202" || error.message?.toLowerCase().includes("could not find"))
+    ) {
+      expiryEnforcedByServer = false;
+      const legacy = await client.rpc("drop_pin", {
+        p_event_id: eventId,
+        p_crew_id: crewId,
+        p_point_id: pointId,
+        p_x: x,
+        p_y: y,
+        p_lat: lat,
+        p_lng: lng,
+      });
+      data = legacy.data;
+      error = legacy.error;
+    }
 
     if (error) {
       return new Response(JSON.stringify({ ok: false, error: error.message }), {
@@ -80,10 +120,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, pin: data }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, pin: data, expiryEnforcedByServer }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     return new Response(
       JSON.stringify({

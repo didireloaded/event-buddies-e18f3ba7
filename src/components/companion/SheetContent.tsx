@@ -17,7 +17,7 @@ import {
   User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { dateLabel } from "@/lib/attendee/event-clock";
+import { dateLabel, formatEventDate, formatEventHours } from "@/lib/attendee/event-clock";
 import { eventTime } from "@/lib/attendee/schedule";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
 import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
@@ -525,8 +525,12 @@ export function SheetContent({
         <div className="ios-group ios-group-indent">
           <button type="button" className="ios-row" onClick={() => openSheet({ kind: "event" })}>
             <RowText
-              title={`${data.event.name} · ${data.event.startAt.getFullYear()}`}
-              subtitle={`${dateLabel(data.event.startAt, tz, { day: "numeric", month: "short", year: "numeric" })} · ${data.event.city}`}
+              title={
+                data.event.dateConfirmed === false
+                  ? data.event.name
+                  : `${data.event.name} · ${data.event.startAt.getFullYear()}`
+              }
+              subtitle={`${formatEventDate(data.event, { day: "numeric", month: "short", year: "numeric" })} · ${data.event.city}`}
             />
             <Chevron />
           </button>
@@ -643,13 +647,13 @@ export function SheetContent({
             <div className="ios-row">
               <IconTile icon={CalendarDays} tone="bg-destructive" />
               <RowText
-                title={dateLabel(data.event.startAt, tz, {
+                title={formatEventDate(data.event, {
                   weekday: "long",
                   day: "numeric",
                   month: "long",
                   year: "numeric",
                 })}
-                subtitle={`${eventTime(data.event.startAt)}–${eventTime(data.event.endAt)} CAT${hasAge18Rule ? " · 18+ with ID" : ""}`}
+                subtitle={`${formatEventHours(data.event)}${hasAge18Rule ? " · 18+ with ID" : ""}`}
               />
             </div>
             <div className="ios-row">

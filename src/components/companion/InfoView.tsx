@@ -11,8 +11,7 @@ import {
   ShieldCheck,
   Ticket,
 } from "lucide-react";
-import { dateLabel } from "@/lib/attendee/event-clock";
-import { eventTime } from "@/lib/attendee/schedule";
+import { dateLabel, formatEventHours } from "@/lib/attendee/event-clock";
 import { getTicketProviderName } from "@/lib/attendee/tickets";
 import { getEventCategoryTerms } from "@/lib/intelligence/event-intelligence";
 import { useCompanion } from "./context";
@@ -37,8 +36,7 @@ export function InfoView() {
         <EventSections />
       </div>
       <p className="mt-2 text-[15px] text-muted-foreground">
-        {data.event.venueName} · {data.event.city} · {eventTime(data.event.startAt)}–
-        {eventTime(data.event.endAt)} CAT
+        {data.event.venueName} · {data.event.city} · {formatEventHours(data.event)}
       </p>
 
       {/* Exactly 4 clear visual options (Attendee Redesign #6) */}

@@ -5,39 +5,14 @@ import type { DemoData } from "@/lib/event/types";
 export const TBA = "Time to be announced";
 export const PLAN_KINDS = ["favourite_artist", "meeting", "venue_wayfinding", "break"] as const;
 
-/** Optional active-event context passed for multi-event planning beyond the default demo event. */
-export const dayPlanEventContextSchema = z.object({
-  eventId: z.string().max(80),
-  eventName: z.string().max(160),
-  category: z.string().max(60),
-  venue: z.string().max(200),
-  gatesOpen: z.string().max(30),
-  ends: z.string().max(30),
-  entry: z.string().max(200),
-  stages: z.array(z.string().max(100)).max(30),
-  setTimesPublished: z.boolean(),
-  savedArtists: z
-    .array(
-      z.object({
-        name: z.string().max(120),
-        stage: z.string().max(100).nullable(),
-        time: z.string().max(40),
-      }),
-    )
-    .max(50),
-  meeting: z
-    .object({
-      place: z.string().max(120),
-      time: z.string().max(40),
-    })
-    .nullable(),
-});
-
-/** What the browser sends: only ids, local meeting, and optional active event snapshot. */
+/**
+ * What the browser sends: ONLY the attendee's saved IDs, local meeting, and target eventId.
+ * Official event facts are always retrieved and verified on the server — never accepted from the client.
+ */
 export const dayPlanInput = z.object({
+  eventId: z.string().max(80).optional(),
   savedArtistIds: z.array(z.string().max(80)).max(50),
   meeting: z.object({ pointId: z.string().max(80), at: z.string().max(40) }).nullable(),
-  eventContext: dayPlanEventContextSchema.optional(),
 });
 export type DayPlanInput = z.infer<typeof dayPlanInput>;
 
@@ -85,29 +60,46 @@ export const dayPlanJsonSchema = {
   },
 } as const;
 
-/** Verified facts the model may use, built from the event data on the server. */
+/** Verified facts the model may use, built from authoritative event data on the server. */
 export function buildPlanFacts(data: DemoData, input: DayPlanInput) {
   const placeName = (id: string | null | undefined) =>
     [...data.stages, ...data.points].find((p) => p.id === id)?.name ?? null;
   const artists = data.festival.artists
     .filter((a) => input.savedArtistIds.includes(a.id))
-    .map((a) => ({ name: a.name, stage: placeName(a.stageId), time: TBA }));
+    .map((a) => {
+      const perf = data.performances.find((p) => p.artistId === a.id && p.status !== "cancelled");
+      return {
+        name: a.name,
+        stage: placeName(perf?.stageId ?? a.stageId),
+        time: perf ? `${eventTime(perf.scheduledStart)} CAT` : TBA,
+      };
+    });
   const meetingPlace = input.meeting ? placeName(input.meeting.pointId) : null;
+  const meetingInRange =
+    data.event.dateConfirmed === false
+      ? true
+      : input.meeting
+        ? Date.parse(input.meeting.at) >= +data.event.startAt &&
+          Date.parse(input.meeting.at) <= +data.event.endAt
+        : false;
   const meeting =
-    input.meeting &&
-    meetingPlace &&
-    Number.isFinite(Date.parse(input.meeting.at)) &&
-    Date.parse(input.meeting.at) >= +data.event.startAt &&
-    Date.parse(input.meeting.at) <= +data.event.endAt
+    input.meeting && meetingPlace && Number.isFinite(Date.parse(input.meeting.at)) && meetingInRange
       ? { place: meetingPlace, time: `${eventTime(input.meeting.at)} CAT` }
       : null;
+
+  const hasConfirmedHours =
+    data.event.dateConfirmed !== false && data.event.gatesConfirmed !== false;
+
   return {
     event: {
-      name: `${data.event.name} 2026`,
+      name: data.event.name,
+      category: data.event.category,
+      organiser: data.festival.organiser,
+      sourceCheckedAt: data.festival.sourceCheckedAt,
       venue: `${data.event.venueName}, ${data.event.city}`,
-      gatesOpen: `${eventTime(data.event.startAt)} CAT`,
-      ends: `${eventTime(data.event.endAt)} CAT`,
-      entry: "18+ with valid ID",
+      gatesOpen: hasConfirmedHours ? `${eventTime(data.event.startAt)} CAT` : TBA,
+      ends: hasConfirmedHours ? `${eventTime(data.event.endAt)} CAT` : TBA,
+      entry: data.festival.rules[0] ?? "Follow organiser entry instructions at the venue gates.",
     },
     stages: data.stages.map((s) => s.name),
     setTimesPublished: data.performances.length > 0,
@@ -117,14 +109,23 @@ export function buildPlanFacts(data: DemoData, input: DayPlanInput) {
 }
 export type PlanFacts = ReturnType<typeof buildPlanFacts>;
 
-/** Any time the model writes that isn't from the facts becomes "Time to be announced". */
+/** Any time the model writes that isn't from the server-verified facts becomes "Time to be announced". */
 export function enforceKnownTimes(plan: DayPlan, facts: PlanFacts): DayPlan {
-  const known = new Set([facts.event.gatesOpen, facts.event.ends]);
+  const known = new Set<string>([facts.event.gatesOpen, facts.event.ends]);
+  const artistTimes = new Map<string, string>();
+  for (const a of facts.savedArtists) {
+    artistTimes.set(a.name.toLowerCase(), a.time);
+    if (a.time !== TBA) known.add(a.time);
+  }
   return {
     ...plan,
     items: plan.items.map((item) => {
       if (item.kind === "meeting" && facts.meeting) return { ...item, time: facts.meeting.time };
-      if (item.kind === "favourite_artist") return { ...item, time: TBA };
+      if (item.kind === "favourite_artist") {
+        if (!facts.setTimesPublished) return { ...item, time: TBA };
+        const confirmed = artistTimes.get(item.title.toLowerCase());
+        return { ...item, time: confirmed ?? (known.has(item.time) ? item.time : TBA) };
+      }
       return known.has(item.time) ? item : { ...item, time: TBA };
     }),
   };
