@@ -1,5 +1,13 @@
 # Event Buddies upgrade
 
+## Current scope: authentication and first-time navigation
+- [x] Repair signup/sign-in/recovery/confirmation states; hosted email enabled, public signup allowed, confirmation required and Google enabled.
+- [x] Global multi-select interests, explicit account/guest choice, Discover handoff; preserve direct links and returning users.
+- [x] Focused tests and mobile guest/event-entry/error verification; report remaining live checks separately.
+- [ ] Actual confirmed account/inbox round-trip and signed-in browser verification: requires owner sign-in; temporary test-account approval unavailable.
+
+The upgrades below are deferred; do not change event tools in this authentication pass.
+
 Design: preserve the current coastal-teal iOS language, real photography, readable touch controls and four attendee tabs. Priorities: tickets at the gate, finding a place, coordinating a private crew. Preserve hash navigation and guest/offline access.
 
 - [ ] Sticky Event Hub ticket action bar and full-screen white multi-ticket gate viewer with local offline storage.

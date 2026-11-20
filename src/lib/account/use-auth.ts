@@ -13,21 +13,25 @@ export function useAccountAuth() {
   useEffect(() => {
     if (!accountConfigured) return;
     let active = true;
-    let observed = false;
+    let revision = 0;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      observed = true;
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return;
+      revision += 1;
       if (active) setState({ user: session?.user ?? null, loading: false, error: "" });
     });
     void supabase.auth
-      .getSession()
+      .getUser()
       .then(({ data, error }) => {
-        if (active && !observed)
+        if (active && revision === 0)
           setState({
-            user: data.session?.user ?? null,
+            user: data.user ?? null,
             loading: false,
-            error: error ? "Couldn’t check your sign-in. Try again." : "",
+            error:
+              error && error.name !== "AuthSessionMissingError"
+                ? "Couldn’t check your sign-in. Try again."
+                : "",
           });
       })
       .catch(() => {

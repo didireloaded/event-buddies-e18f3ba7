@@ -12,7 +12,13 @@ export const Route = createFileRoute("/events/$slug")({
         content:
           "Discover events, explore venue plans, save favourites and coordinate with your crew on Event Buddies.",
       },
+      { property: "og:title", content: `${params.slug.replace(/-/g, " ")} · Event Buddies` },
+      {
+        property: "og:description",
+        content: "Explore this event’s programme, venue plan and crew on Event Buddies.",
+      },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: DynamicEventRoute,

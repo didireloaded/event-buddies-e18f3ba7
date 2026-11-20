@@ -24,6 +24,14 @@ from type imports): 38 venue points + 3 stages = 41 image-based map points, GPS 
 
 ## Where things are
 
+### Authentication and platform entry
+
+`/login` defaults to Create Account; `?mode=in` opens Sign In. Email confirmation remains enabled: signup without a session shows a pending state and offers resend. Password recovery returns to public `/reset-password`, validates a recovery session, and calls `updateUser` without a current password. Google/Lovable buttons appear only for enabled hosted providers. Guest browsing does not create an anonymous account.
+
+Global interests are stored separately at `event-buddies:platform-preferences`, not in an event’s Music/Friends/Both mode. Ordinary account/guest entry returns to `/#events`; sanitized explicit event, crew invite and OAuth consent destinations remain supported. Bare returning launches show Discover without selecting Sound of Summer. Existing per-account records, private visibility and server permissions are unchanged. Email redirects use the current origin, which must be on the hosted redirect allowlist; localhost testing cannot verify email return delivery. Physical iOS and actual inbox delivery need separate verification.
+
+Authentication verification (20 November 2026): hosted email is enabled, public signups allowed, confirmation enabled, Google enabled; published and preview origins are allowlisted. No production setting or schema was changed. At 390px, global multi-select → account choice → guest Discover → explicit event entry → four event tabs and returning Discover passed; the live invalid-credentials message was verified with no page exceptions. Confirmed signup/inbox delivery and real signed-in browser flow are NOT RUN: temporary test-user approval is unavailable and the owner has no matching account for session restoration. Sign in through the preview to complete those checks. Focused auth tests pass; the full suite has an unrelated crew-pin failure and a template-editor timeout (editor passes on isolated rerun). The harness reports build OK; `npm run check` and manual production build are NOT RUN because this environment runs build/typecheck automatically. Changes are saved but not published.
+
 - `src/components/companion/`: attendee app. `EventCompanion` (shell, tabs, sheet state),
   `HomeView`, `LineupView`, `MapView`, `CrewView`, `SheetContent`, `forms`, `ui`.
 - `src/lib/attendee/`: clock, schedule/clash/ICS export, map search/filter/cluster,

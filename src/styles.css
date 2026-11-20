@@ -797,3 +797,17 @@
     opacity: 0.78;
   }
 }
+
+:root {
+  --google-background: #ffffff;
+  --google-border: #747775;
+  --google-foreground: #1f1f1f;
+}
+.google-sign-in {
+  background: var(--google-background);
+  border: 1px solid var(--google-border);
+  color: var(--google-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}

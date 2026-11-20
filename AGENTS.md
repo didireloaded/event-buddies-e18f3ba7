@@ -54,3 +54,4 @@ use the editor.
 - `docs/` contains supplied references and archived proposals. The skills explicitly linked above are active project guidance. Verify proposals against current code before describing them as implemented.
 
 - Agent integrations (MCP): tools live in src/lib/mcp/ and are mounted by mcpPlugin at /mcp; OAuth via managed auth, consent at /.lovable/oauth/consent, sign-in at /login (honours ?next). Why: lets external assistants read public event facts as a signed-in user.
+- Platform onboarding preferences are global and separate from event personalisation; account entry defaults to Discover while sanitized explicit event, crew and OAuth return paths survive. Why: signing in must not select a demo event or lose an invite.

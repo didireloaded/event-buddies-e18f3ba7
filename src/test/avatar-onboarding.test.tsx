@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validateAvatarFile } from "@/lib/attendee/avatar";
 import { Onboarding } from "@/components/companion/Onboarding";
@@ -78,35 +78,19 @@ describe("avatar file validation", () => {
 });
 
 describe("onboarding optional self-photo picker", () => {
-  it("lets the user skip to name, continue without a photo, or attach and remove one", async () => {
-    const view = render(<Onboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-
-    const fileInput = view.container.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(fileInput).toBeTruthy();
-    expect(fileInput.getAttribute("accept")).toContain("image/png");
-    expect(fileInput.hasAttribute("capture")).toBe(false);
-
-    const photo = new File([new Uint8Array([1, 2, 3])], "me.png", { type: "image/png" });
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [photo] } });
-    });
-    expect(mocks.ctx.avatar.save).toHaveBeenCalledWith(photo);
-
-    mocks.ctx.avatar.url = "blob:avatar-preview";
-    view.rerender(<Onboarding />);
-    expect(screen.getByRole("img", { name: /profile photo/i })).toHaveAttribute(
-      "src",
-      "blob:avatar-preview",
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
-    expect(mocks.ctx.avatar.remove).toHaveBeenCalled();
-
-    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Maya" } });
-    fireEvent.click(screen.getByRole("button", { name: "Go to my event" }));
-    expect(mocks.ctx.attendee.update).toHaveBeenCalledWith(
-      expect.objectContaining({ hasName: true, onboardingDone: true }),
-    );
+  it("stores multiple global interests then offers account entry without selecting an event", () => {
+    localStorage.clear();
+    render(<Onboarding />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Music" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Conferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(
+      JSON.parse(localStorage.getItem("event-buddies:platform-preferences") ?? "{}").interests,
+    ).toEqual(["Music", "Conferences"]);
+    fireEvent.click(screen.getByRole("button", { name: "Continue as Guest" }));
+    expect(mocks.ctx.navigate).toHaveBeenCalledWith("events");
+    expect(mocks.ctx.attendee.update).not.toHaveBeenCalled();
   });
 
   it("exposes photo replace and remove inside ProfileForm too", () => {

@@ -1,25 +1,35 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { LovableMark } from "@lovable.dev/cloud-auth-js/react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { accountConfigured } from "@/lib/account/use-auth";
-import { oauthReturnPath } from "@/lib/oauth-return-path";
+import { useAccountAuth } from "@/lib/account/use-auth";
+import {
+  authDestination,
+  savePlatformPreferences,
+  usePlatformPreferences,
+} from "@/lib/account/platform-navigation";
+import { authErrorMessage } from "@/lib/account/auth-errors";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>) => ({ next: oauthReturnPath(s["next"]) }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: authDestination(s["next"]),
+    mode: s["mode"] === "in" ? ("in" as const) : ("up" as const),
+  }),
   head: () => ({
     meta: [
-      { title: "Sign in — Event Buddies" },
+      { title: "Create account or sign in — Event Buddies" },
       {
         name: "description",
-        content: "Sign in to Event Buddies to sync your favourites, meeting plan and private crew.",
+        content: "Create your Event Buddies account or browse public events as a guest.",
       },
-      { property: "og:title", content: "Sign in — Event Buddies" },
+      { property: "og:title", content: "Join Event Buddies" },
       {
         property: "og:description",
-        content: "Sign in to Event Buddies to sync your favourites, meeting plan and private crew.",
+        content: "Sign in and discover public events, programmes and private crews.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -29,282 +39,294 @@ export const Route = createFileRoute("/login")({
   component: Login,
 });
 
-function Login() {
-  const { next } = Route.useSearch();
+export function Login() {
+  const { next, mode: initialMode } = Route.useSearch();
   const navigate = useNavigate();
-  const statusId = useId();
-  const passwordId = useId();
-  const [mode, setMode] = useState<"in" | "up" | "magic">("in");
+  const auth = useAccountAuth();
+  const preferences = usePlatformPreferences();
+  const [mode, setMode] = useState<"in" | "up" | "forgot" | "pending">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; tone: "error" | "info" } | null>(null);
-  const returnUrl = () => new URL(next, window.location.origin).href;
-
+  const lock = useRef(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const passwordId = useId();
+  const [providers, setProviders] = useState({ google: false, lovable: false });
+  const resume = useCallback(() => {
+    savePlatformPreferences({ ...preferences, completed: true });
+    void navigate({ href: next, replace: true });
+  }, [preferences, navigate, next]);
   useEffect(() => {
-    if (!accountConfigured) return;
+    if (!auth.loading && auth.user) resume();
+  }, [auth.loading, auth.user, resume]);
+  useEffect(() => {
+    if (!auth.configured) return;
     let active = true;
-    void supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
-        if (error && active) {
-          setMsg({ text: "Couldn’t check your sign-in. Try again.", tone: "error" });
-        }
-        if (data.session && active) window.location.replace(next);
+    void fetch(`${import.meta.env["VITE_SUPABASE_URL"]}/auth/v1/settings`, {
+      headers: { apikey: import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (active && s)
+          setProviders({
+            google: s.external?.google === true,
+            lovable: s.external?.lovable === true || s.external?.oauth === true,
+          });
       })
-      .catch(() => {
-        if (active) setMsg({ text: "Couldn’t check your sign-in. Try again.", tone: "error" });
-      });
+      .catch(() => {});
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    if (params.has("error"))
+      setError(
+        "This email link is invalid or expired. Request another confirmation or password reset.",
+      );
     return () => {
       active = false;
     };
-  }, [next]);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (busy || !accountConfigured) return;
+  }, [auth.configured]);
+  async function request(action: () => Promise<void>) {
+    if (lock.current || !auth.configured) return;
+    lock.current = true;
     setBusy(true);
-    setMsg(null);
-    const trimmedEmail = email.trim();
+    setMessage("");
+    setError("");
     try {
-      if (mode === "magic") {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: trimmedEmail,
-          options: { emailRedirectTo: returnUrl() },
+      await action();
+    } catch {
+      setError("Couldn’t reach the account service. Check your connection and retry.");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await request(async () => {
+      const address = email.trim();
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(address, {
+          redirectTo: `${window.location.origin}/reset-password`,
         });
-        if (error) {
-          setMsg({
-            text: "Couldn’t send the sign-in link. Check your email and try again.",
-            tone: "error",
-          });
-        } else {
-          setMsg({ text: "Check your email for your sign-in link.", tone: "info" });
-        }
-      } else if (mode === "in") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password,
+        if (error) setError(authErrorMessage(error));
+        else
+          setMessage(
+            "If this email has an account, a password reset link will arrive shortly. Check spam too.",
+          );
+      } else if (mode === "pending") {
+        const { error } = await supabase.auth.resend({
+          type: "signup",
+          email: address,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login?next=${encodeURIComponent(next)}`,
+          },
         });
-        if (error) {
-          setMsg({
-            text: "Couldn’t sign in. Check your email and password, then try again.",
-            tone: "error",
-          });
-        } else {
-          window.location.assign(next);
-        }
-      } else {
+        if (error) setError(authErrorMessage(error));
+        else
+          setMessage(
+            "Confirmation requested. Check your inbox and spam folder before requesting another.",
+          );
+      } else if (mode === "up") {
         const { data, error } = await supabase.auth.signUp({
-          email: trimmedEmail,
+          email: address,
           password,
-          options: { emailRedirectTo: returnUrl() },
+          options: {
+            emailRedirectTo: `${window.location.origin}/login?next=${encodeURIComponent(next)}`,
+          },
         });
-        if (error) {
-          setMsg({
-            text: "Couldn’t create the account. Check your details and try again shortly.",
-            tone: "error",
-          });
-        } else if (data.session) {
-          window.location.assign(next);
+        if (error) setError(authErrorMessage(error));
+        else if (data.session) {
+          const verified = await supabase.auth.getUser();
+          if (verified.data.user) resume();
+          else setError("Your account session couldn’t be verified. Try signing in.");
         } else {
-          setMsg({ text: "Check your email to confirm your account.", tone: "info" });
+          setMode("pending");
+          setMessage("Check your email to confirm your account. You are not signed in yet.");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: address, password });
+        if (error) setError(authErrorMessage(error));
+        else {
+          const verified = await supabase.auth.getUser();
+          if (verified.data.user) resume();
+          else setError("Your sign-in couldn’t be verified. Please retry.");
         }
       }
-    } catch {
-      setMsg({ text: "Couldn’t reach sign-in. Check your connection and retry.", tone: "error" });
-    } finally {
-      setBusy(false);
-    }
+    });
   }
-
-  async function social(provider: "google" | "lovable") {
-    if (busy || !accountConfigured) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      sessionStorage.setItem("eb-auth-next", next);
+  function social(provider: "google" | "lovable") {
+    void request(async () => {
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: window.location.origin + "/login?next=" + encodeURIComponent(next),
+        redirect_uri: `${window.location.origin}/login?next=${encodeURIComponent(next)}`,
       });
-      if (result.error) setMsg({ text: "Couldn’t sign in. Try again.", tone: "error" });
-      else if (!result.redirected) void navigate({ href: next });
-    } catch {
-      setMsg({ text: "Couldn’t reach sign-in. Check your connection and retry.", tone: "error" });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function guestSession() {
-    if (busy || !accountConfigured) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const { error } = await supabase.auth.signInAnonymously();
-      if (error) {
-        setMsg({
-          text: "Guest cloud sessions aren’t enabled on this server yet. Use an email sign-in link or password.",
-          tone: "error",
-        });
-      } else {
-        window.location.assign(next);
+      if (result.error) setError(authErrorMessage(result.error));
+      else if (!result.redirected) {
+        const verified = await supabase.auth.getUser();
+        if (verified.data.user) resume();
+        else setError("Sign-in didn’t finish. Try email instead.");
       }
-    } catch {
-      setMsg({
-        text: "Couldn’t start a guest session. Check your connection and retry.",
-        tone: "error",
-      });
-    } finally {
-      setBusy(false);
-    }
+    });
   }
-
-  const hasError = msg?.tone === "error";
-
+  function switchMode(value: typeof mode) {
+    setMode(value);
+    setError("");
+    setMessage("");
+  }
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <div className="space-y-2 border-b border-separator pb-5">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="grid size-7 place-items-center rounded-md bg-primary text-[12px] font-extrabold text-primary-foreground"
-            >
-              EB
-            </span>
-            <span className="eb-display text-[15px]">Event Buddies</span>
-          </span>
-          <a
-            href={next}
-            className="inline-flex min-h-11 items-center text-[14px] font-semibold text-primary"
-          >
-            Back to Event Buddies
-          </a>
-        </div>
-        <h1 className="eb-page-title pt-2">
-          {mode === "in" ? "Sign in" : mode === "up" ? "Create account" : "Email sign-in link"}
-        </h1>
-        <p className="text-[15px] text-muted-foreground">
-          Sync saved favourites, meeting plans and private event crews across phones.
-        </p>
-      </div>
-      {!accountConfigured && (
-        <p role="status" className="eb-panel p-3.5 text-[14px] text-muted-foreground">
-          Account connection settings are pending. Your device saves remain available.
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-8">
+      <p className="eb-display text-[17px]">Event Buddies</p>
+      <h1 className="eb-page-title">
+        {mode === "up"
+          ? "Create account"
+          : mode === "in"
+            ? "Sign in"
+            : mode === "forgot"
+              ? "Reset password"
+              : "Confirm your email"}
+      </h1>
+      {!auth.configured && (
+        <p role="alert">
+          Account connection is unavailable. You can still browse public events as a guest.
         </p>
       )}
-      <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <label className="flex flex-col gap-1.5 text-[14px] font-semibold text-foreground">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <label className="space-y-2 text-[15px] font-semibold">
           Email
           <input
             className="eb-field"
             type="email"
             required
             autoComplete="email"
-            aria-invalid={hasError || undefined}
-            aria-describedby={msg ? statusId : undefined}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-        {mode !== "magic" && (
-          <div className="flex flex-col gap-1.5 text-[14px] font-semibold text-foreground">
-            <label htmlFor={passwordId}>Password</label>
-            <div className="relative flex items-center">
+        {(mode === "up" || mode === "in") && (
+          <div className="space-y-2">
+            <label htmlFor={passwordId} className="text-[15px] font-semibold">
+              Password
+            </label>
+            <div className="relative">
               <input
                 id={passwordId}
                 className="eb-field pr-12"
-                type={showPassword ? "text" : "password"}
+                type={visible ? "text" : "password"}
                 required
-                minLength={6}
-                autoComplete={mode === "in" ? "current-password" : "new-password"}
-                aria-invalid={hasError || undefined}
-                aria-describedby={msg ? statusId : undefined}
+                minLength={mode === "up" ? 6 : undefined}
+                autoComplete={mode === "up" ? "new-password" : "current-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <button
+              <Button
                 type="button"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-1 grid size-11 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-0 min-h-11"
+                aria-label={visible ? "Hide password" : "Show password"}
+                onClick={() => setVisible(!visible)}
               >
-                {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
-              </button>
+                {visible ? <EyeOff /> : <Eye />}
+              </Button>
             </div>
           </div>
         )}
-        {msg && (
-          <p
-            id={statusId}
-            role={hasError ? "alert" : "status"}
-            className={
-              hasError
-                ? "text-[14px] font-medium text-destructive"
-                : "text-[14px] text-muted-foreground"
-            }
-          >
-            {msg.text}
+        {message && (
+          <p role="status" className="text-[15px] text-muted-foreground">
+            {message}
           </p>
         )}
-        <button
+        {(error || auth.error) && (
+          <p role="alert" className="text-[15px] text-destructive">
+            {error || auth.error}
+          </p>
+        )}
+        <Button
           type="submit"
-          disabled={busy || !accountConfigured}
-          className="eb-press min-h-12 rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={busy || !auth.configured || auth.loading}
+          className="min-h-12 rounded-full"
         >
-          {mode === "in" ? "Sign in" : mode === "up" ? "Sign up" : "Email me a link"}
-        </button>
+          {busy
+            ? "Please wait…"
+            : mode === "up"
+              ? "Create Account"
+              : mode === "in"
+                ? "Sign In"
+                : mode === "forgot"
+                  ? "Send reset link"
+                  : "Resend confirmation"}
+        </Button>
       </form>
-      <div className="space-y-2.5 border-t border-separator pt-5">
-        <button
-          type="button"
-          onClick={() => {
-            setMsg(null);
-            setMode(mode === "magic" ? "in" : "magic");
-          }}
-          className="eb-press min-h-11 w-full rounded-full border border-border bg-card px-4 text-[14px] font-semibold text-foreground"
-        >
-          {mode === "magic" ? "Use a password instead" : "Email me a sign-in link"}
-        </button>
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            disabled={busy || !accountConfigured}
-            onClick={() => social("google")}
-            className="eb-press min-h-11 rounded-full border border-border bg-card px-3 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Continue with Google
-          </button>
-          <button
-            type="button"
-            disabled={busy || !accountConfigured}
-            onClick={() => social("lovable")}
-            className="eb-press min-h-11 rounded-full border border-border bg-card px-3 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Continue with Lovable
-          </button>
+      {mode === "in" && (
+        <Button variant="ghost" onClick={() => switchMode("forgot")}>
+          Forgot password?
+        </Button>
+      )}
+      {(mode === "up" || mode === "in") && (
+        <div className="flex flex-col gap-3 border-t border-separator pt-4">
+          {providers.google && (
+            <Button
+              variant="outline"
+              className="google-sign-in min-h-11 gap-2.5 rounded-full"
+              disabled={busy}
+              onClick={() => social("google")}
+            >
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+                />
+              </svg>
+              Continue with Google
+            </Button>
+          )}
+          {providers.lovable && (
+            <Button
+              variant="outline"
+              className="min-h-11 rounded-full"
+              disabled={busy}
+              onClick={() => social("lovable")}
+            >
+              <LovableMark />
+              Continue with Lovable
+            </Button>
+          )}
         </div>
-        <button
-          type="button"
-          disabled={busy || !accountConfigured}
-          onClick={() => void guestSession()}
-          className="eb-press min-h-11 w-full rounded-full border border-border bg-card px-4 text-[14px] font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Continue with guest cloud session
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMsg(null);
-            setMode(mode === "in" ? "up" : "in");
-          }}
-          className="min-h-11 w-full text-[14px] font-semibold text-foreground underline underline-offset-4"
-        >
-          {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
-        </button>
-      </div>
+      )}
+      <Button
+        variant="outline"
+        className="min-h-11 rounded-full"
+        disabled={busy}
+        onClick={() => switchMode(mode === "up" ? "in" : "up")}
+      >
+        {mode === "up" ? "Already have an account? Sign In" : "Create Account"}
+      </Button>
+      {mode === "in" && (
+        <Button variant="ghost" onClick={() => switchMode("pending")}>
+          Resend confirmation email
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        disabled={busy}
+        onClick={() => {
+          savePlatformPreferences({ ...preferences, completed: true });
+          void navigate({ href: "/#events", replace: true });
+        }}
+      >
+        Continue as Guest
+      </Button>
     </main>
   );
 }

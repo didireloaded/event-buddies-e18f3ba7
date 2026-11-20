@@ -40,6 +40,11 @@ import {
 import { organiserEventToDemoData, readLocalPublishedEvents } from "@/lib/organiser/event-adapter";
 import { resolveEventTemplate } from "@/lib/templates/event-templates";
 import type { DemoData } from "@/lib/event/types";
+import {
+  globalCategory,
+  INTERESTS,
+  usePlatformPreferences,
+} from "@/lib/account/platform-navigation";
 import { initials, useCompanion } from "./context";
 import { Sheet } from "./Sheet";
 import { Avatar, EmptyState, PrimaryButton, Segmented, SearchField } from "./ui";
@@ -72,6 +77,7 @@ function isPrivateEvent(demo: DemoData): boolean {
 }
 
 export function EventSelection() {
+  const platform = usePlatformPreferences();
   const { data, attendee, navigate, now, allTicketsCount, openSheet } = useCompanion();
   const { availableEvents, selectEvent } = useEvent();
   const [previewEvent, setPreviewEvent] = useState<DemoData | null>(null);
@@ -125,12 +131,8 @@ export function EventSelection() {
   );
 
   const categories = useMemo(() => {
-    const unique = new Set<string>(["All"]);
-    for (const demo of publicDemos) {
-      if (demo.event.category) unique.add(demo.event.category);
-    }
-    return [...unique];
-  }, [publicDemos]);
+    return ["All", ...INTERESTS];
+  }, []);
 
   const eventDay = useMemo(
     () =>
@@ -157,7 +159,8 @@ export function EventSelection() {
   const [month, setMonth] = useState(eventDay);
   const ended = data.event.dateConfirmed !== false && now !== null && now > +data.event.endAt;
   const matches = eventSpansDate(data, selected);
-  const categoryMatchesPrimary = categoryFilter === "All" || data.event.category === categoryFilter;
+  const categoryMatchesPrimary =
+    categoryFilter === "All" || globalCategory(data.event.category) === categoryFilter;
 
   const searchMatch = [
     data.event.name,
@@ -224,15 +227,31 @@ export function EventSelection() {
     }
   };
 
+  const primaryPreferred =
+    platform.interests.length === 0 ||
+    platform.interests.some((i) => i === globalCategory(data.event.category));
+  const anotherPreferred = publicDemos.some(
+    (demo) =>
+      demo.event.id !== data.event.id &&
+      platform.interests.some((i) => i === globalCategory(demo.event.category)),
+  );
+  const promotePrimary = mode !== "browse" || primaryPreferred || !anotherPreferred;
   const otherDemos = (mode === "mine" ? allPublishedDemos : publicDemos)
-    .filter((demo) => demo.event.id !== data.event.id)
+    .filter((demo) => !promotePrimary || demo.event.id !== data.event.id)
     .filter((demo) => (mode === "mine" ? isDemoSavedLocally(demo) : true))
-    .filter((demo) => categoryFilter === "All" || demo.event.category === categoryFilter)
+    .filter(
+      (demo) => categoryFilter === "All" || globalCategory(demo.event.category) === categoryFilter,
+    )
     .filter((demo) => (mode === "calendar" ? eventSpansDate(demo, selected) : true))
     .filter((demo) =>
       `${demo.event.name} ${demo.event.venueName} ${demo.event.city} ${demo.event.category}`
         .toLowerCase()
         .includes(query.trim().toLowerCase()),
+    )
+    .sort(
+      (a, b) =>
+        Number(platform.interests.some((i) => i === globalCategory(b.event.category))) -
+        Number(platform.interests.some((i) => i === globalCategory(a.event.category))),
     );
 
   const isPrimarySaved =
@@ -241,6 +260,7 @@ export function EventSelection() {
     attendee.preferences.selectedEventId === data.event.id;
   const primaryPublic = !isPrivateEvent(data);
   const primaryVisible =
+    promotePrimary &&
     (mode === "mine" ? isPrimarySaved : primaryPublic && (mode === "browse" || matches)) &&
     searchMatch &&
     categoryMatchesPrimary;
@@ -297,6 +317,19 @@ export function EventSelection() {
         )}
       </div>
 
+      {!attendee.auth.user && (
+        <a
+          href="/login?mode=up&next=%2F%23events"
+          className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary"
+        >
+          Create Account / Sign In
+        </a>
+      )}
+      {platform.interests.length > 0 && (
+        <p className="mb-3 text-[14px] text-muted-foreground">
+          Your interests: {platform.interests.join(" · ")}
+        </p>
+      )}
       {/* Global Platform 4-Section Switcher (Discover · My Events · Buddies · Calendar) */}
       <Segmented
         label="Event discovery view"

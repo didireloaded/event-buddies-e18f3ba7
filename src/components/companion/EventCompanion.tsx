@@ -38,6 +38,7 @@ import {
 import { useCrew } from "@/lib/crew/use-crew";
 import { captureCrewInviteFromUrl } from "@/lib/crew/invite-link";
 import { useAttendee } from "@/lib/attendee/use-attendee";
+import { entryState, usePlatformPreferences } from "@/lib/account/platform-navigation";
 import { useAttendeeAvatar } from "@/lib/attendee/avatar";
 import type { DemoData } from "@/lib/event/types";
 import { registerServiceWorker, type OfflineStatus } from "@/lib/pwa";
@@ -87,6 +88,7 @@ const readHash = (): View =>
   (["home", "lineup", "map", "crew", "you", "info", "events"] as View[]).find(
     (id) => `#${id}` === window.location.hash.split("?")[0],
   ) ?? "home";
+const readHasHash = () => Boolean(window.location.hash);
 
 function useConnectivity() {
   const [online, setOnline] = useState(true);
@@ -135,8 +137,10 @@ export function EventCompanion({
 function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string | undefined }) {
   const { data } = useEvent();
   const view = useSyncExternalStore(subscribeToHash, readHash, () => "home" as View);
+  const hasHash = useSyncExternalStore(subscribeToHash, readHasHash, () => false);
   const online = useConnectivity();
   const attendee = useAttendee(data);
+  const platform = usePlatformPreferences();
   const avatar = useAttendeeAvatar(data.event.id, attendee.auth.user?.id ?? null);
   const crew = useCrew(
     data.event.id,
@@ -364,22 +368,27 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
     (data.event.slug.toLowerCase() === initialEventSlug.trim().toLowerCase() ||
       data.event.id === initialEventSlug),
   );
-  const onboarding =
-    attendee.ready &&
-    !directEventRoute &&
-    view !== "crew" &&
-    view !== "events" &&
-    !attendee.preferences.hasName;
-  const selecting =
-    attendee.ready &&
-    !onboarding &&
-    (view === "events" ||
-      (!directEventRoute && !attendee.preferences.selectedEventId && view !== "crew"));
+  const entry = entryState({
+    direct: directEventRoute,
+    view,
+    signedIn: Boolean(attendee.auth.user),
+    completed: platform.completed,
+    legacyCompleted: attendee.preferences.onboardingDone || attendee.preferences.hasName,
+    selected: Boolean(attendee.preferences.selectedEventId),
+  });
+  const onboarding = attendee.ready && entry.onboarding;
+  // A bare platform launch never auto-enters a previously selected demo event.
+  const platformLaunch = !initialEventSlug && !hasHash;
+  const selecting = attendee.ready && !onboarding && (entry.discovering || platformLaunch);
+  useEffect(() => {
+    if (attendee.ready && !onboarding && platformLaunch) navigate("events");
+  }, [attendee.ready, onboarding, platformLaunch, navigate]);
   const eventContent = attendee.ready && !onboarding && !selecting;
   const showNavigation =
     eventContent &&
     (directEventRoute ||
-      (attendee.preferences.hasName && Boolean(attendee.preferences.selectedEventId)));
+      Boolean(attendee.preferences.selectedEventId) ||
+      ["crew", "lineup", "map"].includes(view));
   const activeTab = view === "you" || view === "info" ? "home" : view;
   const message = attendee.message;
 

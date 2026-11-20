@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as OrganiserRouteImport } from './routes/organiser'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as EventsSlugRouteImport } from './routes/events.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -37,6 +38,11 @@ const OrganiserRoute = OrganiserRouteImport.update({
   path: '/organiser',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
   Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
     id: '/.well-known/oauth-protected-resource',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/organiser': typeof OrganiserRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/events/$slug': typeof EventsSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/organiser': typeof OrganiserRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/events/$slug': typeof EventsSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/organiser': typeof OrganiserRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/events/$slug': typeof EventsSlugRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mcp'
     | '/organiser'
+    | '/reset-password'
     | '/.well-known/oauth-protected-resource'
     | '/events/$slug'
     | '/.lovable/oauth/consent'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mcp'
     | '/organiser'
+    | '/reset-password'
     | '/.well-known/oauth-protected-resource'
     | '/events/$slug'
     | '/.lovable/oauth/consent'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mcp'
     | '/organiser'
+    | '/reset-password'
     | '/.well-known/oauth-protected-resource'
     | '/events/$slug'
     | '/.lovable/oauth/consent'
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
   OrganiserRoute: typeof OrganiserRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   EventsSlugRoute: typeof EventsSlugRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganiserRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
   OrganiserRoute: OrganiserRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   EventsSlugRoute: EventsSlugRoute,
