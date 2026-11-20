@@ -8,6 +8,10 @@ import {
   parsePlatformPreferences,
 } from "@/lib/account/platform-navigation";
 import { authErrorMessage } from "@/lib/account/auth-errors";
+import {
+  CONFIRMATION_COOLDOWN_SECONDS,
+  validateSignupPasswords,
+} from "@/lib/account/signup-validation";
 import { captureCrewInviteFromUrl, readPendingCrewInvite } from "@/lib/crew/invite-link";
 import { Login } from "@/routes/login";
 const mocks = vi.hoisted(() => ({
@@ -54,6 +58,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -62,6 +67,9 @@ describe("account entry", () => {
     render(<Login />);
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "test@example.org" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strong-password" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "strong-password" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
     await waitFor(() =>
       expect(mocks.signup).toHaveBeenCalledWith({
@@ -70,14 +78,37 @@ describe("account entry", () => {
         options: { emailRedirectTo: expect.stringContaining("/login?next=%2F%23events") },
       }),
     );
-    expect(await screen.findByRole("button", { name: "Resend confirmation" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Resend in 60s" })).toBeDisabled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+  it("requests a confirmation email from the pending state", async () => {
+    mocks.mode = "in";
+    render(<Login />);
+    fireEvent.click(screen.getByRole("button", { name: "Resend confirmation email" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "test@example.org" } });
     fireEvent.click(screen.getByRole("button", { name: "Resend confirmation" }));
     await waitFor(() =>
       expect(mocks.resend).toHaveBeenCalledWith(
         expect.objectContaining({ type: "signup", email: "test@example.org" }),
       ),
     );
+    expect(screen.getByRole("button", { name: "Resend in 60s" })).toBeDisabled();
+  });
+  it("rejects mismatched confirmation before calling signup", async () => {
+    render(<Login />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "test@example.org" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "strong-password" } });
+    fireEvent.change(screen.getByLabelText("Confirm password"), {
+      target: { value: "different-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Passwords don’t match");
+    expect(mocks.signup).not.toHaveBeenCalled();
+  });
+  it("accepts matching passwords and uses a sixty-second resend cooldown", () => {
+    expect(validateSignupPasswords("strong-password", "strong-password")).toBeNull();
+    expect(validateSignupPasswords("short", "short")).not.toBeNull();
+    expect(CONFIRMATION_COOLDOWN_SECONDS).toBe(60);
   });
   it("separates sign-in and forgot password from signup", async () => {
     mocks.mode = "in";

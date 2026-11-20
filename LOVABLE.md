@@ -59,8 +59,37 @@ Ask Lovable in chat, or edit the files above. Change event data only in
 
 ## Visual source of truth
 
-The current direction is restrained coastal teal actions and favourites, muted amber stage
-markers, neutral surfaces, real event photos, a glass-card event picker, a published-event
-calendar and a charcoal venue map. See `docs/design/discovery-and-monochrome.md` and
-`docs/product/visual-references/`. The earlier warm-paper/hot-pink Codex screenshot is
-archived as a historical source and no longer governs the UI.
+Phase 1 follows the supplied restrained consumer reference: global Welcome, Auth and Discover
+use obsidian surfaces, coastal teal actions and coral highlights. Theme overrides are scoped
+to `data-app-scope="global"`; event templates, maps, crew tools and the pure-white Gate Card
+retain their existing styling and behavior. System fonts only; no generated photographs,
+glow borders, fabricated events or attendance. Welcome uses the existing approved past-edition
+Sound of Summer photo; categories without approved photography use explicit icon tiles.
+
+Signup now validates confirmation before making a request. Signup without a session stays
+in the email-confirmation state; successful confirmation requests start a 60-second resend
+cooldown. Provider buttons still depend on hosted settings. Existing profiles are unchanged;
+the owner confirmed that global interests remain on this device for this phase. The six
+existing global categories are retained, separate from event-specific personalization.
+
+Cloud sync: the additive `discovery_template_visibility` migration adds `template_config`,
+`visibility`, `bar_menus` and `map_calibration` and the narrow `list_published_events()` public
+read function. Only published public events are returned. The larger supplied extension
+script was deliberately not applied: it contains unrelated crew/GPS changes, transaction
+statements and managed-schema references outside this phase. Publishing and ownership
+permissions are unchanged. Missing organiser broadcasts remain outside this phase.
+
+Verification on 20 November 2026: hosted email and Google enabled, public signup allowed,
+email confirmation required. Mobile 390px guest interest selection → Discover → explicit
+event entry passes; mismatched signup passwords are rejected; a temporary confirmed Cloud
+account resumes from `/login` to Discover. Public catalogue responds successfully with no
+invite-only rows. Desktop 1280px has no horizontal overflow. Inspected mobile interest,
+signup and Discover screenshots and desktop Discover. No page exceptions in the primary
+mobile flow. Focused tests: 27 passing; secret-safety tests: 3 passing; changed-file lint
+passes. Full regression suite: 138/140 passing, with the existing realtime-pins assertion
+failure and template-editor timeout; these event systems were not modified. Harness build
+and typecheck report build OK. `npm run check` and manual production build are NOT RUN:
+the environment automatically runs build/typecheck. Actual inbox confirmation, password-reset
+delivery, OAuth provider end-to-end and physical iOS are NOT RUN. No missing email setting
+or delivery root cause was established; no email-confirmation bypass was enabled. Preview
+is updated, not published. Stop after Phase 1; Phases 2 and 3 are not implemented here.

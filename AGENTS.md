@@ -55,3 +55,5 @@ use the editor.
 
 - Agent integrations (MCP): tools live in src/lib/mcp/ and are mounted by mcpPlugin at /mcp; OAuth via managed auth, consent at /.lovable/oauth/consent, sign-in at /login (honours ?next). Why: lets external assistants read public event facts as a signed-in user.
 - Platform onboarding preferences are global and separate from event personalisation; account entry defaults to Discover while sanitized explicit event, crew and OAuth return paths survive. Why: signing in must not select a demo event or lose an invite.
+- Scope consumer theme overrides to `[data-app-scope="global"]`; event template variables remain authoritative inside events. Why: global visual updates must not restyle conferences, maps or the ticket gate viewer.
+- Keep signup validation and discovery filtering in browser-safe account helpers with focused tests. Why: all discovery paths must apply the same search and visibility rules without duplicating auth policy.

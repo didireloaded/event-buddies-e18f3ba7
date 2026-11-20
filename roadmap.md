@@ -1,14 +1,16 @@
 # Event Buddies upgrade
 
 ## Current scope: Phase 1 — restrained Welcome, Auth and Discover
-- [ ] Dark scoped global surfaces, photographic welcome, accessible interest selection and Discover presentation.
-- [ ] Confirm-password validation, confirmation resend cooldown and preserved account return paths.
-- [ ] Audit hosted signup and apply only missing discovery columns/public-read exclusions.
-- [ ] Focused tests, rendered mobile/desktop checks and documentation; stop before Phase 2.
+- [x] Dark scoped global surfaces, photographic welcome, accessible interest selection and Discover presentation.
+- [x] Confirm-password validation, confirmation resend cooldown and preserved account return paths.
+- [x] Audit hosted signup and apply only missing discovery columns/public-read exclusions.
+- [x] Focused tests, rendered mobile/desktop checks and documentation; stop before Phase 2.
+- [ ] Inbox confirmation/reset and live OAuth round-trips: requires a reachable owner inbox and provider interaction; physical iOS unavailable.
+- [ ] Full regression gate: existing realtime-pins assertion fails and template-editor times out under suite contention; deferred event systems unchanged.
 - [x] Repair signup/sign-in/recovery/confirmation states; hosted email enabled, public signup allowed, confirmation required and Google enabled.
 - [x] Global multi-select interests, explicit account/guest choice, Discover handoff; preserve direct links and returning users.
 - [x] Focused tests and mobile guest/event-entry/error verification; report remaining live checks separately.
-- [ ] Actual confirmed account/inbox round-trip and signed-in browser verification: requires owner sign-in; temporary test-account approval unavailable.
+- [x] Temporary confirmed account restored in browser; signed-in Discover verified.
 
 The upgrades below are deferred; do not change event tools in this authentication pass.
 

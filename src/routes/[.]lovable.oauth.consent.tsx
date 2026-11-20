@@ -52,6 +52,17 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
   head: () => ({
     meta: [
       { title: "Connect an assistant — Event Buddies" },
+      {
+        name: "description",
+        content: "Review and approve an assistant’s access to Event Buddies event information.",
+      },
+      { property: "og:title", content: "Assistant connection consent — Event Buddies" },
+      {
+        property: "og:description",
+        content: "Choose whether to connect an assistant to your Event Buddies account.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

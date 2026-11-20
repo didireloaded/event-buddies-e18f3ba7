@@ -81,7 +81,7 @@ describe("onboarding optional self-photo picker", () => {
   it("stores multiple global interests then offers account entry without selecting an event", () => {
     localStorage.clear();
     render(<Onboarding />);
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Music" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Conferences" }));
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));

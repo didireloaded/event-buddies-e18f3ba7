@@ -14,6 +14,7 @@ import {
   Check,
   Info,
   Ticket,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -48,6 +49,7 @@ import {
   type LayoutFamily,
 } from "@/lib/templates/event-templates";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { EventProvider, useEvent } from "@/context/EventContext";
 import { Companion, type CompanionContext, type Sheet as SheetState, type View } from "./context";
 const CrewView = lazy(() => import("./CrewView").then((module) => ({ default: module.CrewView })));
@@ -456,9 +458,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
                   >
                     EB
                   </span>
-                  <span className="eb-display text-[17px] text-foreground">
-                    Event Buddies
-                  </span>
+                  <span className="eb-display text-[17px] text-foreground">Event Buddies</span>
                 </a>
               ) : (
                 <a
@@ -516,7 +516,17 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
                   )}
                 </button>
               )}
-              {selecting && <Button variant="ghost" size="icon" aria-label="Event updates" className="size-11 rounded-full" onClick={() => setSheet({ kind: "updates" })}><Bell size={20} aria-hidden /></Button>}
+              {selecting && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Event updates"
+                  className="size-11 rounded-full"
+                  onClick={() => setSheet({ kind: "updates" })}
+                >
+                  <Bell size={20} aria-hidden />
+                </Button>
+              )}
               <button
                 type="button"
                 aria-label="Open your profile"

@@ -65,40 +65,40 @@ function ResetPassword() {
   }
   return (
     <div data-app-scope="global" className="min-h-dvh bg-background text-foreground">
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-8">
-      <h1 className="eb-page-title">Reset password</h1>
-      {recovery ? (
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <label className="text-[15px] font-semibold">
-            New password
-            <input
-              className="eb-field mt-2"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          <Button disabled={busy} className="min-h-12 rounded-full">
-            {busy ? "Updating password…" : "Save new password"}
-          </Button>
-        </form>
-      ) : (
-        <p role="status">
-          Open the password reset link from your email. If it expired, request another.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
-      )}
-      <Button variant="outline" onClick={() => void navigate({ href: "/login?mode=in" })}>
-        Back to sign in
-      </Button>
-    </main>
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-8">
+        <h1 className="eb-page-title">Reset password</h1>
+        {recovery ? (
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <label className="text-[15px] font-semibold">
+              New password
+              <input
+                className="eb-field mt-2"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <Button disabled={busy} className="min-h-12 rounded-full">
+              {busy ? "Updating password…" : "Save new password"}
+            </Button>
+          </form>
+        ) : (
+          <p role="status">
+            Open the password reset link from your email. If it expired, request another.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        )}
+        <Button variant="outline" onClick={() => void navigate({ href: "/login?mode=in" })}>
+          Back to sign in
+        </Button>
+      </main>
     </div>
   );
 }
