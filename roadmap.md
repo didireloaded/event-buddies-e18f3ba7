@@ -1,8 +1,8 @@
 # Event Buddies upgrade
 
-## Namibian listing previews
-- [x] Add six explicitly fictional category samples, separated from published events and account data.
-- [x] Verify mobile filtering and preview details: six samples, one conference match, labelled detail sheet, no runtime errors; discovery tests and changed-file lint pass.
+## Real Namibian listings
+- [x] Replace fictional samples with organizer-verified Campout Dune Fest and Soulection Coastal Edition listings.
+- [x] Source-fact and discovery tests pass (5); mobile real listings and Soulection details verified with official link and no runtime errors; changed-file lint passes.
 
 ## Current scope: Phase 1 — restrained Welcome, Auth and Discover
 - [x] Dark scoped global surfaces, photographic welcome, accessible interest selection and Discover presentation.

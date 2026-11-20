@@ -1,6 +1,34 @@
 import type { DemoData } from "./types";
 import type { BaseDemoData } from "./demo-data";
 
+// Organizer-published discovery facts; no companion or timetable is implied.
+export const NAMIBIAN_EVENT_LISTINGS = [
+  {
+    id: "campout-2026",
+    name: "Campout Dune Fest 2026",
+    category: "Music",
+    city: "Swakopmund coast",
+    venue: "Seukelduine, Dorob National Park",
+    date: "31 Dec 2026 – 1 Jan 2027",
+    organiser: "Namib Rage Events",
+    url: "https://namibrage.com/festivals/campout",
+    note: "Gates from 12:00 on 31 December. 18+ with valid ID. Final closing and music times are not announced.",
+    checkedAt: "2026-11-20",
+  },
+  {
+    id: "soulection-coastal-2026",
+    name: "Soulection Coastal Edition",
+    category: "Music",
+    city: "Swakopmund",
+    venue: "Tamariskia Sports Field",
+    date: "27 December 2026",
+    organiser: "Groovetainment",
+    url: "https://groovetainment.com/",
+    note: "R&B, old school and deep house. Event hours and artist set times are not listed on the organizer’s announcement.",
+    checkedAt: "2026-11-20",
+  },
+] as const;
+
 export const SOUND_OF_SUMMER = {
   officialUrl: "https://namibrage.com/festivals/sound-of-summer",
   ticketUrl: "https://namibrage.howler.co.za/events/sound-of-summer-2026-8a50",

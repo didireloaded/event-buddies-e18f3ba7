@@ -49,7 +49,7 @@ import { Sheet } from "./Sheet";
 import { Button } from "@/components/ui/button";
 import { isPrivateEvent, matchesEventSearch, prioritiseInterests } from "@/lib/account/discovery";
 import { Avatar, EmptyState, PrimaryButton, Segmented, SearchField } from "./ui";
-import { NamibianEventPreviews } from "./NamibianEventPreviews";
+import { NamibianEventListings } from "./NamibianEventListings";
 
 function toLocalNoonDate(d: Date, tz: string): Date {
   return new Date(
@@ -754,7 +754,7 @@ export function EventSelection() {
       )}
 
       {/* Complete Event Detail Preview Sheet */}
-      {mode === "browse" && <NamibianEventPreviews category={categoryFilter} query={query} />}
+      {mode === "browse" && <NamibianEventListings category={categoryFilter} query={query} />}
       {activePreview && (
         <Sheet title={activePreview.event.name} onClose={() => setPreviewEvent(null)}>
           <div className="event-preview-facts space-y-5">
