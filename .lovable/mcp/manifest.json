@@ -11,9 +11,9 @@
   },
   "mcp": {
     "server": {
-      "name": "festival-map-meetup-buddies",
-      "version": "0.1.0",
-      "title": "Festival Map Meetup Buddies"
+      "name": "event-buddies",
+      "version": "0.2.0",
+      "title": "Event Buddies"
     },
     "tools": [
       {
