@@ -57,3 +57,4 @@ use the editor.
 - Platform onboarding preferences are global and separate from event personalisation; account entry defaults to Discover while sanitized explicit event, crew and OAuth return paths survive. Why: signing in must not select a demo event or lose an invite.
 - Scope consumer theme overrides to `[data-app-scope="global"]`; event template variables remain authoritative inside events. Why: global visual updates must not restyle conferences, maps or the ticket gate viewer.
 - Keep signup validation and discovery filtering in browser-safe account helpers with focused tests. Why: all discovery paths must apply the same search and visibility rules without duplicating auth policy.
+- Keep fictional discovery samples separate from the event catalogue and label them preview-only; they cannot enter companions, calendars or ticket flows. Why: visual comparison must not imply a published event.

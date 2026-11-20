@@ -1,5 +1,9 @@
 # Event Buddies upgrade
 
+## Namibian listing previews
+- [x] Add six explicitly fictional category samples, separated from published events and account data.
+- [x] Verify mobile filtering and preview details: six samples, one conference match, labelled detail sheet, no runtime errors; discovery tests and changed-file lint pass.
+
 ## Current scope: Phase 1 — restrained Welcome, Auth and Discover
 - [x] Dark scoped global surfaces, photographic welcome, accessible interest selection and Discover presentation.
 - [x] Confirm-password validation, confirmation resend cooldown and preserved account return paths.
