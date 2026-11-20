@@ -82,9 +82,17 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-featured: var(--featured);
+  --color-photo-foreground: var(--photo-foreground);
+  --color-photo-muted: var(--photo-muted);
+  --color-photo-shade: var(--photo-shade);
 }
 
 :root {
+  --featured: #f25f4c;
+  --photo-foreground: #f7f7fa;
+  --photo-muted: #e2e4ea;
+  --photo-shade: #0c0e14;
   --radius: 0.75rem;
   --eb-display-font:
     "Avenir Next", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
@@ -176,6 +184,57 @@
 }
 
 /* Warm invitation stationery tint for light Social templates (Private Party, Wedding) */
+[data-app-scope="global"] {
+  --background: #0c0e14;
+  --card: #151822;
+  --foreground: #f7f7fa;
+  --card-foreground: var(--foreground);
+  --popover: #151822;
+  --popover-foreground: var(--foreground);
+  --primary: #19c4be;
+  --primary-foreground: #0c0e14;
+  --secondary: #1e2230;
+  --secondary-foreground: var(--foreground);
+  --muted: #1e2230;
+  --muted-foreground: #a3a8bc;
+  --tertiary-foreground: #a3a8bc;
+  --favorite: var(--primary);
+  --favorite-soft: #173637;
+  --fill: var(--secondary);
+  --border: #303544;
+  --separator: #282d3a;
+  --input: #394050;
+  --bar: var(--background);
+  --nav: var(--card);
+  --nav-foreground: var(--muted-foreground);
+  --ring: var(--primary);
+  --destructive: #ff9384;
+  color-scheme: dark;
+  background: var(--background);
+  color: var(--foreground);
+  letter-spacing: 0;
+}
+body:has([data-app-scope="global"]) { background: #0c0e14; }
+[data-app-scope="global"] .eb-display,
+[data-app-scope="global"] .eb-page-title,
+[data-app-scope="global"] .eb-section-heading,
+[data-app-scope="global"] .eb-kicker { letter-spacing: 0; }
+[data-app-scope="global"] .eb-page-title { font-size: 34px; line-height: 1.12; }
+[data-app-scope="global"] .eb-header { backdrop-filter: none; }
+.welcome-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.welcome-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--photo-shade) 40%, transparent), var(--photo-shade) 88%); }
+.interest-tile[data-selected="true"] { border-color: var(--primary); background: var(--favorite-soft); }
+.interest-tile:focus-within { outline: 2px solid var(--primary); outline-offset: 3px; }
+.discovery-cover { aspect-ratio: 4 / 3; min-height: 320px; }
+.discovery-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--photo-shade) 8%, transparent) 25%, var(--photo-shade)); pointer-events: none; }
+.discovery-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 65%); gap: 16px; overflow-x: auto; scroll-snap-type: x proximity; }
+.discovery-strip > * { scroll-snap-align: start; }
+@media (min-width: 768px) {
+  .discovery-cover { aspect-ratio: 16 / 8; }
+  .discovery-strip { grid-auto-columns: 280px; }
+  .welcome-photo { min-height: 85dvh; }
+}
+
 [data-layout-family="social"][data-surface-mode="light"] {
   --background: #faf5ee;
   --card: #fffcf8;

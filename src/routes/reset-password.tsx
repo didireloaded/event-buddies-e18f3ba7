@@ -64,6 +64,7 @@ function ResetPassword() {
     }
   }
   return (
+    <div data-app-scope="global" className="min-h-dvh bg-background text-foreground">
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-8">
       <h1 className="eb-page-title">Reset password</h1>
       {recovery ? (
@@ -98,5 +99,6 @@ function ResetPassword() {
         Back to sign in
       </Button>
     </main>
+    </div>
   );
 }

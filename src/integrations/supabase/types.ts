@@ -243,6 +243,7 @@ export type Database = {
       }
       organiser_events: {
         Row: {
+          bar_menus: Json
           created_at: string
           end_date: string | null
           entry_rules: string
@@ -250,6 +251,7 @@ export type Database = {
           extraction_missing: string[]
           gates_open: string
           id: string
+          map_calibration: Json | null
           name: string
           owner_id: string
           program: Json
@@ -259,11 +261,14 @@ export type Database = {
           source_pdf_path: string | null
           start_date: string | null
           status: string
+          template_config: Json | null
           updated_at: string
           venue: string
+          visibility: string
           zones: Json
         }
         Insert: {
+          bar_menus?: Json
           created_at?: string
           end_date?: string | null
           entry_rules?: string
@@ -271,6 +276,7 @@ export type Database = {
           extraction_missing?: string[]
           gates_open?: string
           id?: string
+          map_calibration?: Json | null
           name?: string
           owner_id: string
           program?: Json
@@ -280,11 +286,14 @@ export type Database = {
           source_pdf_path?: string | null
           start_date?: string | null
           status?: string
+          template_config?: Json | null
           updated_at?: string
           venue?: string
+          visibility?: string
           zones?: Json
         }
         Update: {
+          bar_menus?: Json
           created_at?: string
           end_date?: string | null
           entry_rules?: string
@@ -292,6 +301,7 @@ export type Database = {
           extraction_missing?: string[]
           gates_open?: string
           id?: string
+          map_calibration?: Json | null
           name?: string
           owner_id?: string
           program?: Json
@@ -301,8 +311,10 @@ export type Database = {
           source_pdf_path?: string | null
           start_date?: string | null
           status?: string
+          template_config?: Json | null
           updated_at?: string
           venue?: string
+          visibility?: string
           zones?: Json
         }
         Relationships: []
@@ -392,6 +404,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_published_events: { Args: never; Returns: Json }
       valid_attendee_selection: {
         Args: { p_artists: string[]; p_event_id: string; p_meeting: Json }
         Returns: boolean

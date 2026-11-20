@@ -392,7 +392,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
   const activeTab = view === "you" || view === "info" ? "home" : view;
   const message = attendee.message;
 
-  // Global views (Discover / Onboarding / Profile) stay on the Warm Editorial Paper brand identity;
+  // Global screens use scoped consumer tokens; event templates retain their own identity.
   // hosted event screens adopt the event's template layout family, surface mode, palette and font preset.
   const applyEventTheme = eventContent && view !== "you";
   const shellThemeStyle = useMemo(
@@ -422,7 +422,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
         data-app-scope={applyEventTheme ? "event" : "global"}
         data-layout-family={applyEventTheme ? templateConfig.layoutFamily : "global"}
         data-event-template={applyEventTheme ? templateConfig.templateId : "global"}
-        data-surface-mode={applyEventTheme ? templateConfig.surfaceMode : "light"}
+        data-surface-mode={applyEventTheme ? templateConfig.surfaceMode : "dark"}
         style={shellThemeStyle}
         className="companion-shell min-h-dvh bg-background text-foreground"
       >
@@ -452,11 +452,11 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
                 >
                   <span
                     aria-hidden
-                    className="grid size-7 place-items-center rounded-md bg-primary text-[13px] font-extrabold tracking-tight text-primary-foreground"
+                    className="grid size-7 place-items-center rounded-md bg-featured text-[13px] font-extrabold text-photo-shade"
                   >
                     EB
                   </span>
-                  <span className="eb-display text-[17px] tracking-tight text-foreground">
+                  <span className="eb-display text-[17px] text-foreground">
                     Event Buddies
                   </span>
                 </a>
@@ -516,6 +516,7 @@ function EventCompanionInner({ initialEventSlug }: { initialEventSlug?: string |
                   )}
                 </button>
               )}
+              {selecting && <Button variant="ghost" size="icon" aria-label="Event updates" className="size-11 rounded-full" onClick={() => setSheet({ kind: "updates" })}><Bell size={20} aria-hidden /></Button>}
               <button
                 type="button"
                 aria-label="Open your profile"

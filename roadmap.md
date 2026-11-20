@@ -1,6 +1,10 @@
 # Event Buddies upgrade
 
-## Current scope: authentication and first-time navigation
+## Current scope: Phase 1 — restrained Welcome, Auth and Discover
+- [ ] Dark scoped global surfaces, photographic welcome, accessible interest selection and Discover presentation.
+- [ ] Confirm-password validation, confirmation resend cooldown and preserved account return paths.
+- [ ] Audit hosted signup and apply only missing discovery columns/public-read exclusions.
+- [ ] Focused tests, rendered mobile/desktop checks and documentation; stop before Phase 2.
 - [x] Repair signup/sign-in/recovery/confirmation states; hosted email enabled, public signup allowed, confirmation required and Google enabled.
 - [x] Global multi-select interests, explicit account/guest choice, Discover handoff; preserve direct links and returning users.
 - [x] Focused tests and mobile guest/event-entry/error verification; report remaining live checks separately.

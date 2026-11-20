@@ -8,6 +8,13 @@
       "when": 1795001817511,
       "tag": "0000_organiser_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795135294054,
+      "tag": "0001_discovery_template_visibility",
+      "breakpoints": true
     }
   ]
 }

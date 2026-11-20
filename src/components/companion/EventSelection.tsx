@@ -8,7 +8,6 @@ import {
   Users,
   UserPlus,
   Trash2,
-  Compass,
   Ticket,
   Lock,
 } from "lucide-react";
@@ -47,6 +46,8 @@ import {
 } from "@/lib/account/platform-navigation";
 import { initials, useCompanion } from "./context";
 import { Sheet } from "./Sheet";
+import { Button } from "@/components/ui/button";
+import { isPrivateEvent, matchesEventSearch, prioritiseInterests } from "@/lib/account/discovery";
 import { Avatar, EmptyState, PrimaryButton, Segmented, SearchField } from "./ui";
 
 function toLocalNoonDate(d: Date, tz: string): Date {
@@ -69,11 +70,6 @@ function eventSpansDate(demo: DemoData, target: Date | undefined): boolean {
     `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}T12:00:00`,
   );
   return t >= start && t <= end;
-}
-
-function isPrivateEvent(demo: DemoData): boolean {
-  const vis = demo.event.visibility ?? demo.event.templateConfig?.visibility;
-  return vis === "private_invite";
 }
 
 export function EventSelection() {
@@ -162,18 +158,7 @@ export function EventSelection() {
   const categoryMatchesPrimary =
     categoryFilter === "All" || globalCategory(data.event.category) === categoryFilter;
 
-  const searchMatch = [
-    data.event.name,
-    data.event.venueName,
-    data.event.city,
-    data.event.category,
-    data.festival.organiser,
-    ...data.festival.artists.map((artist) => artist.name),
-    ...data.points.map((point) => point.name),
-  ]
-    .join(" ")
-    .toLocaleLowerCase()
-    .includes(query.trim().toLocaleLowerCase());
+  const searchMatch = matchesEventSearch(data, query);
 
   const date = formatEventDate(data.event, {
     day: "numeric",
@@ -236,23 +221,14 @@ export function EventSelection() {
       platform.interests.some((i) => i === globalCategory(demo.event.category)),
   );
   const promotePrimary = mode !== "browse" || primaryPreferred || !anotherPreferred;
-  const otherDemos = (mode === "mine" ? allPublishedDemos : publicDemos)
+  const otherDemos = prioritiseInterests((mode === "mine" ? allPublishedDemos : publicDemos)
     .filter((demo) => !promotePrimary || demo.event.id !== data.event.id)
     .filter((demo) => (mode === "mine" ? isDemoSavedLocally(demo) : true))
     .filter(
       (demo) => categoryFilter === "All" || globalCategory(demo.event.category) === categoryFilter,
     )
     .filter((demo) => (mode === "calendar" ? eventSpansDate(demo, selected) : true))
-    .filter((demo) =>
-      `${demo.event.name} ${demo.event.venueName} ${demo.event.city} ${demo.event.category}`
-        .toLowerCase()
-        .includes(query.trim().toLowerCase()),
-    )
-    .sort(
-      (a, b) =>
-        Number(platform.interests.some((i) => i === globalCategory(b.event.category))) -
-        Number(platform.interests.some((i) => i === globalCategory(a.event.category))),
-    );
+    .filter((demo) => matchesEventSearch(demo, query)), platform.interests);
 
   const isPrimarySaved =
     attendee.preferences.following ||
@@ -288,13 +264,10 @@ export function EventSelection() {
 
   return (
     <div className="event-discovery px-4 pt-4">
-      {/* Global Event Buddies Masthead — deliberately distinct warm editorial paper identity */}
+      {/* Global discovery; event-specific template styling begins only after entry. */}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eb-kicker flex items-center gap-1.5 text-primary">
-            <Compass size={13} aria-hidden />
-            {data.event.city}, {data.event.country}
-          </p>
+          <p className="eb-kicker text-primary">Your next experience</p>
           <h1 className="eb-page-title mt-1">
             {mode === "mine"
               ? "My Events"
@@ -302,7 +275,7 @@ export function EventSelection() {
                 ? "Buddies"
                 : mode === "calendar"
                   ? "Calendar"
-                  : "Discover"}
+                  : attendee.preferences.hasName ? `Hey ${attendee.preferences.profile.name.split(" ")[0]}` : "Discover events"}
           </h1>
         </div>
         {allTicketsCount > 0 && (
@@ -324,11 +297,6 @@ export function EventSelection() {
         >
           Create Account / Sign In
         </a>
-      )}
-      {platform.interests.length > 0 && (
-        <p className="mb-3 text-[14px] text-muted-foreground">
-          Your interests: {platform.interests.join(" · ")}
-        </p>
       )}
       {/* Global Platform 4-Section Switcher (Discover · My Events · Buddies · Calendar) */}
       <Segmented
@@ -490,7 +458,7 @@ export function EventSelection() {
                 aria-label="Filter events by category"
               >
                 {categories.map((cat) => (
-                  <button
+                  <Button
                     key={cat}
                     type="button"
                     className="eb-chip"
@@ -498,7 +466,7 @@ export function EventSelection() {
                     onClick={() => setCategoryFilter(cat)}
                   >
                     {cat}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -544,47 +512,38 @@ export function EventSelection() {
           </div>
 
           {primaryVisible ? (
-            <article className="overflow-hidden rounded-2xl border border-border bg-[#121417] text-white">
-              <button
-                type="button"
-                className="eb-press relative block w-full text-left"
-                onClick={() => setPreviewEvent(data)}
-                aria-label={`Preview ${data.event.name}`}
-              >
-                <div className="relative h-[320px] w-full overflow-hidden bg-gradient-to-br from-[#16232b] via-[#133842] to-[#0d1419] sm:h-[380px]">
+            <article className="relative overflow-hidden rounded-lg border border-border bg-card text-photo-foreground">
+                <div className="discovery-cover relative w-full overflow-hidden bg-secondary">
                   {data.event.heroImageUrl && (
                     <img
                       src={data.event.heroImageUrl}
-                      alt={`${data.event.name} crowd`}
+                      alt={`${data.event.name} past edition`}
                       width={1200}
                       height={800}
                       decoding="async"
                       className="h-full w-full object-cover"
                     />
                   )}
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 bg-gradient-to-t from-[#0d0f12] via-[#0d0f12]/45 to-black/20"
-                  />
-                  <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-black/70 px-3 py-1 text-[13px] font-semibold text-white">
+                  <div className="absolute left-4 top-4 z-10 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-photo-shade/80 px-3 py-1 text-[13px] font-semibold text-photo-foreground">
                       {date}
                     </span>
-                    <span className="rounded-full bg-primary px-3 py-1 text-[13px] font-semibold text-primary-foreground">
+                    <span className="rounded-full bg-featured px-3 py-1 text-[13px] font-semibold text-photo-shade">
                       {data.event.category}
                     </span>
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
-                    <p className="text-[13px] font-semibold uppercase tracking-wider text-white/75">
+                  <Button type="button" variant="ghost" size="icon" aria-label="Save event" aria-pressed={attendee.preferences.following} onClick={attendee.toggleFollow} className="absolute right-3 top-3 z-10 size-11 rounded-full bg-photo-shade/80 text-photo-foreground"><Heart size={20} fill={attendee.preferences.following ? "currentColor" : "none"} /></Button>
+                  <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-6">
+                    <p className="text-[13px] font-semibold text-photo-muted">
                       {data.festival.organiser}
                       {data.stages.length > 0
                         ? ` · ${data.stages.length} ${data.stages.length === 1 ? terms.placeSingular.toLowerCase() : terms.placesLabel.toLowerCase()}`
                         : ""}
                     </p>
-                    <h3 className="eb-display mt-1 text-[32px] leading-[1.02] text-white sm:text-[38px]">
+                    <h3 className="eb-display mt-1 text-[30px] leading-[1.08] text-photo-foreground sm:text-[38px]">
                       {data.event.name}
                     </h3>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-white/90">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-photo-muted">
                       <span className="inline-flex items-center gap-1.5">
                         <MapPin size={15} aria-hidden />
                         {data.event.venueName}
@@ -594,13 +553,9 @@ export function EventSelection() {
                         {hours}
                       </span>
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-3 text-[15px] font-semibold text-white">
-                      <span>View event details</span>
-                      <ArrowUpRight size={18} aria-hidden />
-                    </div>
+                    <Button className="mt-4 min-h-11 rounded-full" onClick={() => setPreviewEvent(data)} aria-label={`Preview ${data.event.name}`}>View Event <ArrowUpRight size={18} aria-hidden /></Button>
                   </div>
                 </div>
-              </button>
             </article>
           ) : otherDemos.length === 0 ? (
             <EmptyState
@@ -641,7 +596,7 @@ export function EventSelection() {
               <h2 className="eb-section-heading">
                 {mode === "mine" ? "Saved & invited" : "More upcoming events"}
               </h2>
-              <div className="eb-list">
+              <div className={mode === "browse" ? "discovery-strip pb-3" : "eb-list"}>
                 {otherDemos.map((demo) => {
                   const resolved = resolveEventTemplate({
                     category: demo.event.category,
@@ -651,7 +606,7 @@ export function EventSelection() {
                   return (
                     <div
                       key={demo.event.id}
-                      className="eb-row flex-wrap items-center justify-between gap-3 py-3.5"
+                      className={mode === "browse" ? "flex flex-col overflow-hidden rounded-lg border border-border bg-card p-4" : "eb-row flex-wrap items-center justify-between gap-3 py-3.5"}
                     >
                       <button
                         type="button"
@@ -903,7 +858,7 @@ export function EventSelection() {
                 }
               }}
             >
-              {activePreview.event.id === data.event.id && ended ? "View recap" : "I’m going"}
+              {activePreview.event.id === data.event.id && ended ? "View recap" : "Enter Event"}
             </PrimaryButton>
           </div>
         </Sheet>

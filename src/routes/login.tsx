@@ -12,6 +12,7 @@ import {
   usePlatformPreferences,
 } from "@/lib/account/platform-navigation";
 import { authErrorMessage } from "@/lib/account/auth-errors";
+import { CONFIRMATION_COOLDOWN_SECONDS, validateSignupPasswords } from "@/lib/account/signup-validation";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
@@ -47,6 +48,8 @@ export function Login() {
   const [mode, setMode] = useState<"in" | "up" | "forgot" | "pending">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -54,6 +57,11 @@ export function Login() {
   const [error, setError] = useState("");
   const passwordId = useId();
   const [providers, setProviders] = useState({ google: false, lovable: false });
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
   const resume = useCallback(() => {
     savePlatformPreferences({ ...preferences, completed: true });
     void navigate({ href: next, replace: true });
@@ -102,6 +110,11 @@ export function Login() {
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (mode === "up") {
+      const invalid = validateSignupPasswords(password, confirmation);
+      if (invalid) { setError(invalid); return; }
+    }
+    if (mode === "pending" && cooldown > 0) return;
     await request(async () => {
       const address = email.trim();
       if (mode === "forgot") {
@@ -122,10 +135,12 @@ export function Login() {
           },
         });
         if (error) setError(authErrorMessage(error));
-        else
+        else {
+          setCooldown(CONFIRMATION_COOLDOWN_SECONDS);
           setMessage(
             "Confirmation requested. Check your inbox and spam folder before requesting another.",
           );
+        }
       } else if (mode === "up") {
         const { data, error } = await supabase.auth.signUp({
           email: address,
@@ -140,6 +155,7 @@ export function Login() {
           if (verified.data.user) resume();
           else setError("Your account session couldn’t be verified. Try signing in.");
         } else {
+          setCooldown(CONFIRMATION_COOLDOWN_SECONDS);
           setMode("pending");
           setMessage("Check your email to confirm your account. You are not signed in yet.");
         }
@@ -173,8 +189,9 @@ export function Login() {
     setMessage("");
   }
   return (
+    <div data-app-scope="global" className="min-h-dvh bg-background text-foreground">
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-5 py-8">
-      <p className="eb-display text-[17px]">Event Buddies</p>
+      <a href="/#events" className="eb-display mb-5 flex min-h-11 items-center text-[20px]">Event Buddies<span className="text-primary">.</span></a>
       <h1 className="eb-page-title">
         {mode === "up"
           ? "Create account"
@@ -184,6 +201,9 @@ export function Login() {
               ? "Reset password"
               : "Confirm your email"}
       </h1>
+      <p className="text-[16px] text-muted-foreground">
+        {mode === "up" ? "A place for your events and your people." : mode === "in" ? "Welcome back. Pick up where you left off." : mode === "pending" ? `We sent a confirmation link to ${email || "your email"}.` : "We’ll email you a link to choose a new password."}
+      </p>
       {!auth.configured && (
         <p role="alert">
           Account connection is unavailable. You can still browse public events as a guest.
@@ -230,6 +250,12 @@ export function Login() {
             </div>
           </div>
         )}
+        {mode === "up" && (
+          <label className="space-y-2 text-[15px] font-semibold">
+            Confirm password
+            <input className="eb-field" type={visible ? "text" : "password"} required autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
+          </label>
+        )}
         {message && (
           <p role="status" className="text-[15px] text-muted-foreground">
             {message}
@@ -242,7 +268,7 @@ export function Login() {
         )}
         <Button
           type="submit"
-          disabled={busy || !auth.configured || auth.loading}
+          disabled={busy || !auth.configured || auth.loading || (mode === "pending" && cooldown > 0)}
           className="min-h-12 rounded-full"
         >
           {busy
@@ -253,7 +279,7 @@ export function Login() {
                 ? "Sign In"
                 : mode === "forgot"
                   ? "Send reset link"
-                  : "Resend confirmation"}
+                  : cooldown > 0 ? `Resend in ${cooldown}s` : "Resend confirmation"}
         </Button>
       </form>
       {mode === "in" && (
@@ -328,5 +354,6 @@ export function Login() {
         Continue as Guest
       </Button>
     </main>
+    </div>
   );
 }
