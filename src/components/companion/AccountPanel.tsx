@@ -46,7 +46,10 @@ export function AccountPanel() {
     }
   }
   return (
-    <section className="eb-panel mt-7 space-y-3 p-4" aria-labelledby="account-heading">
+    <section
+      className="mt-7 space-y-3 border-y border-separator py-4"
+      aria-labelledby="account-heading"
+    >
       <div className="flex items-center gap-3">
         <span
           aria-hidden

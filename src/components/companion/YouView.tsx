@@ -19,15 +19,10 @@ export function YouView() {
   const { preferences } = attendee;
   const terms = getEventCategoryTerms(data.event.category, data.event.templateConfig);
   const eventYear = data.event.dateConfirmed === false ? null : data.event.startAt.getFullYear();
-  const savedLabel =
-    preferences.savedArtists.length === 1
-      ? terms.personSingular.toLowerCase()
-      : terms.peopleLabel.toLowerCase();
-  const totalCheckpoints =
-    preferences.stamps.length + preferences.customStamps.filter((s) => s.checked).length;
 
   return (
-    <div className="px-4 pb-6 pt-4">
+    <div className="ios-profile px-4 pb-6 pt-4">
+      <h1 className="mb-5 text-[28px] font-bold leading-tight">Profile</h1>
       {/* Editorial Profile Header */}
       <button
         type="button"
@@ -45,15 +40,15 @@ export function YouView() {
           size="lg"
         />
         <span className="min-w-0 flex-1">
-          <span className="eb-page-title block break-words text-[28px]">
+          <span className="block break-words text-[20px] font-semibold leading-snug">
             {preferences.hasName
               ? preferences.profile.name
               : terms.isConferenceLike
-                ? "Your event name"
-                : "Your festival name"}
+                ? "Add your name"
+                : "Add your name"}
           </span>
           <span className="mt-1 block text-[14px] text-muted-foreground">
-            Edit name · {data.event.name}
+            {data.event.name}
             {eventYear ? ` · ${eventYear}` : " · Date TBC"}
           </span>
           {preferences.badges.length > 0 && (
@@ -64,25 +59,6 @@ export function YouView() {
         </span>
         <Chevron />
       </button>
-
-      {/* Personal Event History Metrics — Clean Typographic Strip */}
-      <div
-        className="grid grid-cols-3 border-b border-separator py-4"
-        aria-label={`My year in events · ${eventYear}`}
-      >
-        <div>
-          <p className="eb-display text-[26px] tabular-nums">{preferences.savedArtists.length}</p>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">Saved {savedLabel}</p>
-        </div>
-        <div className="border-l border-separator pl-4">
-          <p className="eb-display text-[26px] tabular-nums">{totalCheckpoints}</p>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">Passport</p>
-        </div>
-        <div className="border-l border-separator pl-4">
-          <p className="eb-display text-[26px] tabular-nums">{preferences.sharedPlans.length}</p>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">Crew plans</p>
-        </div>
-      </div>
 
       {(preferences.collections.length > 0 || preferences.followedOrganisers.length > 0) && (
         <div className="space-y-1 border-b border-separator py-3 text-[14px] text-muted-foreground">
@@ -102,19 +78,18 @@ export function YouView() {
       )}
 
       {/* Personal Collection: Tickets, Memories, Passport & Events */}
-      <Section title="Your passes & memories" id="you-saved">
+      <Section title="Saved" id="you-saved">
         <div className="eb-list">
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "ticket" })}>
             <IconTile icon={Ticket} />
             <RowText
               title={allTicketsCount > 0 ? `Your tickets · ${allTicketsCount}` : "Your tickets"}
-              subtitle="Ticket vault & offline gate card"
             />
             <Chevron />
           </button>
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "memories" })}>
             <IconTile icon={Camera} />
-            <RowText title="Photo diary" subtitle="Private memories & story cards" />
+            <RowText title="Photo diary" />
             <Chevron />
           </button>
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "passport" })}>
@@ -127,7 +102,7 @@ export function YouView() {
           </button>
           <a href="#events" aria-label="Switch event" className="eb-row">
             <IconTile icon={CalendarDays} />
-            <RowText title="Switch event" subtitle="Discover & My Events" />
+            <RowText title="Browse events" />
             <Chevron />
           </a>
         </div>
@@ -136,7 +111,7 @@ export function YouView() {
       {/* Operational Settings — Clearly Separated from Memories & History */}
       <AccountPanel />
 
-      <Section title="Preferences & settings" id="you-preferences">
+      <Section title="Settings" id="you-preferences">
         <div className="eb-list">
           <label className="eb-row">
             <IconTile icon={UserRound} />
@@ -161,12 +136,12 @@ export function YouView() {
           </label>
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "updates" })}>
             <IconTile icon={Bell} />
-            <RowText title="Event updates" subtitle="Official organiser announcements" />
+            <RowText title="Event updates" />
             <Chevron />
           </button>
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "privacy" })}>
             <IconTile icon={ShieldCheck} />
-            <RowText title="Location & saved data" subtitle="Pins, sharing & device storage" />
+            <RowText title="Privacy & storage" />
             <Chevron />
           </button>
           <button type="button" className="eb-row" onClick={() => openSheet({ kind: "offline" })}>

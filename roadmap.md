@@ -1,5 +1,9 @@
 # Event Buddies upgrade
 
+## Simpler iOS presentation
+- [x] Replace profile metrics with focused Saved and Settings rows; flatten account section and quiet Discover heading.
+- [x] Verify mobile profile, ticket access and Discover: 393px screenshot inspected, ticket sheet opens, no overflow or runtime errors; 8 focused tests and changed-file lint pass; harness build OK.
+
 ## Real Namibian listings
 - [x] Replace fictional samples with organizer-verified Campout Dune Fest and Soulection Coastal Edition listings.
 - [x] Source-fact and discovery tests pass (5); mobile real listings and Soulection details verified with official link and no runtime errors; changed-file lint passes.

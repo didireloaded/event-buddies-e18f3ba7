@@ -272,7 +272,6 @@ export function EventSelection() {
       {/* Global discovery; event-specific template styling begins only after entry. */}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eb-kicker text-primary">Your next experience</p>
           <h1 className="eb-page-title mt-1">
             {mode === "mine"
               ? "My Events"
@@ -282,7 +281,7 @@ export function EventSelection() {
                   ? "Calendar"
                   : attendee.preferences.hasName
                     ? `Hey ${attendee.preferences.profile.name.split(" ")[0]}`
-                    : "Discover events"}
+                    : "Discover"}
           </h1>
         </div>
         {allTicketsCount > 0 && (
@@ -302,7 +301,7 @@ export function EventSelection() {
           href="/login?mode=up&next=%2F%23events"
           className="inline-flex min-h-11 items-center text-[15px] font-semibold text-primary"
         >
-          Create Account / Sign In
+          Sign in / Create account
         </a>
       )}
       {/* Global Platform 4-Section Switcher (Discover · My Events · Buddies · Calendar) */}

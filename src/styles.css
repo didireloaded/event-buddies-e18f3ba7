@@ -361,15 +361,15 @@ body:has([data-app-scope="global"]) {
     font-family: var(--eb-display-font);
     font-weight: 800;
     font-style: normal;
-    letter-spacing: -0.032em;
+    letter-spacing: 0;
     line-height: 1.02;
   }
   .eb-page-title {
     font-family: var(--eb-display-font);
-    font-size: clamp(1.875rem, 5vw, 2.35rem);
+    font-size: 1.875rem;
     font-weight: 800;
     font-style: normal;
-    letter-spacing: -0.032em;
+    letter-spacing: 0;
     line-height: 1.05;
     color: var(--foreground);
   }
@@ -378,7 +378,7 @@ body:has([data-app-scope="global"]) {
     font-size: 1.1875rem;
     font-weight: 700;
     font-style: normal;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.2;
     color: var(--foreground);
   }
